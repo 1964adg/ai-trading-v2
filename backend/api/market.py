@@ -1,5 +1,6 @@
 """Market data API endpoints."""
 
+from binance.exceptions import BinanceAPIException
 from fastapi import APIRouter, HTTPException, Query
 
 from services.binance_service import binance_service
@@ -31,8 +32,9 @@ async def get_klines(
             limit=limit
         )
         return {"success": True, "data": data}
-    except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Error fetching klines: {str(e)}"
-        )
+    except BinanceAPIException as e:
+        raise HTTPException(status_code=400, detail=f"Invalid request: {e.message}")
+    except ConnectionError:
+        raise HTTPException(status_code=503, detail="Unable to connect to Binance API")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -12,7 +12,11 @@ class BinanceService:
     
     @property
     def client(self) -> Client:
-        """Lazy initialization of Binance client."""
+        """Lazy initialization of Binance client.
+        
+        Note: Empty credentials are used intentionally for public API access.
+        Binance public endpoints (like klines) don't require authentication.
+        """
         if self._client is None:
             self._client = Client("", "")
         return self._client
