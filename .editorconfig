@@ -1,0 +1,35 @@
+# EditorConfig - Encoding uniforme per tutti gli editor
+# https://editorconfig.org
+
+root = true
+
+# Default per tutti i file
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Python
+[*.py]
+indent_style = space
+indent_size = 4
+
+# JavaScript/TypeScript/React
+[*.{js,jsx,ts,tsx}]
+indent_style = space
+indent_size = 2
+
+# JSON
+[*.json]
+indent_style = space
+indent_size = 2
+
+# Markdown (mantieni trailing whitespace)
+[*.md]
+trim_trailing_whitespace = false
+
+# YAML
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
