@@ -3,6 +3,9 @@ import { KlineData, ChartDataPoint, ApiResponse, Timeframe } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+/**
+ * Fetch klines data from backend API
+ */
 export async function fetchKlines(
   symbol: string,
   interval: Timeframe,
@@ -10,7 +13,7 @@ export async function fetchKlines(
 ): Promise<ApiResponse<KlineData[]>> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/klines/${symbol}/${interval}?limit=${limit}`
+      `${API_BASE_URL}/api/klines/${symbol}/${interval}? limit=${limit}`
     );
 
     if (!response.ok) {
@@ -18,11 +21,9 @@ export async function fetchKlines(
     }
 
     const data = await response.json();
-    return {
-      success: true,
-      data: data.data || data,
-    };
+    return data;
   } catch (error) {
+    console.error('Error fetching klines:', error);
     return {
       success: false,
       data: [],
@@ -31,15 +32,18 @@ export async function fetchKlines(
   }
 }
 
+/**
+ * Transform KlineData from backend to ChartDataPoint for lightweight-charts
+ */
 export function transformKlinesToChartData(klines: KlineData[]): ChartDataPoint[] {
   return klines
     .map((kline) => ({
-      time: Math.floor(kline.timestamp / 1000) as Time,
-      open: kline.open,
+      time: Math.floor(kline. timestamp / 1000) as Time,
+      open: kline. open,
       high: kline.high,
       low: kline.low,
       close: kline.close,
       volume: kline.volume,
     }))
-    .filter(point => ! isNaN(point.time) && !isNaN(point. open));
+    .filter(point => ! isNaN(Number(point.time)) && !isNaN(point.open));
 }
