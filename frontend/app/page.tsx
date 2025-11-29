@@ -23,11 +23,11 @@ export default function Dashboard() {
     }
   );
 
-  const chartData = data?. success && data. data. length > 0
+  const chartData = data?.success && data.data.length > 0
     ? transformKlinesToChartData(data.data)
     : [];
 
-  const currentPrice = chartData.length > 0 ?  chartData[chartData.length - 1].close : 0;
+  const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
 
   if (error) {
     return (
