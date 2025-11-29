@@ -14,11 +14,7 @@ class BinanceService:
     @classmethod
     def get_client(cls) -> Client:
         """
-        Lazy initialization of Binance client.
-        Client is created only on first API request.
-        
-        Note: Empty credentials for public API access (klines don't require auth).
-        """
+        Lazy initialization of Binance client.\n        Client is created only on first API request.\n        Note: Empty credentials for public API access (klines don't require auth).\n        """
         if cls._client is None:
             print("[INFO] Initializing Binance API client...")
             try:
@@ -37,9 +33,7 @@ class BinanceService:
     @classmethod
     def get_klines_data(cls, symbol: str, interval: str, limit: int = 500) -> list:
         """
-        Fetch klines (candlestick) data from Binance. 
-
-        Args:
+        Fetch klines (candlestick) data from Binance.\n        Args:
             symbol: Trading pair (e.g., BTCEUR)
             interval: Kline interval (e.g., 15m, 1h, 4h)
             limit: Number of klines (default: 500, max: 1000)
@@ -76,9 +70,7 @@ class BinanceService:
     @classmethod
     async def stream_klines(cls, symbol: str, interval: str):
         """
-        Stream live klines from Binance WebSocket with SSL context fix.
-        
-        Args:
+        Stream live klines from Binance WebSocket with SSL context fix.\n        Args:
             symbol: Trading pair (e.g., BTCEUR)
             interval: Timeframe (e.g., 1m, 5m, 15m, 1h, 1d)
             
