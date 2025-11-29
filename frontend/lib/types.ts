@@ -15,13 +15,13 @@ export type Timeframe =
   | '3d'   // 3 giorni
   | '1w';  // 1 settimana
 
-export interface ChartDataPoint {
-  time: Time;
+export interface KlineData {
+  timestamp: number;
   open: number;
   high: number;
   low: number;
   close: number;
-  volume?: number;
+  volume: number;
 }
 
 export interface KlineData {

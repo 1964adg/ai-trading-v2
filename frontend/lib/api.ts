@@ -32,12 +32,14 @@ export async function fetchKlines(
 }
 
 export function transformKlinesToChartData(klines: KlineData[]): ChartDataPoint[] {
-  return klines.map((kline) => ({
-    time: Math.floor(kline.openTime / 1000) as Time,
-    open: parseFloat(kline.open),
-    high: parseFloat(kline.high),
-    low: parseFloat(kline.low),
-    close: parseFloat(kline.close),
-    volume: parseFloat(kline.volume),
-  }));
+  return klines
+    .map((kline) => ({
+      time: Math.floor(kline.timestamp / 1000) as Time,
+      open: kline.open,
+      high: kline.high,
+      low: kline.low,
+      close: kline.close,
+      volume: kline.volume,
+    }))
+    .filter(point => ! isNaN(point.time) && !isNaN(point. open));
 }
