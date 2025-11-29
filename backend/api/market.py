@@ -15,9 +15,7 @@ async def get_klines(
     limit: int = Query(default=500, ge=1, le=1000)
 ):
     """
-    Get klines (candlestick) data for a trading pair. 
-    
-    Args:
+    Get klines (candlestick) data for a trading pair.\n    Args:
         symbol: Trading pair symbol (e.g., BTCEUR)
         interval: Kline interval (e.g., 15m, 1h, 4h, 1d)
         limit: Number of klines to return (1-1000, default: 500)
