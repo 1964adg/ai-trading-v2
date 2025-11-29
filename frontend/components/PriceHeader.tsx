@@ -1,6 +1,6 @@
 'use client';
 
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, formatNumber } from '@/lib/formatters';
 
 interface PriceHeaderProps {
   symbol: string;
@@ -23,7 +23,7 @@ export default function PriceHeader({ symbol, price, priceChange }: PriceHeaderP
         </div>
         {priceChange !== undefined && (
           <div className={`text-sm font-medium ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-            {isPositive ? '+' : '-'}{formatCurrency(Math.abs(priceChange)).replace(' EUR', '')}%
+            {isPositive ? '+' : '-'}{formatNumber(Math.abs(priceChange))}%
           </div>
         )}
       </div>

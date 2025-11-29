@@ -99,12 +99,10 @@ export default function TradingChart({ data, symbol, timeframe = '15m', onTimefr
 
       tooltipRef.current.style.display = 'block';
       tooltipRef.current.innerHTML = `
-        <div class="chart-tooltip">
-          <div><strong>O:</strong> ${formatCurrency(ohlcData.open)}</div>
-          <div><strong>H:</strong> ${formatCurrency(ohlcData.high)}</div>
-          <div><strong>L:</strong> ${formatCurrency(ohlcData.low)}</div>
-          <div><strong>C:</strong> ${formatCurrency(ohlcData.close)}</div>
-        </div>
+        <div><strong>O:</strong> ${formatCurrency(ohlcData.open)}</div>
+        <div><strong>H:</strong> ${formatCurrency(ohlcData.high)}</div>
+        <div><strong>L:</strong> ${formatCurrency(ohlcData.low)}</div>
+        <div><strong>C:</strong> ${formatCurrency(ohlcData.close)}</div>
       `;
 
       const containerRect = chartContainerRef.current?.getBoundingClientRect();
@@ -164,16 +162,10 @@ export default function TradingChart({ data, symbol, timeframe = '15m', onTimefr
         <div ref={chartContainerRef} className="rounded-lg border border-gray-700" />
         <div
           ref={tooltipRef}
-          className="absolute hidden bg-gray-900 border border-gray-700 rounded p-2 text-xs text-white pointer-events-none z-10"
+          className="absolute bg-gray-900 border border-gray-700 rounded p-2 text-xs text-white pointer-events-none z-10 font-mono leading-relaxed"
           style={{ display: 'none' }}
         />
       </div>
-      <style jsx>{`
-        .chart-tooltip {
-          font-family: monospace;
-          line-height: 1.4;
-        }
-      `}</style>
     </div>
   );
 }
