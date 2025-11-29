@@ -104,14 +104,20 @@ export default function TradingChart({
             lastValueVisible: true,
           });
 
-          const emaValues = emaData[period]
+                   const emaValues = emaData[period]
             .map((value, i) => ({
-              time: data[i]. time,
-              value: value ??  undefined,
+              time: data[i].time,
+              value: value ?? undefined,
             }))
-            . filter(point => point.value !== undefined) as any[];
+            .filter(point =>
+              point.value !== undefined &&
+              point. time !== undefined &&
+              ! isNaN(Number(point. time))
+            ) as any[];
 
-          emaSeries.setData(emaValues);
+          if (emaValues.length > 0) {
+            emaSeries.setData(emaValues);
+          }
           emaSeriesRefs.current. push(emaSeries);
         }
       });
@@ -182,14 +188,20 @@ export default function TradingChart({
 
         emaSeriesRefs.current. forEach((emaSeries, index) => {
           const period = emaPeriods[index];
-          const emaValues = emaData[period]
+                    const emaValues = emaData[period]
             .map((value, i) => ({
               time: data[i].time,
               value: value ?? undefined,
             }))
-            .filter(point => point.value !== undefined) as any[];
+            .filter(point =>
+              point.value !== undefined &&
+              point.time !== undefined &&
+              !isNaN(Number(point.time))
+            ) as any[];
 
-          emaSeries.setData(emaValues);
+          if (emaValues.length > 0) {
+            emaSeries. setData(emaValues);
+          }
         });
       }
     }
