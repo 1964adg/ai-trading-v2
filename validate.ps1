@@ -46,7 +46,7 @@ $pythonFiles = Get-ChildItem backend -Recurse -Filter *.py -Exclude __pycache__
 $spaceIssues = 0
 
 foreach ($f in $pythonFiles) {
-    $content = Get-Content $f. FullName -Raw
+    $content = Get-Content $f.FullName -Raw
     
     # Cerca pattern: "word.   word" o "word  ." (doppio spazio attorno al punto)
     if ($content -match '\w\.   +\w|  +\. ') {
