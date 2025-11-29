@@ -10,7 +10,7 @@ export async function fetchKlines(
 ): Promise<ApiResponse<KlineData[]>> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/klines/${symbol}?interval=${interval}&limit=${limit}`
+      `${API_BASE_URL}/api/klines/${symbol}/${interval}?limit=${limit}`
     );
 
     if (!response.ok) {
