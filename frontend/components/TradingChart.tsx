@@ -4,20 +4,31 @@ import { useEffect, useRef, useState } from 'react';
 import { createChart, IChartApi, ISeriesApi, CrosshairMode } from 'lightweight-charts';
 import { ChartDataPoint, Timeframe } from '@/lib/types';
 import { formatCurrency, formatNumber } from '@/lib/formatters';
+import { calculateMultipleEMA } from '@/lib/indicators';
 
 interface TradingChartProps {
   data: ChartDataPoint[];
   symbol: string;
   timeframe?: Timeframe;
   onTimeframeChange?: (timeframe: Timeframe) => void;
+  emaPeriods?: [number, number, number, number];
+  emaEnabled?: [boolean, boolean, boolean, boolean];
 }
 
 const TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w'];
 
-export default function TradingChart({ data, symbol, timeframe = '15m', onTimeframeChange }: TradingChartProps) {
+export default function TradingChart({
+  data,
+  symbol,
+  timeframe = '15m',
+  onTimeframeChange,
+  emaPeriods = [9, 21, 50, 200],
+  emaEnabled = [true, true, true, true]
+}: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const emaSeriesRefs = useRef<ISeriesApi<'Line'>[]>([]);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>(timeframe);
 
@@ -32,7 +43,7 @@ export default function TradingChart({ data, symbol, timeframe = '15m', onTimefr
     if (!chartContainerRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
+      width: chartContainerRef. current.clientWidth,
       height: 600,
       layout: {
         background: { color: '#1a1a1a' },
@@ -75,23 +86,54 @@ export default function TradingChart({ data, symbol, timeframe = '15m', onTimefr
     chartRef.current = chart;
     seriesRef.current = candlestickSeries;
 
+    // EMA Series
+    const emaColors = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
+    emaSeriesRefs.current = [];
+
+    if (data.length > 0) {
+      const closePrices = data.map(d => d.close);
+      const emaData = calculateMultipleEMA(closePrices, emaPeriods);
+
+      emaPeriods.forEach((period, index) => {
+        if (emaEnabled[index]) {
+          const emaSeries = chart.addLineSeries({
+            color: emaColors[index],
+            lineWidth: 2,
+            title: `EMA ${period}`,
+            priceLineVisible: false,
+            lastValueVisible: true,
+          });
+
+          const emaValues = emaData[period]
+            .map((value, i) => ({
+              time: data[i]. time,
+              value: value ??  undefined,
+            }))
+            . filter(point => point.value !== undefined) as any[];
+
+          emaSeries.setData(emaValues);
+          emaSeriesRefs.current. push(emaSeries);
+        }
+      });
+    }
+
     // Tooltip handling
     chart.subscribeCrosshairMove((param) => {
-      if (!tooltipRef.current) return;
+      if (! tooltipRef.current) return;
 
       if (
         param.point === undefined ||
-        !param.time ||
+        ! param.time ||
         param.point.x < 0 ||
-        param.point.y < 0
+        param. point.y < 0
       ) {
         tooltipRef.current.style.display = 'none';
         return;
       }
 
       const data = param.seriesData.get(candlestickSeries);
-      if (!data || !('open' in data)) {
-        tooltipRef.current.style.display = 'none';
+      if (!data || ! ('open' in data)) {
+        tooltipRef.current. style.display = 'none';
         return;
       }
 
@@ -100,12 +142,12 @@ export default function TradingChart({ data, symbol, timeframe = '15m', onTimefr
       tooltipRef.current.style.display = 'block';
       tooltipRef.current.innerHTML = `
         <div><strong>O:</strong> ${formatCurrency(ohlcData.open)}</div>
-        <div><strong>H:</strong> ${formatCurrency(ohlcData.high)}</div>
+        <div><strong>H:</strong> ${formatCurrency(ohlcData. high)}</div>
         <div><strong>L:</strong> ${formatCurrency(ohlcData.low)}</div>
         <div><strong>C:</strong> ${formatCurrency(ohlcData.close)}</div>
       `;
 
-      const containerRect = chartContainerRef.current?.getBoundingClientRect();
+      const containerRect = chartContainerRef.current?. getBoundingClientRect();
       if (containerRect) {
         tooltipRef.current.style.left = `${param.point.x + 15}px`;
         tooltipRef.current.style.top = `${param.point.y + 15}px`;
@@ -124,21 +166,40 @@ export default function TradingChart({ data, symbol, timeframe = '15m', onTimefr
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      emaSeriesRefs.current = [];
       chart.remove();
     };
-  }, []);
+  }, [emaPeriods, emaEnabled]);
 
   useEffect(() => {
     if (seriesRef.current && data.length > 0) {
-      seriesRef.current.setData(data);
+      seriesRef.current. setData(data);
+
+      // Aggiorna EMA
+      if (emaSeriesRefs. current.length > 0 && chartRef.current) {
+        const closePrices = data.map(d => d.close);
+        const emaData = calculateMultipleEMA(closePrices, emaPeriods);
+
+        emaSeriesRefs.current. forEach((emaSeries, index) => {
+          const period = emaPeriods[index];
+          const emaValues = emaData[period]
+            .map((value, i) => ({
+              time: data[i].time,
+              value: value ?? undefined,
+            }))
+            .filter(point => point.value !== undefined) as any[];
+
+          emaSeries.setData(emaValues);
+        });
+      }
     }
-  }, [data]);
+  }, [data, emaPeriods, emaEnabled]);
 
   return (
     <div className="w-full">
       <div className="mb-4 flex items-center justify-between">
         <div className="text-sm text-gray-400">
-          {symbol} - {data.length} candles
+          {symbol} - {data. length} candles
         </div>
         {onTimeframeChange && (
           <div className="flex gap-1 flex-wrap">
