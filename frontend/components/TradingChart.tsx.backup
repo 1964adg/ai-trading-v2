@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, UTCTimestamp } from 'lightweight-charts';
 import useSWR from 'swr';
 import { fetchKlines } from '@/lib/api';
 import type { Timeframe } from '@/lib/types';
@@ -14,7 +14,6 @@ interface TradingChartProps {
 export default function TradingChart({ symbol, timeframe }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null); // ← NUOVO: Mantieni riferimento serie
 
   const { data, error } = useSWR(
     `klines-${symbol}-${timeframe}`,
@@ -22,7 +21,6 @@ export default function TradingChart({ symbol, timeframe }: TradingChartProps) {
     { refreshInterval: 10000 }
   );
 
-  // ✅ Effect 1: Crea chart UNA VOLTA (non dipende da data)
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
@@ -35,25 +33,14 @@ export default function TradingChart({ symbol, timeframe }: TradingChartProps) {
         vertLines: { color: '#2a2a2a' },
         horzLines: { color: '#2a2a2a' },
       },
-      width: chartContainerRef.current. clientWidth,
+      width: chartContainerRef.current.clientWidth,
       height: 600,
     });
 
     chartRef.current = chart;
 
-    // Crea serie UNA VOLTA
-    const candlestickSeries = chart.addCandlestickSeries({
-      upColor: '#10b981',
-      downColor: '#ef4444',
-      borderVisible: false,
-      wickUpColor: '#10b981',
-      wickDownColor: '#ef4444',
-    });
-
-    seriesRef.current = candlestickSeries;
-
     const handleResize = () => {
-      if (chartContainerRef. current && chartRef.current) {
+      if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
           width: chartContainerRef.current.clientWidth,
         });
@@ -66,36 +53,36 @@ export default function TradingChart({ symbol, timeframe }: TradingChartProps) {
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, []); // ← VUOTO: crea solo al mount
+  }, []);
 
-  // ✅ Effect 2: Aggiorna SOLO dati quando cambiano (preserva zoom)
   useEffect(() => {
-    if (!seriesRef.current || !data) return;
+    if (!chartRef.current || !data) return;
+
+    const candlestickSeries = chartRef.current.addCandlestickSeries({
+      upColor: '#10b981',
+      downColor: '#ef4444',
+      borderVisible: false,
+      wickUpColor: '#10b981',
+      wickDownColor: '#ef4444',
+    });
 
     const formattedData = data.map((kline) => ({
-      time: (kline.timestamp / 1000) as any,
-      open: kline. open,
+      time: (kline.timestamp / 1000) as UTCTimestamp,
+      open: kline.open,
       high: kline.high,
       low: kline.low,
       close: kline.close,
     }));
 
-    // ✅ Usa setData invece di ricreare serie
-    seriesRef.current. setData(formattedData);
-
-    // ✅ fitContent solo se è il PRIMO caricamento (non ad ogni refresh)
-    // Puoi rimuovere fitContent per preservare zoom anche al primo load
-    // chartRef.current?.timeScale().fitContent();
-
-  }, [data]); // ← Dipende solo da data
-
-  // ✅ Effect 3: Ricrea serie quando cambia timeframe
-  useEffect(() => {
-    if (!chartRef.current || !seriesRef.current) return;
-
-    // Quando cambia timeframe, fai fitContent per mostrare tutto
+    candlestickSeries.setData(formattedData);
     chartRef.current.timeScale().fitContent();
-  }, [timeframe]);
+
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.removeSeries(candlestickSeries);
+      }
+    };
+  }, [data]);
 
   return (
     <div className="bg-gray-800 rounded-lg p-6">
@@ -107,8 +94,8 @@ export default function TradingChart({ symbol, timeframe }: TradingChartProps) {
           Error loading chart data: {error.message}
         </div>
       )}
-      {! error && !data && (
-        <div className="text-gray-400 p-4">Loading chart... </div>
+      {!error && !data && (
+        <div className="text-gray-400 p-4">Loading chart...</div>
       )}
       <div ref={chartContainerRef} className="w-full" />
     </div>
