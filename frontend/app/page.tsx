@@ -1,21 +1,64 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import useSWR from 'swr';
 import TradingChart from '@/components/TradingChart';
 import TimeframeSelector from '@/components/TimeframeSelector';
 import PriceHeader from '@/components/PriceHeader';
+import LiveIndicator from '@/components/LiveIndicator';
+import { useWebSocket } from '@/hooks/useWebSocket';
 import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
-import { Timeframe } from '@/lib/types';
+import { Timeframe, ChartDataPoint } from '@/lib/types';
 
 const SYMBOL = 'BTCEUR';
-const DEFAULT_TIMEFRAME: Timeframe = '15m';
+const DEFAULT_TIMEFRAME: Timeframe = '1m';
 
 export default function Dashboard() {
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   // EMA Configuration
   const [emaPeriods, setEmaPeriods] = useState<[number, number, number, number]>([9, 21, 50, 200]);
   const [emaEnabled, setEmaEnabled] = useState<[boolean, boolean, boolean, boolean]>([true, true, true, true]);
+
+  // WebSocket real-time updates
+  const handleWebSocketMessage = useCallback((data: unknown) => {
+    if (
+      data &&
+      typeof data === 'object' &&
+      'timestamp' in data &&
+      'open' in data &&
+      'high' in data &&
+      'low' in data &&
+      'close' in data
+    ) {
+      const klineData = data as { timestamp: number; open: number; high: number; low: number; close: number };
+      const newPoint: ChartDataPoint = {
+        time: Math.floor(klineData.timestamp / 1000) as ChartDataPoint['time'],
+        open: klineData.open,
+        high: klineData.high,
+        low: klineData.low,
+        close: klineData.close,
+      };
+
+      setChartData((prev) => {
+        if (prev.length === 0) return [newPoint];
+        const lastPoint = prev[prev.length - 1];
+        // Update last candle if same time, otherwise add new
+        if (lastPoint.time === newPoint.time) {
+          return [...prev.slice(0, -1), newPoint];
+        }
+        return [...prev, newPoint];
+      });
+    }
+  }, []);
+
+  const { isConnected, lastUpdate } = useWebSocket({
+    symbol: SYMBOL,
+    interval: timeframe,
+    onMessage: handleWebSocketMessage,
+    enabled: true,
+  });
+
   const { data, error, isLoading } = useSWR(
     `/api/klines/${SYMBOL}/${timeframe}`,
     () => fetchKlines(SYMBOL, timeframe, 500),
@@ -25,9 +68,26 @@ export default function Dashboard() {
     }
   );
 
-  const chartData = data?.success && data.data.length > 0
-    ? transformKlinesToChartData(data.data)
-    : [];
+  // Initialize chartData from SWR response (only on initial load or timeframe change)
+  useEffect(() => {
+    if (data?.success && data.data.length > 0) {
+      // Only set from API if we don't have data or timeframe changed
+      setChartData((prev) => {
+        if (prev.length === 0) {
+          return transformKlinesToChartData(data.data);
+        }
+        // If we have WebSocket data, merge with API data
+        const apiData = transformKlinesToChartData(data.data);
+        // Keep API historical data but preserve last point if newer from WebSocket
+        const lastApiTime = apiData.length > 0 ? apiData[apiData.length - 1].time : 0;
+        const lastPrevTime = prev.length > 0 ? prev[prev.length - 1].time : 0;
+        if (lastPrevTime > lastApiTime) {
+          return [...apiData.slice(0, -1), prev[prev.length - 1]];
+        }
+        return apiData;
+      });
+    }
+  }, [data]);
 
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
 
@@ -57,7 +117,10 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-black p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <PriceHeader symbol={SYMBOL} price={currentPrice} />
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <PriceHeader symbol={SYMBOL} price={currentPrice} />
+          <LiveIndicator isConnected={isConnected} lastUpdate={lastUpdate} />
+        </div>
 
         <TimeframeSelector selected={timeframe} onSelect={setTimeframe} />
 
