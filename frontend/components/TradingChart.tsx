@@ -180,8 +180,11 @@ export default function TradingChart({
 
   useEffect(() => {
     if (seriesRef.current && data.length > 0) {
+      // Capture the initial load state before modifying
+      const isFirstLoad = isInitialLoad.current;
+      
       // ✅ PRIMO CARICAMENTO: setData completo (500 candele)
-      if (isInitialLoad.current) {
+      if (isFirstLoad) {
         seriesRef.current.setData(data);
         isInitialLoad.current = false;
       } else {
@@ -210,7 +213,7 @@ export default function TradingChart({
 
           if (emaValues.length > 0) {
             // ✅ EMA: stesso approccio incrementale
-            if (isInitialLoad.current) {
+            if (isFirstLoad) {
               emaSeries.setData(emaValues);
             } else {
               const lastEma = emaValues[emaValues.length - 1];
