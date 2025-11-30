@@ -21,7 +21,7 @@ export default function LiveIndicator({ isConnected, lastUpdate }: LiveIndicator
     };
 
     updateTimeAgo();
-    const interval = setInterval(updateTimeAgo, 100);
+    const interval = setInterval(updateTimeAgo, 1000);
 
     return () => clearInterval(interval);
   }, [lastUpdate]);

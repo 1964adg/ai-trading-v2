@@ -22,7 +22,15 @@ export default function Dashboard() {
 
   // WebSocket real-time updates
   const handleWebSocketMessage = useCallback((data: unknown) => {
-    if (data && typeof data === 'object' && 'timestamp' in data) {
+    if (
+      data &&
+      typeof data === 'object' &&
+      'timestamp' in data &&
+      'open' in data &&
+      'high' in data &&
+      'low' in data &&
+      'close' in data
+    ) {
       const klineData = data as { timestamp: number; open: number; high: number; low: number; close: number };
       const newPoint: ChartDataPoint = {
         time: Math.floor(klineData.timestamp / 1000) as ChartDataPoint['time'],
@@ -60,10 +68,24 @@ export default function Dashboard() {
     }
   );
 
-  // Initialize chartData from SWR response
+  // Initialize chartData from SWR response (only on initial load or timeframe change)
   useEffect(() => {
     if (data?.success && data.data.length > 0) {
-      setChartData(transformKlinesToChartData(data.data));
+      // Only set from API if we don't have data or timeframe changed
+      setChartData((prev) => {
+        if (prev.length === 0) {
+          return transformKlinesToChartData(data.data);
+        }
+        // If we have WebSocket data, merge with API data
+        const apiData = transformKlinesToChartData(data.data);
+        // Keep API historical data but preserve last point if newer from WebSocket
+        const lastApiTime = apiData.length > 0 ? apiData[apiData.length - 1].time : 0;
+        const lastPrevTime = prev.length > 0 ? prev[prev.length - 1].time : 0;
+        if (lastPrevTime > lastApiTime) {
+          return [...apiData.slice(0, -1), prev[prev.length - 1]];
+        }
+        return apiData;
+      });
     }
   }, [data]);
 
