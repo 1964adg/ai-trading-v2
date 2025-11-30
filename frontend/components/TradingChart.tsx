@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createChart, IChartApi, ISeriesApi, CrosshairMode } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time } from 'lightweight-charts';
 import { ChartDataPoint, Timeframe } from '@/lib/types';
 import { formatCurrency, formatNumber } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
@@ -30,6 +30,7 @@ export default function TradingChart({
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const emaSeriesRefs = useRef<ISeriesApi<'Line'>[]>([]);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const isInitialLoad = useRef(true); // Traccia se è il primo caricamento
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>(timeframe);
 
   const handleTimeframeClick = (tf: Timeframe) => {
@@ -104,21 +105,21 @@ export default function TradingChart({
             lastValueVisible: true,
           });
 
-                   const emaValues = emaData[period]
+          const emaValues = emaData[period]
             .map((value, i) => ({
               time: data[i].time,
               value: value ?? undefined,
             }))
             .filter(point =>
               point.value !== undefined &&
-              point. time !== undefined &&
-              ! isNaN(Number(point. time))
-            ) as any[];
+              point.time !== undefined &&
+              !isNaN(Number(point.time))
+            ) as { time: Time; value: number }[];
 
           if (emaValues.length > 0) {
             emaSeries.setData(emaValues);
           }
-          emaSeriesRefs.current. push(emaSeries);
+          emaSeriesRefs.current.push(emaSeries);
         }
       });
     }
@@ -179,16 +180,24 @@ export default function TradingChart({
 
   useEffect(() => {
     if (seriesRef.current && data.length > 0) {
-      seriesRef.current. setData(data);
+      // ✅ PRIMO CARICAMENTO: setData completo (500 candele)
+      if (isInitialLoad.current) {
+        seriesRef.current.setData(data);
+        isInitialLoad.current = false;
+      } else {
+        // ✅ UPDATE WEBSOCKET: solo ultima candela (preserva zoom!)
+        const lastCandle = data[data.length - 1];
+        seriesRef.current.update(lastCandle);
+      }
 
       // Aggiorna EMA
-      if (emaSeriesRefs. current.length > 0 && chartRef.current) {
+      if (emaSeriesRefs.current.length > 0 && chartRef.current) {
         const closePrices = data.map(d => d.close);
         const emaData = calculateMultipleEMA(closePrices, emaPeriods);
 
-        emaSeriesRefs.current. forEach((emaSeries, index) => {
+        emaSeriesRefs.current.forEach((emaSeries, index) => {
           const period = emaPeriods[index];
-                    const emaValues = emaData[period]
+          const emaValues = emaData[period]
             .map((value, i) => ({
               time: data[i].time,
               value: value ?? undefined,
@@ -197,15 +206,29 @@ export default function TradingChart({
               point.value !== undefined &&
               point.time !== undefined &&
               !isNaN(Number(point.time))
-            ) as any[];
+            ) as { time: Time; value: number }[];
 
           if (emaValues.length > 0) {
-            emaSeries. setData(emaValues);
+            // ✅ EMA: stesso approccio incrementale
+            if (isInitialLoad.current) {
+              emaSeries.setData(emaValues);
+            } else {
+              const lastEma = emaValues[emaValues.length - 1];
+              if (lastEma && lastEma.value !== undefined) {
+                emaSeries.update(lastEma);
+              }
+            }
           }
         });
       }
     }
   }, [data, emaPeriods, emaEnabled]);
+
+  // ✅ Reset flag quando cambiano timeframe o parametri EMA
+  // (richiede ricaricamento completo dati)
+  useEffect(() => {
+    isInitialLoad.current = true;
+  }, [timeframe, emaPeriods, emaEnabled]);
 
   return (
     <div className="w-full">
