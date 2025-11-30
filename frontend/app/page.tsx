@@ -18,7 +18,7 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   // EMA Configuration
   const [emaPeriods, setEmaPeriods] = useState<[number, number, number, number]>([9, 21, 50, 200]);
-  const [emaEnabled, setEmaEnabled] = useState<[boolean, boolean, boolean, boolean]>([true, true, true, true]);
+  const [emaEnabled, setEmaEnabled] = useState<[boolean, boolean, boolean, boolean]>([true, true, true, false]);
 
   // WebSocket real-time updates
   const handleWebSocketMessage = useCallback((data: unknown) => {
@@ -171,6 +171,33 @@ export default function Dashboard() {
           emaPeriods={emaPeriods}
           emaEnabled={emaEnabled}
         />
+
+        {/* Stats Footer */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
+            <div className="text-xs text-gray-400 mb-1">Candles Loaded</div>
+            <div className="text-2xl font-bold text-white">{chartData.length}</div>
+          </div>
+          
+          <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
+            <div className="text-xs text-gray-400 mb-1">Timeframe</div>
+            <div className="text-2xl font-bold text-blue-400">{timeframe}</div>
+          </div>
+          
+          <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
+            <div className="text-xs text-gray-400 mb-1">WebSocket Status</div>
+            <div className={`text-2xl font-bold ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
+              {isConnected ? 'LIVE' : 'OFFLINE'}
+            </div>
+          </div>
+          
+          <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
+            <div className="text-xs text-gray-400 mb-1">Last Update</div>
+            <div className="text-2xl font-bold text-purple-400">
+              {lastUpdate ? `${Math.floor((Date.now() - lastUpdate.getTime()) / 1000)}s` : '--'}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
