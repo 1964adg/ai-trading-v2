@@ -40,7 +40,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
       wsRef.current = null;
     }
 
-    const wsUrl = `${WS_BASE_URL}/ws/klines/${symbol}/${interval}`;
+    const wsUrl = `${WS_BASE_URL}/api/ws/klines/${symbol}/${interval}`;
     console.log(`[WebSocket] Connecting to ${wsUrl}...`);
 
     try {
