@@ -19,6 +19,9 @@ export default function Dashboard() {
   // EMA Configuration
   const [emaPeriods, setEmaPeriods] = useState<[number, number, number, number]>([9, 21, 50, 200]);
   const [emaEnabled, setEmaEnabled] = useState<[boolean, boolean, boolean, boolean]>([true, true, true, false]);
+  
+  // Real-time timer for "Last Update" display
+  const [displayLastUpdateSeconds, setDisplayLastUpdateSeconds] = useState<number>(0);
 
   // WebSocket real-time updates
   const handleWebSocketMessage = useCallback((data: unknown) => {
@@ -106,6 +109,20 @@ export default function Dashboard() {
       });
     }
   }, [data]);
+
+  // Real-time timer for "Last Update" stats display
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (lastUpdate) {
+        const seconds = Math.floor((Date.now() - lastUpdate.getTime()) / 1000);
+        setDisplayLastUpdateSeconds(seconds);
+      } else {
+        setDisplayLastUpdateSeconds(0);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [lastUpdate]);
 
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
 
@@ -212,7 +229,7 @@ export default function Dashboard() {
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
             <div className="text-xs text-gray-400 mb-1">Last Update</div>
             <div className="text-2xl font-bold text-purple-400">
-              {lastUpdate ? `${Math.floor((Date.now() - lastUpdate.getTime()) / 1000)}s` : '--'}
+              {lastUpdate ? `${displayLastUpdateSeconds}s` : '--'}
             </div>
           </div>
         </div>

@@ -86,7 +86,7 @@ export default function TradingChart({
     chartRef.current = chart;
     seriesRef.current = candlestickSeries;
 
-    // EMA Series
+    // EMA Series - always create all 4 series with visible property
     const emaColors = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
     emaSeriesRefs.current = [];
 
@@ -95,31 +95,32 @@ export default function TradingChart({
       const emaData = calculateMultipleEMA(closePrices, emaPeriods);
 
       emaPeriods.forEach((period, index) => {
-        if (emaEnabled[index]) {
-          const emaSeries = chart.addLineSeries({
-            color: emaColors[index],
-            lineWidth: 2,
-            title: `EMA ${period}`,
-            priceLineVisible: false,
-            lastValueVisible: true,
-          });
+        const emaSeries = chart.addLineSeries({
+          color: emaColors[index],
+          lineWidth: 2,
+          title: `EMA ${period}`,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          visible: emaEnabled[index], // Use visible instead of conditional creation
+        });
 
-                   const emaValues = emaData[period]
-            .map((value, i) => ({
-              time: data[i].time,
-              value: value ?? undefined,
-            }))
-            .filter(point =>
-              point.value !== undefined &&
-              point. time !== undefined &&
-              ! isNaN(Number(point. time))
-            ) as any[];
+        const emaValues = emaData[period]
+          .map((value, i) => ({
+            time: data[i].time,
+            value: value ?? undefined,
+          }))
+          .filter((point): point is { time: typeof data[0]['time']; value: number } =>
+            point.value !== undefined &&
+            point.time !== undefined &&
+            !isNaN(Number(point.time))
+          );
 
-          if (emaValues.length > 0) {
-            emaSeries.setData(emaValues);
-          }
-          emaSeriesRefs.current. push(emaSeries);
+        if (emaValues.length > 0) {
+          emaSeries.setData(emaValues);
         }
+
+        // Always assign at correct index to maintain mapping
+        emaSeriesRefs.current[index] = emaSeries;
       });
     }
 
@@ -179,33 +180,57 @@ export default function TradingChart({
 
   useEffect(() => {
     if (seriesRef.current && data.length > 0) {
-      seriesRef.current. setData(data);
+      // Save current viewport (zoom/scroll position) before updating data
+      let currentRange: { from: number; to: number } | null = null;
+      if (chartRef.current) {
+        const timeScale = chartRef.current.timeScale();
+        currentRange = timeScale.getVisibleLogicalRange();
+      }
+
+      seriesRef.current.setData(data);
+
+      // Restore viewport if it existed
+      if (currentRange && chartRef.current) {
+        const timeScale = chartRef.current.timeScale();
+        timeScale.setVisibleLogicalRange(currentRange);
+      }
 
       // Aggiorna EMA
-      if (emaSeriesRefs. current.length > 0 && chartRef.current) {
+      if (emaSeriesRefs.current.length > 0 && chartRef.current) {
         const closePrices = data.map(d => d.close);
         const emaData = calculateMultipleEMA(closePrices, emaPeriods);
 
-        emaSeriesRefs.current. forEach((emaSeries, index) => {
-          const period = emaPeriods[index];
-                    const emaValues = emaData[period]
-            .map((value, i) => ({
-              time: data[i].time,
-              value: value ?? undefined,
-            }))
-            .filter(point =>
-              point.value !== undefined &&
-              point.time !== undefined &&
-              !isNaN(Number(point.time))
-            ) as any[];
+        emaSeriesRefs.current.forEach((emaSeries, index) => {
+          if (emaSeries) {
+            const period = emaPeriods[index];
+            const emaValues = emaData[period]
+              .map((value, i) => ({
+                time: data[i].time,
+                value: value ?? undefined,
+              }))
+              .filter((point): point is { time: typeof data[0]['time']; value: number } =>
+                point.value !== undefined &&
+                point.time !== undefined &&
+                !isNaN(Number(point.time))
+              );
 
-          if (emaValues.length > 0) {
-            emaSeries. setData(emaValues);
+            if (emaValues.length > 0) {
+              emaSeries.setData(emaValues);
+            }
           }
         });
       }
     }
-  }, [data, emaPeriods, emaEnabled]);
+  }, [data, emaPeriods]);
+
+  // Update EMA visibility when toggle changes
+  useEffect(() => {
+    emaSeriesRefs.current.forEach((series, index) => {
+      if (series) {
+        series.applyOptions({ visible: emaEnabled[index] });
+      }
+    });
+  }, [emaEnabled]);
 
   return (
     <div className="w-full">
