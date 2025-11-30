@@ -42,11 +42,21 @@ export default function Dashboard() {
 
       setChartData((prev) => {
         if (prev.length === 0) return [newPoint];
+
         const lastPoint = prev[prev.length - 1];
-        // Update last candle if same time, otherwise add new
+
+        // Ignore old data (network delays)
+        if (newPoint.time < lastPoint.time) {
+          console.warn(`[WebSocket] Ignored old data: ${newPoint.time} < ${lastPoint.time}`);
+          return prev;
+        }
+
+        // Update last candle if same time
         if (lastPoint.time === newPoint.time) {
           return [...prev.slice(0, -1), newPoint];
         }
+
+        // Add new point (already validated as more recent)
         return [...prev, newPoint];
       });
     }
@@ -71,20 +81,28 @@ export default function Dashboard() {
   // Initialize chartData from SWR response (only on initial load or timeframe change)
   useEffect(() => {
     if (data?.success && data.data.length > 0) {
-      // Only set from API if we don't have data or timeframe changed
       setChartData((prev) => {
-        if (prev.length === 0) {
-          return transformKlinesToChartData(data.data);
-        }
-        // If we have WebSocket data, merge with API data
         const apiData = transformKlinesToChartData(data.data);
-        // Keep API historical data but preserve last point if newer from WebSocket
+
+        if (prev.length === 0) {
+          // First load: use sorted API data
+          return apiData.sort((a, b) => Number(a.time) - Number(b.time));
+        }
+
+        // Merge with existing WebSocket data
         const lastApiTime = apiData.length > 0 ? apiData[apiData.length - 1].time : 0;
         const lastPrevTime = prev.length > 0 ? prev[prev.length - 1].time : 0;
+
+        let merged;
         if (lastPrevTime > lastApiTime) {
-          return [...apiData.slice(0, -1), prev[prev.length - 1]];
+          // WebSocket has more recent data: keep last point
+          merged = [...apiData.slice(0, -1), prev[prev.length - 1]];
+        } else {
+          merged = apiData;
         }
-        return apiData;
+
+        // Force sort to guarantee order
+        return merged.sort((a, b) => Number(a.time) - Number(b.time));
       });
     }
   }, [data]);
