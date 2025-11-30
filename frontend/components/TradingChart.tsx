@@ -175,7 +175,7 @@ export default function TradingChart({
       emaSeriesRefs.current = [];
       chart.remove();
     };
-  }, [emaPeriods, emaEnabled]);
+  }, [data, emaPeriods, emaEnabled]);
 
   useEffect(() => {
     if (seriesRef.current && data.length > 0) {
