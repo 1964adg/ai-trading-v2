@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createChart, IChartApi, ISeriesApi, CrosshairMode } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time } from 'lightweight-charts';
 import { ChartDataPoint, Timeframe } from '@/lib/types';
 import { formatCurrency, formatNumber } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
@@ -109,7 +109,7 @@ export default function TradingChart({
             time: data[i].time,
             value: value ?? undefined,
           }))
-          .filter((point): point is { time: typeof data[0]['time']; value: number } =>
+          .filter((point): point is { time: Time; value: number } =>
             point.value !== undefined &&
             point.time !== undefined &&
             !isNaN(Number(point.time))
@@ -208,7 +208,7 @@ export default function TradingChart({
                 time: data[i].time,
                 value: value ?? undefined,
               }))
-              .filter((point): point is { time: typeof data[0]['time']; value: number } =>
+              .filter((point): point is { time: Time; value: number } =>
                 point.value !== undefined &&
                 point.time !== undefined &&
                 !isNaN(Number(point.time))
