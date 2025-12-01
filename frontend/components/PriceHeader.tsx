@@ -41,9 +41,12 @@ export default function PriceHeader({
           {formatCurrency(price)}
         </div>
         {priceChangePercent !== undefined && (
-          <div className={`text-sm font-medium ${priceColor}`}>
+          <div className={`text-sm font-medium ${priceColor} flex items-center justify-end gap-1`}>
+            <span aria-hidden="true">{isPositive ? '▲' : '▼'}</span>
             {formatPercentage(priceChangePercent)}
-            <span className="ml-2">{isPositive ? '🟢' : '🔴'}</span>
+            <span className="ml-1" aria-label={isPositive ? 'positive change' : 'negative change'}>
+              {isPositive ? '🟢' : '🔴'}
+            </span>
           </div>
         )}
       </div>

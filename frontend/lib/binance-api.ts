@@ -58,9 +58,11 @@ export async function fetchBinanceTickers(
     let url = `${BINANCE_API_BASE}/ticker/24hr`;
     
     if (symbols && symbols.length === 1) {
-      url += `?symbol=${symbols[0]}`;
+      url += `?symbol=${encodeURIComponent(symbols[0])}`;
     } else if (symbols && symbols.length > 1) {
-      url += `?symbols=${JSON.stringify(symbols)}`;
+      // Use proper URL encoding for the symbols array
+      const symbolsParam = encodeURIComponent(JSON.stringify(symbols));
+      url += `?symbols=${symbolsParam}`;
     }
 
     const response = await fetch(url);
@@ -160,7 +162,16 @@ export function getFavoriteSymbols(): string[] {
   
   try {
     const stored = localStorage.getItem(FAVORITES_KEY);
-    return stored ? JSON.parse(stored) : POPULAR_SYMBOLS.slice(0, 5);
+    if (!stored) return POPULAR_SYMBOLS.slice(0, 5);
+    
+    const parsed = JSON.parse(stored);
+    // Validate that parsed data is an array of strings
+    if (!Array.isArray(parsed)) return POPULAR_SYMBOLS.slice(0, 5);
+    if (!parsed.every((item) => typeof item === 'string')) {
+      return POPULAR_SYMBOLS.slice(0, 5);
+    }
+    
+    return parsed;
   } catch {
     return POPULAR_SYMBOLS.slice(0, 5);
   }

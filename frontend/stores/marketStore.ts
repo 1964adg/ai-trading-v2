@@ -50,6 +50,8 @@ export const useMarketStore = create<MarketState>((set, get) => ({
       priceChange24h: 0,
       priceChangePercent24h: 0,
       candlestickData: [],
+      bids: [],
+      asks: [],
       lastUpdateTime: 0,
     });
   },
