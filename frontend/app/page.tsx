@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import TradingChart from '@/components/TradingChart';
 import TimeframeSelector from '@/components/TimeframeSelector';
@@ -9,21 +9,32 @@ import LiveIndicator from '@/components/LiveIndicator';
 import QuickOrderPanel from '@/components/trading/QuickOrderPanel';
 import PositionPanel from '@/components/trading/PositionPanel';
 import PnLTracker from '@/components/trading/PnLTracker';
+import SymbolSelector from '@/components/trading/SymbolSelector';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useSymbolTicker } from '@/hooks/useSymbolData';
 import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
 import { Timeframe, ChartDataPoint } from '@/lib/types';
 import { useTradingStore } from '@/stores/tradingStore';
 import { Position } from '@/stores/tradingStore';
 
-const SYMBOL = 'BTCEUR';
+const DEFAULT_SYMBOL = 'BTCUSDT';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
 
 // EMA Color indicators
 const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
 
 export default function Dashboard() {
+  const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+  const [isSymbolSelectorOpen, setIsSymbolSelectorOpen] = useState(false);
+  
+  // Store viewport range for preservation on timeframe change
+  const viewportRangeRef = useRef<{ from: number; to: number } | null>(null);
+  const previousTimeframeRef = useRef<Timeframe>(timeframe);
+
+  // Fetch 24h ticker data for price color indicator
+  const { priceChangePercent24h } = useSymbolTicker(symbol, 10000);
 
   // Use Zustand store for trading state
   const {
@@ -37,6 +48,19 @@ export default function Dashboard() {
     addPosition,
     removePosition,
   } = useTradingStore();
+
+  // Keyboard shortcut: Ctrl+K to open symbol selector
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSymbolSelectorOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // WebSocket real-time updates
   const handleWebSocketMessage = useCallback((data: unknown) => {
@@ -80,15 +104,15 @@ export default function Dashboard() {
   }, []);
 
   const { isConnected, lastUpdate } = useWebSocket({
-    symbol: SYMBOL,
+    symbol,
     interval: timeframe,
     onMessage: handleWebSocketMessage,
     enabled: true,
   });
 
   const { data, error, isLoading } = useSWR(
-    `/api/klines/${SYMBOL}/${timeframe}`,
-    () => fetchKlines(SYMBOL, timeframe, 500),
+    `/api/klines/${symbol}/${timeframe}`,
+    () => fetchKlines(symbol, timeframe, 500),
     {
       refreshInterval: 10000,
       revalidateOnFocus: false,
@@ -120,13 +144,29 @@ export default function Dashboard() {
     }
   }, [data]);
 
+  // Handle timeframe change with viewport preservation
+  const handleTimeframeChange = useCallback((newTimeframe: Timeframe) => {
+    previousTimeframeRef.current = timeframe;
+    setTimeframe(newTimeframe);
+    // Clear chart data to trigger fresh load
+    setChartData([]);
+  }, [timeframe]);
+
+  // Handle symbol change
+  const handleSymbolChange = useCallback((newSymbol: string) => {
+    setSymbol(newSymbol);
+    // Clear chart data to trigger fresh load
+    setChartData([]);
+    viewportRangeRef.current = null;
+  }, []);
+
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
 
   // Demo order handlers
   const handleBuy = useCallback((quantity: number, price: number) => {
     const position: Position = {
       id: `pos_${Date.now()}`,
-      symbol: SYMBOL,
+      symbol,
       side: 'long',
       entryPrice: price,
       quantity,
@@ -136,12 +176,12 @@ export default function Dashboard() {
       openTime: Date.now(),
     };
     addPosition(position);
-  }, [addPosition]);
+  }, [addPosition, symbol]);
 
   const handleSell = useCallback((quantity: number, price: number) => {
     const position: Position = {
       id: `pos_${Date.now()}`,
-      symbol: SYMBOL,
+      symbol,
       side: 'short',
       entryPrice: price,
       quantity,
@@ -151,7 +191,7 @@ export default function Dashboard() {
       openTime: Date.now(),
     };
     addPosition(position);
-  }, [addPosition]);
+  }, [addPosition, symbol]);
 
   if (error) {
     return (
@@ -178,10 +218,23 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-black p-4">
+      {/* Symbol Selector Modal */}
+      <SymbolSelector
+        isOpen={isSymbolSelectorOpen}
+        onClose={() => setIsSymbolSelectorOpen(false)}
+        onSymbolSelect={handleSymbolChange}
+        currentSymbol={symbol}
+      />
+
       {/* Header */}
       <div className="max-w-full mx-auto mb-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <PriceHeader symbol={SYMBOL} price={currentPrice} />
+          <PriceHeader
+            symbol={symbol}
+            price={currentPrice}
+            priceChangePercent={priceChangePercent24h}
+            onSymbolClick={() => setIsSymbolSelectorOpen(true)}
+          />
           <LiveIndicator isConnected={isConnected} lastUpdate={lastUpdate} />
         </div>
       </div>
@@ -190,7 +243,7 @@ export default function Dashboard() {
       <div className="max-w-full mx-auto grid grid-cols-1 lg:grid-cols-4 gap-4">
         {/* Main Chart Area - 3 columns on large screens */}
         <div className="lg:col-span-3 space-y-4">
-          <TimeframeSelector selected={timeframe} onSelect={setTimeframe} />
+          <TimeframeSelector selected={timeframe} onSelect={handleTimeframeChange} />
 
           {/* EMA Controls - Compact */}
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
@@ -234,7 +287,7 @@ export default function Dashboard() {
 
           <TradingChart
             data={chartData}
-            symbol={SYMBOL}
+            symbol={symbol}
             emaPeriods={emaPeriods}
             emaEnabled={emaEnabled}
           />
@@ -270,7 +323,7 @@ export default function Dashboard() {
         {/* Trading Sidebar - 1 column on large screens */}
         <div className="space-y-4">
           <QuickOrderPanel
-            symbol={SYMBOL}
+            symbol={symbol}
             currentPrice={currentPrice}
             onBuy={handleBuy}
             onSell={handleSell}

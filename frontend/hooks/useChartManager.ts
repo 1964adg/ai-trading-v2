@@ -28,7 +28,7 @@ interface ChartManagerResult {
 }
 
 const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
-const UPDATE_BUFFER_MS = 50;
+const UPDATE_BUFFER_MS = 16; // 16ms for 60 FPS updates
 
 export function useChartManager(
   options: UseChartManagerOptions
