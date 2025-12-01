@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { createChart, IChartApi, ISeriesApi, CrosshairMode } from 'lightweight-charts';
+import { useEffect, useRef, useState, useCallback, memo } from 'react';
+import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData } from 'lightweight-charts';
 import { ChartDataPoint, Timeframe } from '@/lib/types';
 import { formatCurrency, formatNumber } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
@@ -16,8 +16,10 @@ interface TradingChartProps {
 }
 
 const TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w'];
+const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
+const UPDATE_BUFFER_MS = 50;
 
-export default function TradingChart({
+function TradingChartComponent({
   data,
   symbol,
   timeframe = '15m',
@@ -28,22 +30,106 @@ export default function TradingChart({
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const emaSeriesRefs = useRef<ISeriesApi<'Line'>[]>([]);
+  // Fixed: Use Map with period as key for correct EMA series mapping
+  const emaSeriesMapRef = useRef<Map<number, ISeriesApi<'Line'>>>(new Map());
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const dataRef = useRef<ChartDataPoint[]>([]);
+  const updateBufferRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>(timeframe);
 
-  const handleTimeframeClick = (tf: Timeframe) => {
+  const handleTimeframeClick = useCallback((tf: Timeframe) => {
     setSelectedTimeframe(tf);
-    if (onTimeframeChange) {
-      onTimeframeChange(tf);
-    }
-  };
+    onTimeframeChange?.(tf);
+  }, [onTimeframeChange]);
 
+  // Preserve viewport before data updates
+  const preserveViewport = useCallback(() => {
+    const chart = chartRef.current;
+    if (!chart) return null;
+    try {
+      return chart.timeScale().getVisibleLogicalRange();
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Restore viewport after data updates
+  const restoreViewport = useCallback((logicalRange: { from: number; to: number } | null) => {
+    const chart = chartRef.current;
+    if (!chart || !logicalRange) return;
+    try {
+      chart.timeScale().setVisibleLogicalRange(logicalRange);
+    } catch {
+      // Ignore errors during viewport restoration
+    }
+  }, []);
+
+  // Update EMA data based on candle data - Fixed mapping
+  const updateEmaData = useCallback((candleData: ChartDataPoint[]) => {
+    if (candleData.length === 0) return;
+
+    const closePrices = candleData.map(d => d.close);
+    const emaData = calculateMultipleEMA(closePrices, emaPeriods);
+
+    emaPeriods.forEach((period, index) => {
+      if (!emaEnabled[index]) return;
+
+      const series = emaSeriesMapRef.current.get(period);
+      if (!series) return;
+
+      const emaValues: LineData<Time>[] = [];
+      const periodEma = emaData[period];
+
+      for (let i = 0; i < candleData.length; i++) {
+        const value = periodEma[i];
+        const time = candleData[i].time;
+        if (value !== null && value !== undefined && time !== undefined && !isNaN(Number(time))) {
+          emaValues.push({ time, value });
+        }
+      }
+
+      if (emaValues.length > 0) {
+        series.setData(emaValues);
+      }
+    });
+  }, [emaPeriods, emaEnabled]);
+
+  // Create EMA series - Fixed: key by period for stable mapping
+  const createEmaSeries = useCallback(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    // Remove all existing EMA series
+    emaSeriesMapRef.current.forEach((series) => {
+      try {
+        chart.removeSeries(series);
+      } catch {
+        // Series may already be removed
+      }
+    });
+    emaSeriesMapRef.current.clear();
+
+    // Create new EMA series only for enabled periods
+    emaPeriods.forEach((period, index) => {
+      if (emaEnabled[index]) {
+        const emaSeries = chart.addLineSeries({
+          color: EMA_COLORS[index],
+          lineWidth: 2,
+          title: `EMA ${period}`,
+          priceLineVisible: false,
+          lastValueVisible: true,
+        });
+        emaSeriesMapRef.current.set(period, emaSeries);
+      }
+    });
+  }, [emaPeriods, emaEnabled]);
+
+  // Initialize chart
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef. current.clientWidth,
+      width: chartContainerRef.current.clientWidth,
       height: 600,
       layout: {
         background: { color: '#1a1a1a' },
@@ -86,78 +172,33 @@ export default function TradingChart({
     chartRef.current = chart;
     seriesRef.current = candlestickSeries;
 
-    // EMA Series
-    const emaColors = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
-    emaSeriesRefs.current = [];
-
-    if (data.length > 0) {
-      const closePrices = data.map(d => d.close);
-      const emaData = calculateMultipleEMA(closePrices, emaPeriods);
-
-      emaPeriods.forEach((period, index) => {
-        if (emaEnabled[index]) {
-          const emaSeries = chart.addLineSeries({
-            color: emaColors[index],
-            lineWidth: 2,
-            title: `EMA ${period}`,
-            priceLineVisible: false,
-            lastValueVisible: true,
-          });
-
-                   const emaValues = emaData[period]
-            .map((value, i) => ({
-              time: data[i].time,
-              value: value ?? undefined,
-            }))
-            .filter(point =>
-              point.value !== undefined &&
-              point. time !== undefined &&
-              ! isNaN(Number(point. time))
-            ) as any[];
-
-          if (emaValues.length > 0) {
-            emaSeries.setData(emaValues);
-          }
-          emaSeriesRefs.current. push(emaSeries);
-        }
-      });
-    }
-
     // Tooltip handling
     chart.subscribeCrosshairMove((param) => {
-      if (! tooltipRef.current) return;
+      if (!tooltipRef.current) return;
 
-      if (
-        param.point === undefined ||
-        ! param.time ||
-        param.point.x < 0 ||
-        param. point.y < 0
-      ) {
+      if (param.point === undefined || !param.time || param.point.x < 0 || param.point.y < 0) {
         tooltipRef.current.style.display = 'none';
         return;
       }
 
-      const data = param.seriesData.get(candlestickSeries);
-      if (!data || ! ('open' in data)) {
-        tooltipRef.current. style.display = 'none';
+      const ohlcData = param.seriesData.get(candlestickSeries);
+      if (!ohlcData || !('open' in ohlcData)) {
+        tooltipRef.current.style.display = 'none';
         return;
       }
 
-      const ohlcData = data as { open: number; high: number; low: number; close: number };
+      const candle = ohlcData as { open: number; high: number; low: number; close: number };
 
       tooltipRef.current.style.display = 'block';
       tooltipRef.current.innerHTML = `
-        <div><strong>O:</strong> ${formatCurrency(ohlcData.open)}</div>
-        <div><strong>H:</strong> ${formatCurrency(ohlcData. high)}</div>
-        <div><strong>L:</strong> ${formatCurrency(ohlcData.low)}</div>
-        <div><strong>C:</strong> ${formatCurrency(ohlcData.close)}</div>
+        <div><strong>O:</strong> ${formatCurrency(candle.open)}</div>
+        <div><strong>H:</strong> ${formatCurrency(candle.high)}</div>
+        <div><strong>L:</strong> ${formatCurrency(candle.low)}</div>
+        <div><strong>C:</strong> ${formatCurrency(candle.close)}</div>
       `;
 
-      const containerRect = chartContainerRef.current?. getBoundingClientRect();
-      if (containerRect) {
-        tooltipRef.current.style.left = `${param.point.x + 15}px`;
-        tooltipRef.current.style.top = `${param.point.y + 15}px`;
-      }
+      tooltipRef.current.style.left = `${param.point.x + 15}px`;
+      tooltipRef.current.style.top = `${param.point.y + 15}px`;
     });
 
     const handleResize = () => {
@@ -170,48 +211,83 @@ export default function TradingChart({
 
     window.addEventListener('resize', handleResize);
 
+    // Store ref values for cleanup
+    const emaSeriesMap = emaSeriesMapRef.current;
+    const updateBuffer = updateBufferRef.current;
+
     return () => {
       window.removeEventListener('resize', handleResize);
-      emaSeriesRefs.current = [];
+      if (updateBuffer) {
+        clearTimeout(updateBuffer);
+      }
+      emaSeriesMap.clear();
       chart.remove();
     };
-  }, [data, emaPeriods, emaEnabled]);
+  }, []);
 
+  // Handle EMA enabled/periods changes - recreate series
   useEffect(() => {
-    if (seriesRef.current && data.length > 0) {
-      seriesRef.current. setData(data);
-
-      // Aggiorna EMA
-      if (emaSeriesRefs. current.length > 0 && chartRef.current) {
-        const closePrices = data.map(d => d.close);
-        const emaData = calculateMultipleEMA(closePrices, emaPeriods);
-
-        emaSeriesRefs.current. forEach((emaSeries, index) => {
-          const period = emaPeriods[index];
-                    const emaValues = emaData[period]
-            .map((value, i) => ({
-              time: data[i].time,
-              value: value ?? undefined,
-            }))
-            .filter(point =>
-              point.value !== undefined &&
-              point.time !== undefined &&
-              !isNaN(Number(point.time))
-            ) as any[];
-
-          if (emaValues.length > 0) {
-            emaSeries. setData(emaValues);
-          }
-        });
-      }
+    if (!chartRef.current) return;
+    createEmaSeries();
+    if (dataRef.current.length > 0) {
+      updateEmaData(dataRef.current);
     }
-  }, [data, emaPeriods, emaEnabled]);
+  }, [emaEnabled, emaPeriods, createEmaSeries, updateEmaData]);
+
+  // Handle data updates with viewport preservation and buffering
+  useEffect(() => {
+    if (!seriesRef.current || data.length === 0) return;
+
+    // Clear any pending buffer update
+    if (updateBufferRef.current) {
+      clearTimeout(updateBufferRef.current);
+    }
+
+    // Buffer updates for performance (50ms = ~20 FPS)
+    updateBufferRef.current = setTimeout(() => {
+      const series = seriesRef.current;
+      if (!series) return;
+
+      // Preserve current viewport
+      const viewportRange = preserveViewport();
+
+      // Determine if this is an incremental update or full refresh
+      const prevData = dataRef.current;
+      const isIncrementalUpdate = prevData.length > 0 &&
+        data.length >= prevData.length &&
+        data.length - prevData.length <= 1;
+
+      if (isIncrementalUpdate && data.length === prevData.length) {
+        // Same length - update last candle only
+        const lastCandle = data[data.length - 1];
+        series.update(lastCandle);
+      } else if (isIncrementalUpdate && data.length === prevData.length + 1) {
+        // New candle added - update last + add new
+        const lastCandle = data[data.length - 1];
+        series.update(lastCandle);
+      } else {
+        // Full data refresh
+        series.setData(data);
+      }
+
+      // Store reference to current data
+      dataRef.current = data;
+
+      // Update EMA series
+      updateEmaData(data);
+
+      // Restore viewport after update
+      if (viewportRange) {
+        restoreViewport(viewportRange);
+      }
+    }, UPDATE_BUFFER_MS);
+  }, [data, preserveViewport, restoreViewport, updateEmaData]);
 
   return (
     <div className="w-full">
       <div className="mb-4 flex items-center justify-between">
-        <div className="text-sm text-gray-400">
-          {symbol} - {data. length} candles
+        <div className="text-sm text-gray-400 font-mono">
+          {symbol} - {data.length} candles
         </div>
         {onTimeframeChange && (
           <div className="flex gap-1 flex-wrap">
@@ -242,3 +318,8 @@ export default function TradingChart({
     </div>
   );
 }
+
+const TradingChart = memo(TradingChartComponent);
+TradingChart.displayName = 'TradingChart';
+
+export default TradingChart;

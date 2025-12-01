@@ -13,7 +13,7 @@ export async function fetchKlines(
 ): Promise<ApiResponse<KlineData[]>> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/klines/${symbol}/${interval}? limit=${limit}`
+      `${API_BASE_URL}/api/klines/${symbol}/${interval}?limit=${limit}`
     );
 
     if (!response.ok) {
@@ -38,12 +38,12 @@ export async function fetchKlines(
 export function transformKlinesToChartData(klines: KlineData[]): ChartDataPoint[] {
   return klines
     .map((kline) => ({
-      time: Math.floor(kline. timestamp / 1000) as Time,
-      open: kline. open,
+      time: Math.floor(kline.timestamp / 1000) as Time,
+      open: kline.open,
       high: kline.high,
       low: kline.low,
       close: kline.close,
       volume: kline.volume,
     }))
-    .filter(point => ! isNaN(Number(point.time)) && !isNaN(point.open));
+    .filter(point => !isNaN(Number(point.time)) && !isNaN(point.open));
 }
