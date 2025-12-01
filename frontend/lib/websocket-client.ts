@@ -16,7 +16,7 @@ const DEFAULT_CONFIG: WebSocketConfig = {
   baseUrl: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000',
   reconnectDelay: 3000,
   maxReconnectAttempts: 10,
-  bufferFlushInterval: 50, // 50ms for 20 FPS updates
+  bufferFlushInterval: 16, // 16ms for 60 FPS updates (was 50ms for 20 FPS)
 };
 
 export class ScalpingWebSocketClient {

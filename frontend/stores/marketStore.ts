@@ -7,15 +7,22 @@ interface OrderbookLevel {
 }
 
 interface MarketState {
+  // Current symbol
+  symbol: string;
+  
+  // Price data
   currentPrice: number;
   priceChange24h: number;
+  priceChangePercent24h: number;
   candlestickData: ChartDataPoint[];
   bids: OrderbookLevel[];
   asks: OrderbookLevel[];
   lastUpdateTime: number;
 
   // Actions
+  setSymbol: (symbol: string) => void;
   updatePrice: (price: number) => void;
+  updatePriceChange24h: (change: number, changePercent: number) => void;
   updateCandle: (candle: ChartDataPoint) => void;
   setInitialData: (data: ChartDataPoint[]) => void;
   updateOrderbook: (bids: OrderbookLevel[], asks: OrderbookLevel[]) => void;
@@ -23,8 +30,10 @@ interface MarketState {
 }
 
 const initialState = {
+  symbol: 'BTCUSDT',
   currentPrice: 0,
   priceChange24h: 0,
+  priceChangePercent24h: 0,
   candlestickData: [],
   bids: [],
   asks: [],
@@ -34,6 +43,19 @@ const initialState = {
 export const useMarketStore = create<MarketState>((set, get) => ({
   ...initialState,
 
+  setSymbol: (symbol: string) => {
+    set({
+      symbol,
+      currentPrice: 0,
+      priceChange24h: 0,
+      priceChangePercent24h: 0,
+      candlestickData: [],
+      bids: [],
+      asks: [],
+      lastUpdateTime: 0,
+    });
+  },
+
   updatePrice: (price: number) => {
     const state = get();
     const prevPrice = state.currentPrice;
@@ -42,6 +64,13 @@ export const useMarketStore = create<MarketState>((set, get) => ({
       currentPrice: price,
       priceChange24h: change,
       lastUpdateTime: Date.now(),
+    });
+  },
+
+  updatePriceChange24h: (change: number, changePercent: number) => {
+    set({
+      priceChange24h: change,
+      priceChangePercent24h: changePercent,
     });
   },
 
