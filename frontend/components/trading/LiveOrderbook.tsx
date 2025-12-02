@@ -20,6 +20,18 @@ interface OrderbookRowProps {
   onClick?: () => void;
 }
 
+// Format quantity with appropriate precision
+function formatQuantity(quantity: number): string {
+  if (quantity >= 1) {
+    return formatNumber(quantity, 4);
+  }
+  // For small quantities, use 6 decimal places with Italian formatting
+  return new Intl.NumberFormat('it-IT', {
+    minimumFractionDigits: 6,
+    maximumFractionDigits: 6,
+  }).format(quantity);
+}
+
 // Memoized orderbook row component
 const OrderbookRow = memo(function OrderbookRow({
   level,
@@ -56,9 +68,7 @@ const OrderbookRow = memo(function OrderbookRow({
 
       {/* Quantity */}
       <span className="relative z-10 text-gray-300">
-        {level.quantity >= 1
-          ? formatNumber(level.quantity, 4)
-          : level.quantity.toFixed(6)}
+        {formatQuantity(level.quantity)}
       </span>
     </div>
   );

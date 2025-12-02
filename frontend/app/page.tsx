@@ -179,9 +179,9 @@ export default function Dashboard() {
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
 
   // Handle limit price from orderbook click - used for future limit order functionality
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleOrderbookPriceClick = useCallback((price: number) => {
-    console.log(`[Orderbook] Price clicked: ${price} - Ready for limit order`);
-    // This price can be used to auto-fill limit order panel in future enhancement
+    // Price can be used to auto-fill limit order panel in future enhancement
   }, []);
 
   // Close all positions handler
@@ -195,7 +195,8 @@ export default function Dashboard() {
     onCloseAll: handleCloseAll,
   });
 
-  // Demo order handlers
+  // Demo order handlers - stopLoss and takeProfit will be used in production integration
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleBuy = useCallback((quantity: number, price: number, stopLoss?: number, takeProfit?: number) => {
     const position: Position = {
       id: `pos_${Date.now()}`,
@@ -209,9 +210,9 @@ export default function Dashboard() {
       openTime: Date.now(),
     };
     addPosition(position);
-    console.log(`[Trade] BUY ${quantity} ${symbol} @ ${price}`, { stopLoss, takeProfit });
   }, [addPosition, symbol]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSell = useCallback((quantity: number, price: number, stopLoss?: number, takeProfit?: number) => {
     const position: Position = {
       id: `pos_${Date.now()}`,
@@ -225,7 +226,6 @@ export default function Dashboard() {
       openTime: Date.now(),
     };
     addPosition(position);
-    console.log(`[Trade] SELL ${quantity} ${symbol} @ ${price}`, { stopLoss, takeProfit });
   }, [addPosition, symbol]);
 
   if (error) {

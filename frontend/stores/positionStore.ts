@@ -65,9 +65,12 @@ export const usePositionStore = create<PositionStoreState>((set) => ({
   ...initialState,
 
   recordTrade: (trade: Omit<SessionTrade, 'id'>) => {
+    // Use crypto.randomUUID for robust ID generation in high-frequency scenarios
     const newTrade: SessionTrade = {
       ...trade,
-      id: `trade_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      id: typeof crypto !== 'undefined' && crypto.randomUUID 
+        ? crypto.randomUUID() 
+        : `trade_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
     };
 
     set((state) => {
@@ -76,14 +79,14 @@ export const usePositionStore = create<PositionStoreState>((set) => ({
       // Calculate updated stats
       const wins = newHistory.filter((t) => t.pnl > 0);
       const losses = newHistory.filter((t) => t.pnl < 0);
-      const totalPnL = newHistory.reduce((sum, t) => sum + t.pnl, 0);
+      const calculatedTotalPnL = newHistory.reduce((sum, t) => sum + t.pnl, 0);
       
       const newStats: SessionStats = {
         totalTrades: newHistory.length,
         winningTrades: wins.length,
         losingTrades: losses.length,
         winRate: newHistory.length > 0 ? (wins.length / newHistory.length) * 100 : 0,
-        totalPnL,
+        totalPnL: calculatedTotalPnL,
         bestTrade: Math.max(...newHistory.map((t) => t.pnl), 0),
         worstTrade: Math.min(...newHistory.map((t) => t.pnl), 0),
         avgWin: wins.length > 0 ? wins.reduce((sum, t) => sum + t.pnl, 0) / wins.length : 0,

@@ -102,8 +102,6 @@ function QuickTradePanelComponent({
 
     onOrderPlaced?.(order);
     onBuy?.(selectedSize, price, stopLoss, takeProfit);
-    
-    console.log(`[QuickTrade] BUY ${selectedSize} ${symbol} @ ${price}`);
   }, [symbol, selectedSize, orderType, limitPrice, askPrice, getStopLossPrice, getTakeProfitPrice, onOrderPlaced, onBuy]);
 
   // Handle sell order
@@ -126,8 +124,6 @@ function QuickTradePanelComponent({
 
     onOrderPlaced?.(order);
     onSell?.(selectedSize, price, stopLoss, takeProfit);
-    
-    console.log(`[QuickTrade] SELL ${selectedSize} ${symbol} @ ${price}`);
   }, [symbol, selectedSize, orderType, limitPrice, bidPrice, getStopLossPrice, getTakeProfitPrice, onOrderPlaced, onSell]);
 
   // Handle size selection from keyboard
