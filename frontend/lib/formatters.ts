@@ -58,7 +58,7 @@ export function formatNumber(value: number, decimals: number = 2): string {
  * Convert any timestamp value to Unix timestamp in SECONDS for lightweight-charts.
  * Handles: Date objects, ISO strings, millisecond timestamps, and already-correct second timestamps.
  * @param timestamp - The timestamp value to convert
- * @returns Unix timestamp in seconds (number)
+ * @returns Unix timestamp in seconds (number), or NaN if conversion fails
  */
 export function toUnixTimestamp(timestamp: unknown): number {
   if (typeof timestamp === 'number') {
@@ -92,9 +92,9 @@ export function toUnixTimestamp(timestamp: unknown): number {
     }
   }
 
-  // Fallback: return current time in seconds
+  // Return NaN for invalid timestamps - caller should handle this
   console.warn('[toUnixTimestamp] Invalid timestamp format:', timestamp);
-  return Math.floor(Date.now() / 1000);
+  return NaN;
 }
 
 /**
@@ -104,7 +104,7 @@ export function toUnixTimestamp(timestamp: unknown): number {
  * @returns True if valid Unix timestamp in seconds
  */
 export function isValidUnixTimestamp(timestamp: unknown): timestamp is number {
-  if (typeof timestamp !== 'number') {
+  if (typeof timestamp !== 'number' || isNaN(timestamp)) {
     return false;
   }
 

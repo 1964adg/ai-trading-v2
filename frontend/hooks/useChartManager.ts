@@ -31,7 +31,8 @@ const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
 const UPDATE_BUFFER_MS = 16; // 16ms for 60 FPS updates
 
 /**
- * Normalize a candle's timestamp to Unix seconds for lightweight-charts
+ * Normalize a candle's timestamp to Unix seconds for lightweight-charts.
+ * The Time type from lightweight-charts accepts UTCTimestamp which is a number.
  */
 function normalizeCandle(candle: ChartDataPoint): ChartDataPoint {
   const timestamp = toUnixTimestamp(candle.time);
@@ -49,6 +50,30 @@ function normalizeChartData(data: ChartDataPoint[]): ChartDataPoint[] {
     .map(normalizeCandle)
     .filter(candle => isValidUnixTimestamp(candle.time as number))
     .sort((a, b) => (a.time as number) - (b.time as number));
+}
+
+/**
+ * Safely update a candlestick series with error handling and fallback
+ */
+function safeChartUpdate(
+  series: ISeriesApi<'Candlestick'>,
+  data: ChartDataPoint[],
+  candle: ChartDataPoint,
+  updateEmaData: (data: ChartDataPoint[]) => void
+): void {
+  try {
+    series.update(candle);
+    updateEmaData(data);
+  } catch (error) {
+    console.error('[useChartManager] Chart update error:', error);
+    // Fallback: try setData instead of update
+    try {
+      series.setData(data);
+      updateEmaData(data);
+    } catch (fallbackError) {
+      console.error('[useChartManager] Fallback setData error:', fallbackError);
+    }
+  }
 }
 
 export function useChartManager(
@@ -276,27 +301,14 @@ export function useChartManager(
             const lastTime = lastCandle.time as number;
 
             if (newTime >= lastTime) {
-              try {
-                if (newTime === lastTime) {
-                  // Update existing candle
-                  data[lastIndex] = latestUpdate;
-                } else {
-                  // Add new candle
-                  data.push(latestUpdate);
-                }
-                candleSeries.update(latestUpdate);
-
-                // Update EMAs incrementally
-                updateEmaData(data);
-              } catch (error) {
-                console.error('[useChartManager] Chart update error:', error);
-                // Fallback: try setData instead of update
-                try {
-                  candleSeries.setData(data);
-                } catch (fallbackError) {
-                  console.error('[useChartManager] Fallback setData error:', fallbackError);
-                }
+              if (newTime === lastTime) {
+                // Update existing candle
+                data[lastIndex] = latestUpdate;
+              } else {
+                // Add new candle
+                data.push(latestUpdate);
               }
+              safeChartUpdate(candleSeries, data, latestUpdate, updateEmaData);
             }
           }
         }
