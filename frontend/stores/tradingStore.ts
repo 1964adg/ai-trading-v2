@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Timeframe } from '@/lib/types';
+import { TrailingStopConfig } from '@/lib/risk-management';
 
 export interface Position {
   id: string;
@@ -11,6 +12,9 @@ export interface Position {
   unrealizedPnL: number;
   realizedPnL: number;
   openTime: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  trailingStop?: TrailingStopConfig;
 }
 
 export interface Order {
@@ -41,7 +45,9 @@ interface TradingState {
   setTimeframe: (timeframe: Timeframe) => void;
   addPosition: (position: Position) => void;
   removePosition: (id: string) => void;
+  updatePosition: (id: string, updates: Partial<Position>) => void;
   updatePositionPnL: (id: string, pnl: number) => void;
+  updatePositionTrailingStop: (id: string, trailingStop: TrailingStopConfig) => void;
   addOrder: (order: Order) => void;
   cancelOrder: (id: string) => void;
   setEmaPeriods: (periods: [number, number, number, number]) => void;
@@ -85,6 +91,14 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     });
   },
 
+  updatePosition: (id: string, updates: Partial<Position>) => {
+    set((state) => ({
+      openPositions: state.openPositions.map((p) =>
+        p.id === id ? { ...p, ...updates } : p
+      ),
+    }));
+  },
+
   updatePositionPnL: (id: string, pnl: number) => {
     set((state) => {
       const positions = state.openPositions.map((p) =>
@@ -93,6 +107,14 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       const totalPnL = positions.reduce((sum, p) => sum + p.unrealizedPnL, 0);
       return { openPositions: positions, totalPnL };
     });
+  },
+
+  updatePositionTrailingStop: (id: string, trailingStop: TrailingStopConfig) => {
+    set((state) => ({
+      openPositions: state.openPositions.map((p) =>
+        p.id === id ? { ...p, trailingStop } : p
+      ),
+    }));
   },
 
   addOrder: (order: Order) => {

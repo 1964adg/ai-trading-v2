@@ -145,7 +145,34 @@ function SessionStatsComponent({ compact = false }: SessionStatsProps) {
             {formatNumber(sessionStats.worstTrade, 2)}
           </div>
         </div>
+        <div className="bg-gray-800 rounded-lg p-2 text-center">
+          <div className="text-xs text-gray-400">Avg Trade</div>
+          <div className={`text-lg font-bold font-mono ${sessionStats.avgTrade >= 0 ? 'text-bull' : 'text-bear'}`}>
+            {sessionStats.avgTrade >= 0 ? '+' : ''}{formatNumber(sessionStats.avgTrade, 2)}
+          </div>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-2 text-center">
+          <div className="text-xs text-gray-400">Profit Factor</div>
+          <div className={`text-lg font-bold font-mono ${sessionStats.profitFactor >= 2 ? 'text-bull' : sessionStats.profitFactor >= 1 ? 'text-blue-400' : 'text-bear'}`}>
+            {sessionStats.profitFactor === Infinity ? '∞' : formatNumber(sessionStats.profitFactor, 2)}
+          </div>
+        </div>
       </div>
+
+      {/* Streak Display */}
+      {sessionStats.currentStreak > 0 && (
+        <div className="mb-4">
+          <div className={`p-3 rounded-lg text-center ${sessionStats.currentStreakType === 'win' ? 'bg-bull/10 border border-bull/30' : 'bg-bear/10 border border-bear/30'}`}>
+            <div className="text-xs text-gray-400 mb-1">Current Streak</div>
+            <div className={`text-2xl font-bold ${sessionStats.currentStreakType === 'win' ? 'text-bull' : 'text-bear'}`}>
+              {sessionStats.currentStreak} {sessionStats.currentStreakType === 'win' ? '🔥' : '❄️'}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              {sessionStats.currentStreakType === 'win' ? 'Winning streak!' : 'Losing streak'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Day Stats */}
       <div className="border-t border-gray-800 pt-3">

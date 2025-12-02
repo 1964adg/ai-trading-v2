@@ -6,23 +6,29 @@ import TradingChart from '@/components/TradingChart';
 import TimeframeSelector from '@/components/TimeframeSelector';
 import PriceHeader from '@/components/PriceHeader';
 import LiveIndicator from '@/components/LiveIndicator';
-import PositionPanel from '@/components/trading/PositionPanel';
 import PnLTracker from '@/components/trading/PnLTracker';
 import SymbolSelector from '@/components/trading/SymbolSelector';
 import QuickAccessPanel from '@/components/trading/QuickAccessPanel';
 import LiveOrderbook from '@/components/trading/LiveOrderbook';
 import QuickTradePanel from '@/components/trading/QuickTradePanel';
 import SessionStats from '@/components/trading/SessionStats';
+import TrailingStopPanel from '@/components/trading/TrailingStopPanel';
+import PositionSizeCalculator from '@/components/trading/PositionSizeCalculator';
+import RiskRewardDisplay from '@/components/trading/RiskRewardDisplay';
+import MultiPositionManager from '@/components/trading/MultiPositionManager';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useOrderbook } from '@/hooks/useOrderbook';
 import { useSymbolTicker } from '@/hooks/useSymbolData';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useTrailingStop } from '@/hooks/useTrailingStop';
+import { usePositionSizing } from '@/hooks/usePositionSizing';
 import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
 import { Timeframe, ChartDataPoint } from '@/lib/types';
 import { toUnixTimestamp, isValidUnixTimestamp } from '@/lib/formatters';
 import { useTradingStore } from '@/stores/tradingStore';
 import { Position } from '@/stores/tradingStore';
 import { usePositionStore } from '@/stores/positionStore';
+import { useTradingConfigStore } from '@/stores/tradingConfigStore';
 
 const DEFAULT_SYMBOL = 'BTCUSDT';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
@@ -52,6 +58,9 @@ export default function Dashboard() {
 
   // Position store for session tracking
   const { sessionStats } = usePositionStore();
+
+  // Trading config store for SL/TP/Trailing
+  const { stopLoss, trailingStop } = useTradingConfigStore();
 
   // Use Zustand store for trading state
   const {
@@ -189,6 +198,24 @@ export default function Dashboard() {
 
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
 
+  // Calculate position sizing (depends on currentPrice)
+  const positionSizing = usePositionSizing({
+    entryPrice: currentPrice,
+    stopLossPercent: stopLoss.customValue || stopLoss.value,
+  });
+
+  // Trailing stop management - handles automatic position closing
+  useTrailingStop({
+    currentPrice,
+    enabled: true,
+    onPositionClose: (positionId, reason) => {
+      console.log(`Position ${positionId} closed due to ${reason}`);
+    },
+  });
+
+  // Create a map of current prices for all symbols
+  const currentPrices = { [symbol]: currentPrice };
+
   // Handle limit price from orderbook click - used for future limit order functionality
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleOrderbookPriceClick = useCallback((price: number) => {
@@ -206,7 +233,7 @@ export default function Dashboard() {
     onCloseAll: handleCloseAll,
   });
 
-  // Demo order handlers - stopLoss and takeProfit will be used in production integration
+  // Demo order handlers with full stop loss, take profit, and trailing stop support
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleBuy = useCallback((quantity: number, price: number, stopLoss?: number, takeProfit?: number) => {
     const position: Position = {
@@ -219,9 +246,18 @@ export default function Dashboard() {
       unrealizedPnL: 0,
       realizedPnL: 0,
       openTime: Date.now(),
+      stopLoss,
+      takeProfit,
+      trailingStop: trailingStop.enabled ? {
+        enabled: true,
+        percentage: trailingStop.percentage,
+        triggerDistance: trailingStop.triggerDistance,
+        peakPrice: price,
+        isActivated: false,
+      } : undefined,
     };
     addPosition(position);
-  }, [addPosition, symbol]);
+  }, [addPosition, symbol, trailingStop]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSell = useCallback((quantity: number, price: number, stopLoss?: number, takeProfit?: number) => {
@@ -235,9 +271,18 @@ export default function Dashboard() {
       unrealizedPnL: 0,
       realizedPnL: 0,
       openTime: Date.now(),
+      stopLoss,
+      takeProfit,
+      trailingStop: trailingStop.enabled ? {
+        enabled: true,
+        percentage: trailingStop.percentage,
+        triggerDistance: trailingStop.triggerDistance,
+        peakPrice: price,
+        isActivated: false,
+      } : undefined,
     };
     addPosition(position);
-  }, [addPosition, symbol]);
+  }, [addPosition, symbol, trailingStop]);
 
   if (error) {
     return (
@@ -346,8 +391,9 @@ export default function Dashboard() {
             emaEnabled={emaEnabled}
           />
 
-          {/* Quick Trading Panel - Below Chart */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Trading Controls Grid - Below Chart */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Quick Trading Panel */}
             <QuickTradePanel
               symbol={symbol}
               currentPrice={currentPrice}
@@ -355,7 +401,29 @@ export default function Dashboard() {
               onSell={handleSell}
             />
             
-            {/* Session Stats - Compact */}
+            {/* Trailing Stop Panel */}
+            <TrailingStopPanel
+              currentPrice={currentPrice}
+              compact={false}
+            />
+
+            {/* Position Size Calculator */}
+            <PositionSizeCalculator
+              currentPrice={currentPrice}
+              symbol={symbol}
+              compact={false}
+            />
+          </div>
+
+          {/* Risk/Reward and Session Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <RiskRewardDisplay
+              entryPrice={currentPrice}
+              positionSize={positionSizing.size}
+              side="long"
+              compact={false}
+            />
+
             <SessionStats compact={false} />
           </div>
 
@@ -398,9 +466,10 @@ export default function Dashboard() {
 
         {/* Positions & P&L Sidebar - 3 columns */}
         <div className="lg:col-span-3 space-y-4">
-          <PositionPanel
-            positions={openPositions}
-            onClosePosition={removePosition}
+          {/* Multi-Position Manager */}
+          <MultiPositionManager
+            currentPrices={currentPrices}
+            compact={false}
           />
 
           <PnLTracker
