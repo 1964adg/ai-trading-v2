@@ -19,6 +19,7 @@ import { useSymbolTicker } from '@/hooks/useSymbolData';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
 import { Timeframe, ChartDataPoint } from '@/lib/types';
+import { toUnixTimestamp, isValidUnixTimestamp } from '@/lib/formatters';
 import { useTradingStore } from '@/stores/tradingStore';
 import { Position } from '@/stores/tradingStore';
 import { usePositionStore } from '@/stores/positionStore';
@@ -90,8 +91,16 @@ export default function Dashboard() {
       'close' in data
     ) {
       const klineData = data as { timestamp: number; open: number; high: number; low: number; close: number };
+      const timestamp = toUnixTimestamp(klineData.timestamp);
+      
+      // Skip invalid timestamps
+      if (!isValidUnixTimestamp(timestamp)) {
+        console.warn('[WebSocket] Invalid timestamp received:', klineData.timestamp);
+        return;
+      }
+      
       const newPoint: ChartDataPoint = {
-        time: Math.floor(klineData.timestamp / 1000) as ChartDataPoint['time'],
+        time: timestamp as ChartDataPoint['time'],
         open: klineData.open,
         high: klineData.high,
         low: klineData.low,
@@ -102,14 +111,16 @@ export default function Dashboard() {
         if (prev.length === 0) return [newPoint];
 
         const lastPoint = prev[prev.length - 1];
+        const lastTime = lastPoint.time as number;
+        const newTime = newPoint.time as number;
 
         // Ignore old data (network delays)
-        if (newPoint.time < lastPoint.time) {
+        if (newTime < lastTime) {
           return prev;
         }
 
         // Update last candle if same time
-        if (lastPoint.time === newPoint.time) {
+        if (lastTime === newTime) {
           return [...prev.slice(0, -1), newPoint];
         }
 

@@ -53,3 +53,64 @@ export function formatNumber(value: number, decimals: number = 2): string {
     maximumFractionDigits: decimals,
   }).format(value);
 }
+
+/**
+ * Convert any timestamp value to Unix timestamp in SECONDS for lightweight-charts.
+ * Handles: Date objects, ISO strings, millisecond timestamps, and already-correct second timestamps.
+ * @param timestamp - The timestamp value to convert
+ * @returns Unix timestamp in seconds (number)
+ */
+export function toUnixTimestamp(timestamp: unknown): number {
+  if (typeof timestamp === 'number') {
+    // If timestamp is > 10 billion, it's likely in milliseconds
+    // (seconds would be ~32 billion in year 3000)
+    if (timestamp > 10_000_000_000) {
+      return Math.floor(timestamp / 1000);
+    }
+    return Math.floor(timestamp);
+  }
+
+  if (timestamp instanceof Date) {
+    return Math.floor(timestamp.getTime() / 1000);
+  }
+
+  if (typeof timestamp === 'string') {
+    const parsed = Date.parse(timestamp);
+    if (!isNaN(parsed)) {
+      return Math.floor(parsed / 1000);
+    }
+  }
+
+  // If it's an object with a valueOf method (like some Date-like objects)
+  if (timestamp && typeof timestamp === 'object' && 'valueOf' in timestamp) {
+    const value = (timestamp as { valueOf: () => unknown }).valueOf();
+    if (typeof value === 'number') {
+      if (value > 10_000_000_000) {
+        return Math.floor(value / 1000);
+      }
+      return Math.floor(value);
+    }
+  }
+
+  // Fallback: return current time in seconds
+  console.warn('[toUnixTimestamp] Invalid timestamp format:', timestamp);
+  return Math.floor(Date.now() / 1000);
+}
+
+/**
+ * Validate if a timestamp is a valid Unix timestamp in seconds.
+ * Valid range: after 2000-01-01 and before 2100-01-01
+ * @param timestamp - The timestamp value to validate
+ * @returns True if valid Unix timestamp in seconds
+ */
+export function isValidUnixTimestamp(timestamp: unknown): timestamp is number {
+  if (typeof timestamp !== 'number') {
+    return false;
+  }
+
+  // Valid range: 2000-01-01 to 2100-01-01 in seconds
+  const MIN_VALID_TIMESTAMP = 946684800; // 2000-01-01
+  const MAX_VALID_TIMESTAMP = 4102444800; // 2100-01-01
+
+  return timestamp >= MIN_VALID_TIMESTAMP && timestamp <= MAX_VALID_TIMESTAMP;
+}

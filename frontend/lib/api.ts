@@ -1,5 +1,6 @@
 import { Time } from 'lightweight-charts';
 import { KlineData, ChartDataPoint, ApiResponse, Timeframe } from './types';
+import { toUnixTimestamp, isValidUnixTimestamp } from './formatters';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -33,17 +34,22 @@ export async function fetchKlines(
 }
 
 /**
- * Transform KlineData from backend to ChartDataPoint for lightweight-charts
+ * Transform KlineData from backend to ChartDataPoint for lightweight-charts.
+ * Ensures timestamps are valid Unix timestamps in seconds.
  */
 export function transformKlinesToChartData(klines: KlineData[]): ChartDataPoint[] {
   return klines
-    .map((kline) => ({
-      time: Math.floor(kline.timestamp / 1000) as Time,
-      open: kline.open,
-      high: kline.high,
-      low: kline.low,
-      close: kline.close,
-      volume: kline.volume,
-    }))
-    .filter(point => !isNaN(Number(point.time)) && !isNaN(point.open));
+    .map((kline) => {
+      const timestamp = toUnixTimestamp(kline.timestamp);
+      return {
+        time: timestamp as Time,
+        open: kline.open,
+        high: kline.high,
+        low: kline.low,
+        close: kline.close,
+        volume: kline.volume,
+      };
+    })
+    .filter(point => isValidUnixTimestamp(point.time as number) && !isNaN(point.open))
+    .sort((a, b) => (a.time as number) - (b.time as number));
 }

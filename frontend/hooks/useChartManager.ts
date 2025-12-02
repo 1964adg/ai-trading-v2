@@ -10,7 +10,7 @@ import {
   LineData,
 } from 'lightweight-charts';
 import { ChartDataPoint } from '@/lib/types';
-import { formatNumber } from '@/lib/formatters';
+import { formatNumber, toUnixTimestamp, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
 
 interface UseChartManagerOptions {
@@ -29,6 +29,27 @@ interface ChartManagerResult {
 
 const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
 const UPDATE_BUFFER_MS = 16; // 16ms for 60 FPS updates
+
+/**
+ * Normalize a candle's timestamp to Unix seconds for lightweight-charts
+ */
+function normalizeCandle(candle: ChartDataPoint): ChartDataPoint {
+  const timestamp = toUnixTimestamp(candle.time);
+  return {
+    ...candle,
+    time: timestamp as Time,
+  };
+}
+
+/**
+ * Normalize and validate chart data array
+ */
+function normalizeChartData(data: ChartDataPoint[]): ChartDataPoint[] {
+  return data
+    .map(normalizeCandle)
+    .filter(candle => isValidUnixTimestamp(candle.time as number))
+    .sort((a, b) => (a.time as number) - (b.time as number));
+}
 
 export function useChartManager(
   options: UseChartManagerOptions
@@ -171,14 +192,13 @@ export function useChartManager(
 
         for (let i = 0; i < data.length; i++) {
           const value = periodEma[i];
-          const time = data[i].time;
+          const time = data[i].time as number;
           if (
             value !== null &&
             value !== undefined &&
-            time !== undefined &&
-            !isNaN(Number(time))
+            isValidUnixTimestamp(time)
           ) {
-            emaValues.push({ time, value });
+            emaValues.push({ time: time as Time, value });
           }
         }
 
@@ -198,12 +218,15 @@ export function useChartManager(
       // Preserve current viewport
       const viewportRange = preserveViewport();
 
+      // Normalize all data before updating
+      const normalizedData = normalizeChartData(data);
+      
       // Update candle data
-      dataRef.current = data;
-      candleSeries.setData(data);
+      dataRef.current = normalizedData;
+      candleSeries.setData(normalizedData);
 
       // Update EMA series
-      updateEmaData(data);
+      updateEmaData(normalizedData);
 
       // Restore viewport after update
       if (viewportRange) {
@@ -216,7 +239,16 @@ export function useChartManager(
   // Buffered update for real-time data (50ms flush for 20 FPS)
   const updateLastCandle = useCallback(
     (candle: ChartDataPoint) => {
-      pendingUpdatesRef.current.push(candle);
+      // Normalize the candle before adding to pending updates
+      const normalizedCandle = normalizeCandle(candle);
+      
+      // Skip invalid timestamps
+      if (!isValidUnixTimestamp(normalizedCandle.time as number)) {
+        console.warn('[useChartManager] Invalid candle timestamp:', candle.time);
+        return;
+      }
+      
+      pendingUpdatesRef.current.push(normalizedCandle);
 
       if (updateBufferRef.current) return;
 
@@ -240,21 +272,31 @@ export function useChartManager(
 
           if (lastIndex >= 0) {
             const lastCandle = data[lastIndex];
-            const newTime = Number(latestUpdate.time);
-            const lastTime = Number(lastCandle.time);
+            const newTime = latestUpdate.time as number;
+            const lastTime = lastCandle.time as number;
 
             if (newTime >= lastTime) {
-              if (newTime === lastTime) {
-                // Update existing candle
-                data[lastIndex] = latestUpdate;
-              } else {
-                // Add new candle
-                data.push(latestUpdate);
-              }
-              candleSeries.update(latestUpdate);
+              try {
+                if (newTime === lastTime) {
+                  // Update existing candle
+                  data[lastIndex] = latestUpdate;
+                } else {
+                  // Add new candle
+                  data.push(latestUpdate);
+                }
+                candleSeries.update(latestUpdate);
 
-              // Update EMAs incrementally
-              updateEmaData(data);
+                // Update EMAs incrementally
+                updateEmaData(data);
+              } catch (error) {
+                console.error('[useChartManager] Chart update error:', error);
+                // Fallback: try setData instead of update
+                try {
+                  candleSeries.setData(data);
+                } catch (fallbackError) {
+                  console.error('[useChartManager] Fallback setData error:', fallbackError);
+                }
+              }
             }
           }
         }
