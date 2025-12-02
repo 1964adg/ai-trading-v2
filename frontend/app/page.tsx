@@ -10,6 +10,7 @@ import QuickOrderPanel from '@/components/trading/QuickOrderPanel';
 import PositionPanel from '@/components/trading/PositionPanel';
 import PnLTracker from '@/components/trading/PnLTracker';
 import SymbolSelector from '@/components/trading/SymbolSelector';
+import QuickAccessPanel from '@/components/trading/QuickAccessPanel';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useSymbolTicker } from '@/hooks/useSymbolData';
 import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
@@ -236,6 +237,14 @@ export default function Dashboard() {
             onSymbolClick={() => setIsSymbolSelectorOpen(true)}
           />
           <LiveIndicator isConnected={isConnected} lastUpdate={lastUpdate} />
+        </div>
+        
+        {/* Quick Access Panel */}
+        <div className="mt-3">
+          <QuickAccessPanel
+            currentSymbol={symbol}
+            onSymbolChange={handleSymbolChange}
+          />
         </div>
       </div>
 
