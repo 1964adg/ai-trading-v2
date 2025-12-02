@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData } from 'lightweight-charts';
 import { ChartDataPoint, Timeframe } from '@/lib/types';
-import { formatCurrency, formatNumber, toUnixTimestamp, isValidUnixTimestamp } from '@/lib/formatters';
+import { formatCurrency, formatNumber, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
 
 interface TradingChartProps {

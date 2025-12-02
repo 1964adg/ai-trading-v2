@@ -56,7 +56,7 @@ export default function TradingModeSelector() {
         <div className="flex gap-2">
           {Object.values(TRADING_MODES).map((mode) => {
             const isActive = currentMode === mode.mode;
-            const colorClasses = {
+            const colorClasses: Record<string, string> = {
               blue: isActive ? 'bg-blue-600 text-white' : 'bg-gray-800 text-blue-400 hover:bg-blue-900',
               yellow: isActive ? 'bg-yellow-600 text-black' : 'bg-gray-800 text-yellow-400 hover:bg-yellow-900',
               red: isActive ? 'bg-red-600 text-white' : 'bg-gray-800 text-red-400 hover:bg-red-900',
