@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { ChartDataPoint } from '@/lib/types';
+import { toUnixTimestamp, isValidUnixTimestamp } from '@/lib/formatters';
 
 interface OrderbookLevel {
   price: number;
@@ -40,6 +41,17 @@ const initialState = {
   lastUpdateTime: 0,
 };
 
+/**
+ * Validate and normalize a candle's timestamp to Unix seconds
+ */
+function normalizeCandle(candle: ChartDataPoint): ChartDataPoint {
+  const timestamp = toUnixTimestamp(candle.time);
+  return {
+    ...candle,
+    time: timestamp as ChartDataPoint['time'],
+  };
+}
+
 export const useMarketStore = create<MarketState>((set, get) => ({
   ...initialState,
 
@@ -75,14 +87,23 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   },
 
   updateCandle: (candle: ChartDataPoint) => {
+    // Normalize the candle timestamp
+    const normalizedCandle = normalizeCandle(candle);
+    const newTime = normalizedCandle.time as number;
+    
+    // Skip invalid timestamps
+    if (!isValidUnixTimestamp(newTime)) {
+      console.warn('[MarketStore] Invalid candle timestamp:', candle.time);
+      return;
+    }
+    
     set((state) => {
       const data = [...state.candlestickData];
       const lastIndex = data.length - 1;
 
       if (lastIndex >= 0) {
         const lastCandle = data[lastIndex];
-        const newTime = Number(candle.time);
-        const lastTime = Number(lastCandle.time);
+        const lastTime = lastCandle.time as number;
 
         // Ignore old data
         if (newTime < lastTime) {
@@ -91,10 +112,10 @@ export const useMarketStore = create<MarketState>((set, get) => ({
 
         // Update existing candle
         if (newTime === lastTime) {
-          data[lastIndex] = candle;
+          data[lastIndex] = normalizedCandle;
           return {
             candlestickData: data,
-            currentPrice: candle.close,
+            currentPrice: normalizedCandle.close,
             lastUpdateTime: Date.now(),
           };
         }
@@ -102,16 +123,21 @@ export const useMarketStore = create<MarketState>((set, get) => ({
 
       // Add new candle
       return {
-        candlestickData: [...data, candle],
-        currentPrice: candle.close,
+        candlestickData: [...data, normalizedCandle],
+        currentPrice: normalizedCandle.close,
         lastUpdateTime: Date.now(),
       };
     });
   },
 
   setInitialData: (data: ChartDataPoint[]) => {
-    const sortedData = [...data].sort(
-      (a, b) => Number(a.time) - Number(b.time)
+    // Normalize all timestamps and filter invalid ones
+    const normalizedData = data
+      .map(normalizeCandle)
+      .filter(candle => isValidUnixTimestamp(candle.time as number));
+    
+    const sortedData = normalizedData.sort(
+      (a, b) => (a.time as number) - (b.time as number)
     );
     const lastCandle = sortedData[sortedData.length - 1];
     set({
