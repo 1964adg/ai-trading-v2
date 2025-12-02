@@ -22,6 +22,7 @@ function PresetManagerComponent({
   const [availableSymbols, setAvailableSymbols] = useState<SymbolData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -30,6 +31,7 @@ function PresetManagerComponent({
     let mounted = true;
     
     setIsLoading(true);
+    setLoadError(null);
     fetchSymbolsWithTickers()
       .then((symbols) => {
         if (mounted) {
@@ -40,6 +42,7 @@ function PresetManagerComponent({
       .catch((error) => {
         console.error('Error loading symbols:', error);
         if (mounted) {
+          setLoadError('Failed to load symbols. You can still reorder or remove existing selections.');
           setIsLoading(false);
         }
       });
@@ -240,6 +243,10 @@ function PresetManagerComponent({
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                </div>
+              ) : loadError ? (
+                <div className="text-amber-400 text-sm text-center py-4 px-2">
+                  ⚠️ {loadError}
                 </div>
               ) : filteredSymbols.length === 0 ? (
                 <div className="text-gray-500 text-sm text-center py-4">
