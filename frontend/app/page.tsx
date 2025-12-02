@@ -6,17 +6,22 @@ import TradingChart from '@/components/TradingChart';
 import TimeframeSelector from '@/components/TimeframeSelector';
 import PriceHeader from '@/components/PriceHeader';
 import LiveIndicator from '@/components/LiveIndicator';
-import QuickOrderPanel from '@/components/trading/QuickOrderPanel';
 import PositionPanel from '@/components/trading/PositionPanel';
 import PnLTracker from '@/components/trading/PnLTracker';
 import SymbolSelector from '@/components/trading/SymbolSelector';
 import QuickAccessPanel from '@/components/trading/QuickAccessPanel';
+import LiveOrderbook from '@/components/trading/LiveOrderbook';
+import QuickTradePanel from '@/components/trading/QuickTradePanel';
+import SessionStats from '@/components/trading/SessionStats';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useOrderbook } from '@/hooks/useOrderbook';
 import { useSymbolTicker } from '@/hooks/useSymbolData';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
 import { Timeframe, ChartDataPoint } from '@/lib/types';
 import { useTradingStore } from '@/stores/tradingStore';
 import { Position } from '@/stores/tradingStore';
+import { usePositionStore } from '@/stores/positionStore';
 
 const DEFAULT_SYMBOL = 'BTCUSDT';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
@@ -36,6 +41,16 @@ export default function Dashboard() {
 
   // Fetch 24h ticker data for price color indicator
   const { priceChangePercent24h } = useSymbolTicker(symbol, 10000);
+
+  // Real-time orderbook data
+  const { isConnected: isOrderbookConnected } = useOrderbook({
+    symbol,
+    enabled: true,
+    maxLevels: 20,
+  });
+
+  // Position store for session tracking
+  const { sessionStats } = usePositionStore();
 
   // Use Zustand store for trading state
   const {
@@ -163,8 +178,25 @@ export default function Dashboard() {
 
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
 
+  // Handle limit price from orderbook click - used for future limit order functionality
+  const handleOrderbookPriceClick = useCallback((price: number) => {
+    console.log(`[Orderbook] Price clicked: ${price} - Ready for limit order`);
+    // This price can be used to auto-fill limit order panel in future enhancement
+  }, []);
+
+  // Close all positions handler
+  const handleCloseAll = useCallback(() => {
+    openPositions.forEach((pos) => removePosition(pos.id));
+  }, [openPositions, removePosition]);
+
+  // Keyboard shortcuts for trading
+  useKeyboardShortcuts({
+    enabled: true,
+    onCloseAll: handleCloseAll,
+  });
+
   // Demo order handlers
-  const handleBuy = useCallback((quantity: number, price: number) => {
+  const handleBuy = useCallback((quantity: number, price: number, stopLoss?: number, takeProfit?: number) => {
     const position: Position = {
       id: `pos_${Date.now()}`,
       symbol,
@@ -177,9 +209,10 @@ export default function Dashboard() {
       openTime: Date.now(),
     };
     addPosition(position);
+    console.log(`[Trade] BUY ${quantity} ${symbol} @ ${price}`, { stopLoss, takeProfit });
   }, [addPosition, symbol]);
 
-  const handleSell = useCallback((quantity: number, price: number) => {
+  const handleSell = useCallback((quantity: number, price: number, stopLoss?: number, takeProfit?: number) => {
     const position: Position = {
       id: `pos_${Date.now()}`,
       symbol,
@@ -192,6 +225,7 @@ export default function Dashboard() {
       openTime: Date.now(),
     };
     addPosition(position);
+    console.log(`[Trade] SELL ${quantity} ${symbol} @ ${price}`, { stopLoss, takeProfit });
   }, [addPosition, symbol]);
 
   if (error) {
@@ -248,10 +282,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Main Grid Layout: Chart + Sidebar */}
-      <div className="max-w-full mx-auto grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* Main Chart Area - 3 columns on large screens */}
-        <div className="lg:col-span-3 space-y-4">
+      {/* Main Grid Layout: Chart + Orderbook + Trading Sidebar */}
+      <div className="max-w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Main Chart Area - 7 columns on large screens */}
+        <div className="lg:col-span-7 space-y-4">
           <TimeframeSelector selected={timeframe} onSelect={handleTimeframeChange} />
 
           {/* EMA Controls - Compact */}
@@ -301,6 +335,19 @@ export default function Dashboard() {
             emaEnabled={emaEnabled}
           />
 
+          {/* Quick Trading Panel - Below Chart */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <QuickTradePanel
+              symbol={symbol}
+              currentPrice={currentPrice}
+              onBuy={handleBuy}
+              onSell={handleSell}
+            />
+            
+            {/* Session Stats - Compact */}
+            <SessionStats compact={false} />
+          </div>
+
           {/* Stats Footer */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
@@ -321,23 +368,25 @@ export default function Dashboard() {
             </div>
 
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
-              <div className="text-xs text-gray-400 mb-1">Update</div>
-              <div className="text-xl font-bold text-purple-400 font-mono">
-                {lastUpdate ? `${Math.floor((Date.now() - lastUpdate.getTime()) / 1000)}s` : '--'}
+              <div className="text-xs text-gray-400 mb-1">Orderbook</div>
+              <div className={`text-xl font-bold ${isOrderbookConnected ? 'text-bull' : 'text-bear'}`}>
+                {isOrderbookConnected ? 'LIVE' : 'OFFLINE'}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Trading Sidebar - 1 column on large screens */}
-        <div className="space-y-4">
-          <QuickOrderPanel
+        {/* Live Orderbook - 2 columns */}
+        <div className="lg:col-span-2">
+          <LiveOrderbook
             symbol={symbol}
-            currentPrice={currentPrice}
-            onBuy={handleBuy}
-            onSell={handleSell}
+            maxLevels={10}
+            onPriceClick={handleOrderbookPriceClick}
           />
+        </div>
 
+        {/* Positions & P&L Sidebar - 3 columns */}
+        <div className="lg:col-span-3 space-y-4">
           <PositionPanel
             positions={openPositions}
             onClosePosition={removePosition}
@@ -347,6 +396,8 @@ export default function Dashboard() {
             unrealizedPnL={totalPnL}
             realizedPnL={totalRealizedPnL}
             totalPnL={totalPnL + totalRealizedPnL}
+            winRate={sessionStats.winRate}
+            tradesCount={sessionStats.totalTrades}
           />
         </div>
       </div>
