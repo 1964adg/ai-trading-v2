@@ -21,73 +21,23 @@ const UPDATE_BUFFER_MS = 16; // 16ms for 60 FPS updates
 
 /**
  * Normalize a candle's timestamp to Unix seconds for lightweight-charts
- * FIXED: More aggressive timestamp fixing
  */
 function normalizeCandle(candle: ChartDataPoint): ChartDataPoint {
-  let timestamp: number;
-  
-  // Handle various timestamp formats aggressively
-  if (typeof candle. time === 'number') {
-    // If it's already a number, check if it's in milliseconds
-    if (candle.time > 9999999999) { // Greater than year 2286 in seconds = milliseconds
-      timestamp = Math.floor(candle.time / 1000);
-    } else {
-      timestamp = candle.time;
-    }
-  } else if (typeof candle.time === 'string') {
-    // Parse string date
-    timestamp = Math.floor(new Date(candle. time).getTime() / 1000);
-  } else if (candle.time instanceof Date) {
-    // Handle Date objects
-    timestamp = Math.floor(candle.time. getTime() / 1000);
-  } else {
-    // Fallback: use current time
-    console.warn('[TradingChart] Invalid timestamp format, using current time:', candle.time);
-    timestamp = Math.floor(Date. now() / 1000);
-  }
-  
-  // Ensure timestamp is valid (after year 2000)
-  if (timestamp < 946684800) { // Jan 1, 2000
-    console.warn('[TradingChart] Timestamp too old, using current time:', timestamp);
-    timestamp = Math. floor(Date.now() / 1000);
-  }
-  
+  const timestamp = toUnixTimestamp(candle.time);
   return {
-    ... candle,
+    ...candle,
     time: timestamp as Time,
   };
 }
 
 /**
  * Normalize and validate chart data array
- * FIXED: More robust validation
  */
 function normalizeChartData(data: ChartDataPoint[]): ChartDataPoint[] {
-  if (!Array.isArray(data) || data.length === 0) {
-    console.warn('[TradingChart] Invalid or empty data array');
-    return [];
-  }
-  
-  const normalized = data
+  return data
     .map(normalizeCandle)
-    .filter(candle => {
-      const timeAsNumber = candle. time as number;
-      return isValidUnixTimestamp(timeAsNumber) && 
-             typeof candle.open === 'number' &&
-             typeof candle.high === 'number' &&
-             typeof candle.low === 'number' &&
-             typeof candle.close === 'number';
-    })
-    .sort((a, b) => (a.time as number) - (b. time as number));
-    
-  console.log('[TradingChart] Normalized data:', {
-    original: data.length,
-    normalized: normalized.length,
-    sampleTime: normalized[0]?.time,
-    sampleTimeType: typeof normalized[0]?. time
-  });
-  
-  return normalized;
+    .filter(candle => isValidUnixTimestamp(candle.time as number))
+    .sort((a, b) => (a.time as number) - (b.time as number));
 }
 
 function TradingChartComponent({
@@ -129,7 +79,7 @@ function TradingChartComponent({
     const chart = chartRef.current;
     if (!chart || !logicalRange) return;
     try {
-      chart. timeScale().setVisibleLogicalRange(logicalRange);
+      chart.timeScale().setVisibleLogicalRange(logicalRange);
     } catch {
       // Ignore errors during viewport restoration
     }
@@ -143,7 +93,7 @@ function TradingChartComponent({
     const emaData = calculateMultipleEMA(closePrices, emaPeriods);
 
     emaPeriods.forEach((period, index) => {
-      if (! emaEnabled[index]) return;
+      if (!emaEnabled[index]) return;
 
       const series = emaSeriesMapRef.current.get(period);
       if (!series) return;
@@ -160,11 +110,7 @@ function TradingChartComponent({
       }
 
       if (emaValues.length > 0) {
-        try {
-          series.setData(emaValues);
-        } catch (error) {
-          console. error('[TradingChart] EMA series setData error:', error);
-        }
+        series.setData(emaValues);
       }
     });
   }, [emaPeriods, emaEnabled]);
@@ -172,7 +118,7 @@ function TradingChartComponent({
   // Create EMA series - Fixed: key by period for stable mapping
   const createEmaSeries = useCallback(() => {
     const chart = chartRef.current;
-    if (! chart) return;
+    if (!chart) return;
 
     // Remove all existing EMA series
     emaSeriesMapRef.current.forEach((series) => {
@@ -182,7 +128,7 @@ function TradingChartComponent({
         // Series may already be removed
       }
     });
-    emaSeriesMapRef.current. clear();
+    emaSeriesMapRef.current.clear();
 
     // Create new EMA series only for enabled periods
     emaPeriods.forEach((period, index) => {
@@ -194,7 +140,7 @@ function TradingChartComponent({
           priceLineVisible: false,
           lastValueVisible: true,
         });
-        emaSeriesMapRef. current.set(period, emaSeries);
+        emaSeriesMapRef.current.set(period, emaSeries);
       }
     });
   }, [emaPeriods, emaEnabled]);
@@ -249,37 +195,37 @@ function TradingChartComponent({
 
     // Tooltip handling
     chart.subscribeCrosshairMove((param) => {
-      if (! tooltipRef.current) return;
+      if (!tooltipRef.current) return;
 
-      if (param.point === undefined || !param.time || param.point.x < 0 || param.point. y < 0) {
+      if (param.point === undefined || !param.time || param.point.x < 0 || param.point.y < 0) {
         tooltipRef.current.style.display = 'none';
         return;
       }
 
       const ohlcData = param.seriesData.get(candlestickSeries);
-      if (! ohlcData || !('open' in ohlcData)) {
-        tooltipRef.current.style. display = 'none';
+      if (!ohlcData || !('open' in ohlcData)) {
+        tooltipRef.current.style.display = 'none';
         return;
       }
 
       const candle = ohlcData as { open: number; high: number; low: number; close: number };
 
-      tooltipRef.current. style.display = 'block';
+      tooltipRef.current.style.display = 'block';
       tooltipRef.current.innerHTML = `
-        <div><strong>O:</strong> ${formatCurrency(candle. open)}</div>
+        <div><strong>O:</strong> ${formatCurrency(candle.open)}</div>
         <div><strong>H:</strong> ${formatCurrency(candle.high)}</div>
         <div><strong>L:</strong> ${formatCurrency(candle.low)}</div>
         <div><strong>C:</strong> ${formatCurrency(candle.close)}</div>
       `;
 
-      tooltipRef.current. style.left = `${param.point.x + 15}px`;
+      tooltipRef.current.style.left = `${param.point.x + 15}px`;
       tooltipRef.current.style.top = `${param.point.y + 15}px`;
     });
 
     const handleResize = () => {
-      if (chartContainerRef. current && chartRef.current) {
+      if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
-          width: chartContainerRef. current.clientWidth,
+          width: chartContainerRef.current.clientWidth,
         });
       }
     };
@@ -295,7 +241,7 @@ function TradingChartComponent({
       if (updateBuffer) {
         clearTimeout(updateBuffer);
       }
-      emaSeriesMap. clear();
+      emaSeriesMap.clear();
       chart.remove();
     };
   }, []);
@@ -304,13 +250,12 @@ function TradingChartComponent({
   useEffect(() => {
     if (!chartRef.current) return;
     createEmaSeries();
-    if (dataRef.current. length > 0) {
+    if (dataRef.current.length > 0) {
       updateEmaData(dataRef.current);
     }
   }, [emaEnabled, emaPeriods, createEmaSeries, updateEmaData]);
 
   // Handle data updates with viewport preservation and buffering
-  // FIXED: More robust error handling and validation
   useEffect(() => {
     if (!seriesRef.current || data.length === 0) return;
 
@@ -319,62 +264,56 @@ function TradingChartComponent({
       clearTimeout(updateBufferRef.current);
     }
 
-    // Buffer updates for performance
+    // Buffer updates for performance (50ms = ~20 FPS)
     updateBufferRef.current = setTimeout(() => {
-      const series = seriesRef. current;
+      const series = seriesRef.current;
       if (!series) return;
 
       // Normalize all data to ensure timestamps are valid Unix seconds
       const normalizedData = normalizeChartData(data);
-      if (normalizedData.length === 0) {
-        console.warn('[TradingChart] No valid data after normalization');
-        return;
-      }
+      if (normalizedData.length === 0) return;
 
       // Preserve current viewport
       const viewportRange = preserveViewport();
 
-      // Always use full setData for now to avoid timestamp ordering issues
+      // Determine if this is an incremental update or full refresh
+      const prevData = dataRef.current;
+      const isIncrementalUpdate = prevData.length > 0 &&
+        normalizedData.length >= prevData.length &&
+        normalizedData.length - prevData.length <= 1;
+
       try {
-        console.log('[TradingChart] Setting chart data:', {
-          dataLength: normalizedData.length,
-          firstTime: normalizedData[0]?.time,
-          lastTime: normalizedData[normalizedData.length - 1]?. time,
-          timeType: typeof normalizedData[0]?.time
-        });
-        
-        series.setData(normalizedData);
-        
-        // Store reference to current data
-        dataRef.current = normalizedData;
-
-        // Update EMA series
-        updateEmaData(normalizedData);
-
-        // Restore viewport after update
-        if (viewportRange) {
-          setTimeout(() => restoreViewport(viewportRange), 50);
+        if (isIncrementalUpdate && normalizedData.length === prevData.length) {
+          // Same length - update last candle only
+          const lastCandle = normalizedData[normalizedData.length - 1];
+          series.update(lastCandle);
+        } else if (isIncrementalUpdate && normalizedData.length === prevData.length + 1) {
+          // New candle added - update last + add new
+          const lastCandle = normalizedData[normalizedData.length - 1];
+          series.update(lastCandle);
+        } else {
+          // Full data refresh
+          series.setData(normalizedData);
         }
-        
       } catch (error) {
-        console. error('[TradingChart] Chart setData error:', error);
-        console.error('[TradingChart] Problematic data sample:', normalizedData. slice(0, 3));
-        
-        // Last resort: create simple test data
-        const fallbackData = [{
-          time: Math.floor(Date. now() / 1000) as Time,
-          open: 50000,
-          high: 51000,
-          low: 49000,
-          close: 50500
-        }];
-        
+        console.error('[TradingChart] Chart update error:', error);
+        // Fallback: try full setData
         try {
-          series. setData(fallbackData);
-          console.log('[TradingChart] Using fallback data');
+          series.setData(normalizedData);
         } catch (fallbackError) {
-          console.error('[TradingChart] Even fallback data failed:', fallbackError);
+          console.error('[TradingChart] Fallback setData error:', fallbackError);
         }
+      }
+
+      // Store reference to current data
+      dataRef.current = normalizedData;
+
+      // Update EMA series
+      updateEmaData(normalizedData);
+
+      // Restore viewport after update
+      if (viewportRange) {
+        restoreViewport(viewportRange);
       }
     }, UPDATE_BUFFER_MS);
   }, [data, preserveViewport, restoreViewport, updateEmaData]);
