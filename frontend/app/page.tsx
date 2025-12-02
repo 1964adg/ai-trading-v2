@@ -1,5 +1,11 @@
 'use client';
 
+import TradingModeSelector from '@/components/trading/TradingModeSelector';
+import RealBalancePanel from '@/components/trading/RealBalancePanel';
+import RealPositionsPanel from '@/components/trading/RealPositionsPanel';
+import RiskControlsPanel from '@/components/trading/RiskControlsPanel';
+import { useRealTrading } from '@/hooks/useRealTrading';
+import { useTradingModeStore } from '@/stores/tradingModeStore';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import TradingChart from '@/components/TradingChart';
@@ -45,6 +51,10 @@ export default function Dashboard() {
   // Store viewport range for preservation on timeframe change
   const viewportRangeRef = useRef<{ from: number; to: number } | null>(null);
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
+
+  // Real Trading Integration
+  const { currentMode } = useTradingModeStore();
+  useRealTrading({ enabled: true, refreshInterval: 5000 });
 
   // Fetch 24h ticker data for price color indicator
   const { priceChangePercent24h } = useSymbolTicker(symbol, 10000);
@@ -329,6 +339,12 @@ export default function Dashboard() {
           <LiveIndicator isConnected={isConnected} lastUpdate={lastUpdate} />
         </div>
         
+        {/* Real Trading Controls - NEW */}
+        <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <TradingModeSelector />
+          <RealBalancePanel />
+        </div>
+        
         {/* Quick Access Panel */}
         <div className="mt-3">
           <QuickAccessPanel
@@ -466,6 +482,14 @@ export default function Dashboard() {
 
         {/* Positions & P&L Sidebar - 3 columns */}
         <div className="lg:col-span-3 space-y-4">
+          {/* Real Trading Components - NEW */}
+          {currentMode !== 'paper' && (
+            <>
+              <RealPositionsPanel />
+              <RiskControlsPanel />
+            </>
+          )}
+          
           {/* Multi-Position Manager */}
           <MultiPositionManager
             currentPrices={currentPrices}
