@@ -4,7 +4,6 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { TradingMode, TradingModeInfo } from '@/types/trading';
 
 // Trading mode information
@@ -55,72 +54,60 @@ interface TradingModeState {
   canSwitchToMode: (mode: TradingMode) => { allowed: boolean; reason?: string };
 }
 
-export const useTradingModeStore = create<TradingModeState>()(
-  persist(
-    (set, get) => ({
-      currentMode: 'paper',
-      hasCredentials: false,
+export const useTradingModeStore = create<TradingModeState>((set, get) => ({
+  currentMode: 'paper',
+  hasCredentials: false,
+  modeHistory: [
+    {
+      mode: 'paper',
+      timestamp: Date.now(),
+    },
+  ],
+
+  setMode: (mode: TradingMode) => {
+    const canSwitch = get().canSwitchToMode(mode);
+    if (!canSwitch.allowed) {
+      console.warn(`Cannot switch to ${mode}: ${canSwitch.reason}`);
+      return;
+    }
+
+    set((state) => ({
+      currentMode: mode,
       modeHistory: [
+        ...state.modeHistory,
         {
-          mode: 'paper',
+          mode,
           timestamp: Date.now(),
         },
       ],
+    }));
+  },
 
-      setMode: (mode: TradingMode) => {
-        const canSwitch = get().canSwitchToMode(mode);
-        if (!canSwitch.allowed) {
-          console.warn(`Cannot switch to ${mode}: ${canSwitch.reason}`);
-          return;
-        }
+  setHasCredentials: (has: boolean) => {
+    set({ hasCredentials: has });
+  },
 
-        set((state) => ({
-          currentMode: mode,
-          modeHistory: [
-            ...state.modeHistory,
-            {
-              mode,
-              timestamp: Date.now(),
-            },
-          ],
-        }));
-      },
+  getModeInfo: () => {
+    const mode = get().currentMode;
+    return TRADING_MODES[mode];
+  },
 
-      setHasCredentials: (has: boolean) => {
-        set({ hasCredentials: has });
-      },
+  canSwitchToMode: (mode: TradingMode) => {
+    const state = get();
 
-      getModeInfo: () => {
-        const mode = get().currentMode;
-        return TRADING_MODES[mode];
-      },
-
-      canSwitchToMode: (mode: TradingMode) => {
-        const state = get();
-
-        // Can always switch to paper mode
-        if (mode === 'paper') {
-          return { allowed: true };
-        }
-
-        // Testnet and real modes require credentials
-        if ((mode === 'testnet' || mode === 'real') && !state.hasCredentials) {
-          return {
-            allowed: false,
-            reason: 'API credentials required for this mode',
-          };
-        }
-
-        return { allowed: true };
-      },
-    }),
-    {
-      name: 'trading-mode-storage',
-      // Only persist mode and credentials flag
-      partialize: (state) => ({
-        currentMode: state.currentMode,
-        hasCredentials: state.hasCredentials,
-      }),
+    // Can always switch to paper mode
+    if (mode === 'paper') {
+      return { allowed: true };
     }
-  )
-);
+
+    // Testnet and real modes require credentials
+    if ((mode === 'testnet' || mode === 'real') && !state.hasCredentials) {
+      return {
+        allowed: false,
+        reason: 'API credentials required for this mode',
+      };
+    }
+
+    return { allowed: true };
+  },
+}));
