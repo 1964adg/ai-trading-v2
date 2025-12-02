@@ -266,7 +266,14 @@ function QuickTradePanelComponent({
               setStopLossPercent(null);
             }}
             placeholder="Custom"
-            className="w-16 px-2 py-1.5 text-xs bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-bear focus:outline-none font-mono"
+            className={`
+              w-16 px-2 py-1.5 text-xs rounded-lg border focus:outline-none font-mono transition-colors
+              ${
+                customStopLoss && parseFloat(customStopLoss) > 0
+                  ? 'bg-bear text-white border-bear'
+                  : 'bg-gray-800 text-gray-400 border-gray-700 focus:border-bear'
+              }
+            `}
           />
         </div>
       </div>
@@ -302,7 +309,14 @@ function QuickTradePanelComponent({
               setTakeProfitPercent(null);
             }}
             placeholder="Custom"
-            className="w-16 px-2 py-1.5 text-xs bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-bull focus:outline-none font-mono"
+            className={`
+              w-16 px-2 py-1.5 text-xs rounded-lg border focus:outline-none font-mono transition-colors
+              ${
+                customTakeProfit && parseFloat(customTakeProfit) > 0
+                  ? 'bg-bull text-white border-bull'
+                  : 'bg-gray-800 text-gray-400 border-gray-700 focus:border-bull'
+              }
+            `}
           />
         </div>
       </div>
