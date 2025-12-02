@@ -91,12 +91,12 @@ export const usePositionStore = create<PositionStoreState>((set) => ({
       const losses = newHistory.filter((t) => t.pnl < 0);
       const calculatedTotalPnL = newHistory.reduce((sum, t) => sum + t.pnl, 0);
       
-      // Calculate profit factor
+      // Calculate profit factor using utility function
       const grossProfit = wins.reduce((sum, t) => sum + t.pnl, 0);
       const grossLoss = Math.abs(losses.reduce((sum, t) => sum + t.pnl, 0));
       const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? Infinity : 0);
       
-      // Calculate streak
+      // Calculate streak using utility function
       let currentStreak = 0;
       let currentStreakType: 'win' | 'loss' = 'win';
       if (newHistory.length > 0) {

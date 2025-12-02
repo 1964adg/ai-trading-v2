@@ -146,7 +146,8 @@ export function calculatePortfolioRisk(
 
     if (position.stopLoss) {
       const riskPerUnit = Math.abs(position.entryPrice - position.stopLoss);
-      positionRisk = riskPerUnit * position.quantity;
+      // Account for leverage in risk calculation
+      positionRisk = riskPerUnit * position.quantity * position.leverage;
     }
 
     totalRisk += positionRisk;

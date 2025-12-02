@@ -155,7 +155,7 @@ function TrailingStopPanelComponent({ currentPrice, compact = false }: TrailingS
             ))}
           </div>
           <div className="mt-2 text-xs text-gray-500">
-            Activates when price moves {trailingStop.triggerDistance}% in your favor
+            Activates when price moves {trailingStop.triggerDistance}% from entry
           </div>
         </motion.div>
       )}

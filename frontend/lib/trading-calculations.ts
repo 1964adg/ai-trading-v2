@@ -42,9 +42,11 @@ export function calculatePositionSize(params: PositionSizeParams): PositionSizeR
   // Calculate maximum risk amount
   const riskAmount = accountBalance * (riskPercentage / 100);
 
+  // Calculate stop loss price based on percentage distance
+  const stopLossPriceDiff = entryPrice * (stopLossDistance / 100);
+  
   // Calculate position size: Risk Amount / Stop Loss Distance (in price units)
-  const stopLossPrice = entryPrice * (stopLossDistance / 100);
-  const size = riskAmount / stopLossPrice;
+  const size = riskAmount / stopLossPriceDiff;
 
   // Calculate position value
   const value = size * entryPrice;

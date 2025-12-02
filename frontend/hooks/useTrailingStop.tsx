@@ -24,10 +24,12 @@ export function useTrailingStop({ currentPrice, enabled = true, onPositionClose 
       // Update trailing stop
       const updatedPosition = updateTrailingStop(position, currentPrice);
 
-      // Update store if trailing stop changed
-      if (updatedPosition.trailingStop && 
-          (updatedPosition.trailingStop.currentStopPrice !== position.trailingStop.currentStopPrice ||
-           updatedPosition.trailingStop.isActivated !== position.trailingStop.isActivated)) {
+      // Update store if trailing stop changed significantly (avoid floating point precision issues)
+      const stopPriceChanged = !position.trailingStop.currentStopPrice || 
+        Math.abs((updatedPosition.trailingStop?.currentStopPrice || 0) - (position.trailingStop.currentStopPrice || 0)) > 0.01;
+      const activationChanged = updatedPosition.trailingStop?.isActivated !== position.trailingStop.isActivated;
+      
+      if (updatedPosition.trailingStop && (stopPriceChanged || activationChanged)) {
         updatePositionTrailingStop(position.id, updatedPosition.trailingStop);
       }
 
