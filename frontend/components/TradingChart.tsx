@@ -5,6 +5,7 @@ import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData } fro
 import { ChartDataPoint, Timeframe } from '@/lib/types';
 import { formatCurrency, formatNumber, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
+import { DetectedPattern } from '@/types/patterns';
 
 interface TradingChartProps {
   data: ChartDataPoint[];
@@ -13,6 +14,7 @@ interface TradingChartProps {
   onTimeframeChange?: (timeframe: Timeframe) => void;
   emaPeriods?: [number, number, number, number];
   emaEnabled?: [boolean, boolean, boolean, boolean];
+  patterns?: DetectedPattern[];
 }
 
 const TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w'];
@@ -96,7 +98,8 @@ function TradingChartComponent({
   timeframe = '15m',
   onTimeframeChange,
   emaPeriods = [9, 21, 50, 200],
-  emaEnabled = [true, true, true, true]
+  emaEnabled = [true, true, true, true],
+  patterns = [],
 }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -410,6 +413,28 @@ function TradingChartComponent({
           className="absolute bg-gray-900 border border-gray-700 rounded p-2 text-xs text-white pointer-events-none z-10 font-mono leading-relaxed"
           style={{ display: 'none' }}
         />
+        
+        {/* Pattern Markers Overlay */}
+        {patterns.length > 0 && (
+          <div className="absolute top-2 right-2 bg-gray-900/90 border border-gray-700 rounded-lg p-2 text-xs space-y-1 max-w-xs">
+            <div className="text-gray-400 font-semibold mb-1">Detected Patterns</div>
+            {patterns.slice(-3).reverse().map((pattern) => (
+              <div
+                key={pattern.id}
+                className={`flex items-center justify-between gap-2 p-1.5 rounded ${
+                  pattern.signal === 'BULLISH'
+                    ? 'bg-green-500/10 text-green-400'
+                    : pattern.signal === 'BEARISH'
+                    ? 'bg-red-500/10 text-red-400'
+                    : 'bg-yellow-500/10 text-yellow-400'
+                }`}
+              >
+                <span className="font-medium">{pattern.pattern.name}</span>
+                <span className="text-xs opacity-75">{pattern.confidence}%</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

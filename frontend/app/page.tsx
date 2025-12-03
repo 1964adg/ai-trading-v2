@@ -449,6 +449,7 @@ export default function Dashboard() {
             symbol={symbol}
             emaPeriods={emaPeriods}
             emaEnabled={emaEnabled}
+            patterns={detectedPatterns}
           />
 
           {/* Trading Controls Grid - Below Chart */}
