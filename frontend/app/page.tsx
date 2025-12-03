@@ -42,6 +42,7 @@ import { CandleData } from '@/types/patterns';
 
 const DEFAULT_SYMBOL = 'BTCUSDT';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
+const MAX_PATTERN_DETECTION_CANDLES = 100;
 
 // EMA Color indicators
 const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
@@ -211,23 +212,37 @@ export default function Dashboard() {
 
   // Convert ChartDataPoint to CandleData for pattern detection
   const convertToCandles = useCallback((chartPoints: ChartDataPoint[]): CandleData[] => {
-    return chartPoints.map(point => ({
-      time: point.time,
-      timestamp: typeof point.time === 'number' ? point.time * 1000 : Date.now(),
-      open: point.open,
-      high: point.high,
-      low: point.low,
-      close: point.close,
-      volume: point.volume,
-    }));
+    return chartPoints.map(point => {
+      // Ensure timestamp is in milliseconds
+      let timestamp: number;
+      if (typeof point.time === 'number') {
+        // If in seconds (< year 2286), convert to milliseconds
+        timestamp = point.time > 9999999999 ? point.time : point.time * 1000;
+      } else {
+        // Parse string or date to milliseconds
+        timestamp = typeof point.time === 'string' 
+          ? Date.parse(point.time) 
+          : Date.now();
+      }
+      
+      return {
+        time: point.time,
+        timestamp,
+        open: point.open,
+        high: point.high,
+        low: point.low,
+        close: point.close,
+        volume: point.volume,
+      };
+    });
   }, []);
 
   // Run pattern detection when chart data updates
   useEffect(() => {
     if (chartData.length > 0) {
       const candles = convertToCandles(chartData);
-      // Only detect patterns on the most recent candles (last 100) for performance
-      const recentCandles = candles.slice(-100);
+      // Only detect patterns on the most recent candles for performance
+      const recentCandles = candles.slice(-MAX_PATTERN_DETECTION_CANDLES);
       if (recentCandles.length >= 2) {
         detectPatterns(recentCandles);
       }

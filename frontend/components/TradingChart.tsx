@@ -20,6 +20,7 @@ interface TradingChartProps {
 const TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w'];
 const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
 const UPDATE_BUFFER_MS = 16; // 16ms for 60 FPS updates
+const MAX_DISPLAYED_PATTERNS = 3; // Number of patterns to display in overlay
 
 /**
  * Normalize a candle's timestamp to Unix seconds for lightweight-charts
@@ -416,9 +417,9 @@ function TradingChartComponent({
         
         {/* Pattern Markers Overlay */}
         {patterns.length > 0 && (
-          <div className="absolute top-2 right-2 bg-gray-900/90 border border-gray-700 rounded-lg p-2 text-xs space-y-1 max-w-xs">
+          <div className="absolute top-2 right-2 z-20 bg-gray-900/90 border border-gray-700 rounded-lg p-2 text-xs space-y-1 max-w-xs">
             <div className="text-gray-400 font-semibold mb-1">Detected Patterns</div>
-            {patterns.slice(-3).reverse().map((pattern) => (
+            {patterns.slice(-MAX_DISPLAYED_PATTERNS).reverse().map((pattern) => (
               <div
                 key={pattern.id}
                 className={`flex items-center justify-between gap-2 p-1.5 rounded ${
