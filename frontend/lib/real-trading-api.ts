@@ -179,32 +179,25 @@ export class RealTradingAPIClient {
   /**
    * Get account balance
    */
-  async getAccountInfo(): Promise<AccountBalance[]> {
-    try {
-      const data = await this.makeAuthenticatedRequest('/account');
-      
-      if (this.mode === 'paper') {
-        // Paper mode returns mock data
-        return [
-          { asset: 'USDT', free: 10000, locked: 0, total: 10000 },
-        ];
-      }
-
-      // Parse real/testnet response
-      const response = data as { balances: Array<{ asset: string; free: string; locked: string }> };
-      return response.balances
-        .filter(b => parseFloat(b.free) > 0 || parseFloat(b.locked) > 0)
-        .map(b => ({
-          asset: b.asset,
-          free: parseFloat(b.free),
-          locked: parseFloat(b.locked),
-          total: parseFloat(b.free) + parseFloat(b.locked),
-        }));
-    } catch (error) {
-      console.error('Error fetching account info:', error);
-      throw error;
-    }
+  async getAccountInfo(): Promise<AccountInfo> {
+  // Paper mode - simulate locally without API calls
+  if (this.mode === 'paper') {
+    return {
+      totalBalance: 10000,      // $10K starting balance
+      availableBalance: 8500,   // $8.5K available
+      lockedBalance: 1500,      // $1.5K locked in orders
+      todayPnL: 247.83,         // +$247.83 today
+      totalPnL: 1247.83,        // +$1247.83 total
+      balances: [
+        { asset: 'USDT', free: 8500, locked: 1500 },
+        { asset: 'BTC', free: 0.15, locked: 0 }
+      ]
+    };
   }
+
+  // Testnet/Real modes - use actual API calls
+  return this.makeAuthenticatedRequest('/account');
+}
 
   /**
    * Place an order
@@ -224,7 +217,7 @@ export class RealTradingAPIClient {
       if (order.reduceOnly) params.reduceOnly = 'true';
 
       const data = await this.makeAuthenticatedRequest('/order', params, 'POST');
-      
+
       if (this.mode === 'paper') {
         // Paper mode returns mock order
         return {

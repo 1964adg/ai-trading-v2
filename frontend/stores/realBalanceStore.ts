@@ -12,11 +12,11 @@ interface RealBalanceState {
   totalBalance: number;
   availableBalance: number;
   lockedBalance: number;
-  
+
   // P&L tracking
   dailyPnL: number;
   totalPnL: number;
-  
+
   // Loading state
   isLoading: boolean;
   lastUpdate: number | null;
@@ -45,21 +45,29 @@ const initialState = {
 export const useRealBalanceStore = create<RealBalanceState>((set) => ({
   ...initialState,
 
-  setBalances: (balances: AccountBalance[]) => {
-    const totalBalance = balances.reduce((sum, b) => sum + b.total, 0);
-    const availableBalance = balances.reduce((sum, b) => sum + b.free, 0);
-    const lockedBalance = balances.reduce((sum, b) => sum + b.locked, 0);
+ setBalances: (balances: any[]) => {
+  // Safety check
+  const balancesArray = Array.isArray(balances) ? balances : [];
 
-    set({
-      balances,
-      totalBalance,
-      availableBalance,
-      lockedBalance,
-      lastUpdate: Date.now(),
-      error: null,
-      isLoading: false,
-    });
-  },
+  // Handle both formats: {asset, free, locked} and {total, free, locked}
+  const totalBalance = balancesArray. reduce((sum, b) => {
+    const total = b.total || (b.free + b.locked) || 0;
+    return sum + total;
+  }, 0);
+
+  const availableBalance = balancesArray.reduce((sum, b) => sum + (b.free || 0), 0);
+  const lockedBalance = balancesArray.reduce((sum, b) => sum + (b.locked || 0), 0);
+
+  set({
+    balances: balancesArray,
+    totalBalance,
+    availableBalance,
+    lockedBalance,
+    lastUpdate: Date.now(),
+    error: null,
+    isLoading: false,
+  });
+},
 
   updatePnL: (dailyPnL: number, totalPnL: number) => {
     set({ dailyPnL, totalPnL });
