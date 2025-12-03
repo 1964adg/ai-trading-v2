@@ -161,6 +161,7 @@ export function useOrderbook(options: UseOrderbookOptions): UseOrderbookReturn {
         clearTimeout(debounceTimeoutRef.current);
         debounceTimeoutRef.current = null;
       }
+      cleanup();
     };
   }, [symbol, enabled, cleanup, connect, setSymbol]);
 
