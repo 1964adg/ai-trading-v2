@@ -35,6 +35,10 @@ import { useTradingStore } from '@/stores/tradingStore';
 import { Position } from '@/stores/tradingStore';
 import { usePositionStore } from '@/stores/positionStore';
 import { useTradingConfigStore } from '@/stores/tradingConfigStore';
+import { PatternDetector } from '@/components/PatternDetector';
+import { PatternDashboard } from '@/components/PatternDashboard';
+import { usePatternRecognition } from '@/hooks/usePatternRecognition';
+import { CandleData } from '@/types/patterns';
 
 const DEFAULT_SYMBOL = 'BTCUSDT';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
@@ -55,6 +59,21 @@ export default function Dashboard() {
   // Real Trading Integration
   const { currentMode } = useTradingModeStore();
   useRealTrading({ enabled: true, refreshInterval: 5000 });
+
+  // Pattern Recognition Integration
+  const {
+    detectedPatterns,
+    detectPatterns,
+    patternStats,
+    overallPerformance,
+    isDetecting,
+  } = usePatternRecognition({
+    enableRealTime: true,
+    initialSettings: {
+      minConfidence: 60,
+      sensitivity: 'MEDIUM',
+    },
+  });
 
   // Fetch 24h ticker data for price color indicator
   const { priceChangePercent24h } = useSymbolTicker(symbol, 10000);
@@ -189,6 +208,31 @@ export default function Dashboard() {
       });
     }
   }, [data]);
+
+  // Convert ChartDataPoint to CandleData for pattern detection
+  const convertToCandles = useCallback((chartPoints: ChartDataPoint[]): CandleData[] => {
+    return chartPoints.map(point => ({
+      time: point.time,
+      timestamp: typeof point.time === 'number' ? point.time * 1000 : Date.now(),
+      open: point.open,
+      high: point.high,
+      low: point.low,
+      close: point.close,
+      volume: point.volume,
+    }));
+  }, []);
+
+  // Run pattern detection when chart data updates
+  useEffect(() => {
+    if (chartData.length > 0) {
+      const candles = convertToCandles(chartData);
+      // Only detect patterns on the most recent candles (last 100) for performance
+      const recentCandles = candles.slice(-100);
+      if (recentCandles.length >= 2) {
+        detectPatterns(recentCandles);
+      }
+    }
+  }, [chartData, convertToCandles, detectPatterns]);
 
   // Handle timeframe change with viewport preservation
   const handleTimeframeChange = useCallback((newTimeframe: Timeframe) => {
@@ -482,6 +526,17 @@ export default function Dashboard() {
 
         {/* Positions & P&L Sidebar - 3 columns */}
         <div className="lg:col-span-3 space-y-4">
+          {/* Pattern Recognition Section - NEW */}
+          <PatternDetector
+            patterns={detectedPatterns}
+            isDetecting={isDetecting}
+          />
+          
+          <PatternDashboard
+            patternStats={patternStats}
+            overallPerformance={overallPerformance}
+          />
+          
           {/* Real Trading Components - NEW */}
           {currentMode !== 'paper' && (
             <>
