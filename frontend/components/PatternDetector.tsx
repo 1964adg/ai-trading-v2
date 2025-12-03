@@ -72,9 +72,9 @@ export function PatternDetector({
             No patterns detected yet
           </div>
         ) : (
-          recentPatterns.map((pattern) => (
+          recentPatterns.map((pattern, index) => (
             <div
-              key={pattern.id}
+              key={`${pattern.id}-${index}`}
               onClick={() => onPatternClick?.(pattern)}
               className={`p-3 rounded-lg border transition-all cursor-pointer hover:bg-slate-700/30 ${getSignalColor(
                 pattern.signal
