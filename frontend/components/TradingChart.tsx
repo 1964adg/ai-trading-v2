@@ -421,7 +421,7 @@ function TradingChartComponent({
             <div className="text-gray-400 font-semibold mb-1">Detected Patterns</div>
             {patterns.slice(-MAX_DISPLAYED_PATTERNS).reverse().map((pattern, index) => (
               <div
-                key={`${pattern.id}-${index}`}
+                key={`${pattern.pattern.type}-${pattern.timestamp}-${pattern.priceLevel}-${index}`}
                 className={`flex items-center justify-between gap-2 p-1.5 rounded ${
                   pattern.signal === 'BULLISH'
                     ? 'bg-green-500/10 text-green-400'
