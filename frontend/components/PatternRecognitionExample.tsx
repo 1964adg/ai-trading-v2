@@ -146,13 +146,8 @@ export function PatternRecognitionExample({
         volume: point.volume,
       }));
 
-      // Add timeframe metadata
-      const candlesWithTimeframe = candleData.map((candle) => ({
-        ...candle,
-        metadata: { timeframe },
-      }));
-
-      patternRecognition.detectPatterns(candlesWithTimeframe);
+      // Detect patterns (timeframe can be stored separately if needed)
+      patternRecognition.detectPatterns(candleData);
     }
   }, [chartData, timeframe, patternRecognition]);
 

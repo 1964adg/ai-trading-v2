@@ -374,13 +374,14 @@ export class PatternDetector {
   private determineTrend(candles: CandleData[]): 'UP' | 'DOWN' | 'SIDEWAYS' {
     if (candles.length < 3) return 'SIDEWAYS';
 
+    const TREND_THRESHOLD_PERCENT = 1; // 1% price change threshold
     const recentCandles = candles.slice(-5);
     const firstPrice = recentCandles[0].close;
     const lastPrice = recentCandles[recentCandles.length - 1].close;
     const priceChange = ((lastPrice - firstPrice) / firstPrice) * 100;
 
-    if (priceChange > 1) return 'UP';
-    if (priceChange < -1) return 'DOWN';
+    if (priceChange > TREND_THRESHOLD_PERCENT) return 'UP';
+    if (priceChange < -TREND_THRESHOLD_PERCENT) return 'DOWN';
     return 'SIDEWAYS';
   }
 
@@ -388,7 +389,20 @@ export class PatternDetector {
    * Get pattern definition by type
    */
   private getPatternDefinition(type: PatternType): CandlestickPattern {
-    return ESSENTIAL_CANDLESTICK_PATTERNS.find(p => p.type === type)!;
+    const pattern = ESSENTIAL_CANDLESTICK_PATTERNS.find(p => p.type === type);
+    if (!pattern) {
+      // Fallback pattern if not found (should not happen with valid PatternType)
+      console.error(`Pattern type ${type} not found in ESSENTIAL_CANDLESTICK_PATTERNS`);
+      return {
+        type,
+        name: type,
+        description: 'Unknown pattern',
+        signal: 'NEUTRAL',
+        reliabilityScore: 50,
+        category: 'INDECISION',
+      };
+    }
+    return pattern;
   }
 
   /**
