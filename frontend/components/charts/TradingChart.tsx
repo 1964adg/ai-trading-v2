@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, memo } from 'react';
-import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData, MouseEventParams } from 'lightweight-charts';
 import { ChartDataPoint, Timeframe } from '@/lib/types';
 import { formatCurrency, formatNumber, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
@@ -106,7 +106,7 @@ function TradingChartComponent({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const dataRef = useRef<ChartDataPoint[]>([]);
   const updateBufferRef = useRef<NodeJS.Timeout | null>(null);
-  const crosshairHandlerRef = useRef<((param: any) => void) | null>(null);
+  const crosshairHandlerRef = useRef<((param: MouseEventParams<Time>) => void) | null>(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>(timeframe);
 
   const handleTimeframeClick = useCallback((tf: Timeframe) => {
@@ -260,10 +260,10 @@ function TradingChartComponent({
     seriesRef.current = candlestickSeries;
 
     // Tooltip handling with proper reference management
-    const crosshairMoveHandler = (param: any) => {
+    const crosshairMoveHandler = (param: MouseEventParams<Time>) => {
       if (!tooltipRef.current) return;
 
-      if (param.point === undefined || !param.time || param.point.x < 0 || param.point.y < 0) {
+      if (param.point === undefined || !param.time || param.point.x < 0 || param.point.y < 0 || !param.seriesData) {
         tooltipRef.current.style.display = 'none';
         return;
       }
@@ -324,7 +324,8 @@ function TradingChartComponent({
       crosshairHandlerRef.current = null;
       
       // 4. Clear ALL series references
-      emaSeriesMapRef.current.forEach((series) => {
+      const emaSeriesMap = emaSeriesMapRef.current;
+      emaSeriesMap.forEach((series) => {
         try {
           if (chart) {
             chart.removeSeries(series);
@@ -334,7 +335,7 @@ function TradingChartComponent({
           console.warn('[TradingChart] Error removing series:', e);
         }
       });
-      emaSeriesMapRef.current.clear();
+      emaSeriesMap.clear();
       
       // 5. Nullify all refs BEFORE disposing chart
       seriesRef.current = null;

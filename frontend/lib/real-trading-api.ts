@@ -6,7 +6,6 @@
 import {
   TradingMode,
   APICredentials,
-  AccountBalance,
   RealPosition,
   OrderRequest,
   OrderResponse,
@@ -179,7 +178,8 @@ export class RealTradingAPIClient {
   /**
    * Get account balance
    */
-  async getAccountInfo(): Promise<AccountInfo> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getAccountInfo(): Promise<any> {
   // Paper mode - simulate locally without API calls
   if (this.mode === 'paper') {
     return {
