@@ -175,3 +175,34 @@ export interface PatternAlert {
   notifyOnDetection: boolean;
   playSound: boolean;
 }
+
+// Pattern overlay for chart rendering
+export interface PatternOverlay {
+  id: string;
+  patternType: PatternType;
+  timestamp: number;
+  price: number;
+  confidence: number;
+  signal: PatternSignal;
+  coordinates: { time: number; price: number };
+  name: string;
+  strength: number; // 0-100
+}
+
+// Pattern selector props
+export interface PatternSelectorProps {
+  enabledPatterns: PatternType[];
+  onPatternToggle: (pattern: PatternType, enabled: boolean) => void;
+  minConfidence: number;
+  onConfidenceChange: (confidence: number) => void;
+  patternStats: PatternStats[];
+  onEnableAll: (enabled: boolean) => void;
+}
+
+// Pattern marker configuration for chart
+export interface PatternMarkerConfig {
+  visible: boolean;
+  color: string;
+  shape: 'circle' | 'arrowUp' | 'arrowDown' | 'square';
+  size: number;
+}

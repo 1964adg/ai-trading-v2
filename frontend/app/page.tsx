@@ -37,8 +37,10 @@ import { usePositionStore } from '@/stores/positionStore';
 import { useTradingConfigStore } from '@/stores/tradingConfigStore';
 import { PatternDetector } from '@/components/PatternDetector';
 import { PatternDashboard } from '@/components/PatternDashboard';
+import PatternSelector from '@/components/trading/PatternSelector';
+import CustomPatternBuilder from '@/components/trading/CustomPatternBuilder';
 import { usePatternRecognition } from '@/hooks/usePatternRecognition';
-import { CandleData } from '@/types/patterns';
+import { CandleData, PatternType, ESSENTIAL_CANDLESTICK_PATTERNS } from '@/types/patterns';
 
 const DEFAULT_SYMBOL = 'BTCUSDT';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
@@ -68,6 +70,8 @@ export default function Dashboard() {
     patternStats,
     overallPerformance,
     isDetecting,
+    settings,
+    updateSettings,
   } = usePatternRecognition({
     enableRealTime: true,
     initialSettings: {
@@ -75,6 +79,27 @@ export default function Dashboard() {
       sensitivity: 'MEDIUM',
     },
   });
+
+  // Pattern selector handlers
+  const handlePatternToggle = useCallback((patternType: PatternType, enabled: boolean) => {
+    const newEnabledPatterns = enabled
+      ? [...settings.enabledPatterns, patternType]
+      : settings.enabledPatterns.filter(p => p !== patternType);
+    updateSettings({ enabledPatterns: newEnabledPatterns });
+  }, [settings.enabledPatterns, updateSettings]);
+
+  const handleConfidenceChange = useCallback((confidence: number) => {
+    updateSettings({ minConfidence: confidence });
+  }, [updateSettings]);
+
+  const handleEnableAllPatterns = useCallback((enabled: boolean) => {
+    if (enabled) {
+      const allPatternTypes = ESSENTIAL_CANDLESTICK_PATTERNS.map(p => p.type);
+      updateSettings({ enabledPatterns: allPatternTypes });
+    } else {
+      updateSettings({ enabledPatterns: [] });
+    }
+  }, [updateSettings]);
 
   // Fetch 24h ticker data for price color indicator
   const { priceChangePercent24h } = useSymbolTicker(symbol, 10000);
@@ -547,6 +572,19 @@ export default function Dashboard() {
             patterns={detectedPatterns}
             isDetecting={isDetecting}
           />
+          
+          {/* Pattern Selection UI - NEW */}
+          <PatternSelector
+            enabledPatterns={settings.enabledPatterns}
+            onPatternToggle={handlePatternToggle}
+            minConfidence={settings.minConfidence}
+            onConfidenceChange={handleConfidenceChange}
+            patternStats={patternStats}
+            onEnableAll={handleEnableAllPatterns}
+          />
+          
+          {/* Custom Pattern Builder - NEW */}
+          <CustomPatternBuilder />
           
           <PatternDashboard
             patternStats={patternStats}
