@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Timeframe } from '@/lib/types';
 import { TrailingStopConfig } from '@/lib/risk-management';
+import { VWAPConfig, VolumeProfileConfig, DEFAULT_VWAP_CONFIG, DEFAULT_VOLUME_PROFILE_CONFIG } from '@/types/indicators';
 
 export interface Position {
   id: string;
@@ -40,6 +41,10 @@ interface TradingState {
   emaPeriods: [number, number, number, number];
   emaEnabled: [boolean, boolean, boolean, boolean];
 
+  // VWAP & Volume Profile Configuration
+  vwapConfig: VWAPConfig;
+  volumeProfileConfig: VolumeProfileConfig;
+
   // Actions
   setSymbol: (symbol: string) => void;
   setTimeframe: (timeframe: Timeframe) => void;
@@ -53,6 +58,8 @@ interface TradingState {
   setEmaPeriods: (periods: [number, number, number, number]) => void;
   setEmaEnabled: (enabled: [boolean, boolean, boolean, boolean]) => void;
   toggleEma: (index: number) => void;
+  setVwapConfig: (config: Partial<VWAPConfig>) => void;
+  setVolumeProfileConfig: (config: Partial<VolumeProfileConfig>) => void;
   reset: () => void;
 }
 
@@ -65,6 +72,8 @@ const initialState = {
   totalRealizedPnL: 0,
   emaPeriods: [9, 21, 50, 200] as [number, number, number, number],
   emaEnabled: [true, true, true, false] as [boolean, boolean, boolean, boolean],
+  vwapConfig: DEFAULT_VWAP_CONFIG,
+  volumeProfileConfig: DEFAULT_VOLUME_PROFILE_CONFIG,
 };
 
 export const useTradingStore = create<TradingState>((set, get) => ({
@@ -142,6 +151,18 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const newEnabled = [...state.emaEnabled] as [boolean, boolean, boolean, boolean];
     newEnabled[index] = !newEnabled[index];
     set({ emaEnabled: newEnabled });
+  },
+
+  setVwapConfig: (config: Partial<VWAPConfig>) => {
+    set((state) => ({
+      vwapConfig: { ...state.vwapConfig, ...config },
+    }));
+  },
+
+  setVolumeProfileConfig: (config: Partial<VolumeProfileConfig>) => {
+    set((state) => ({
+      volumeProfileConfig: { ...state.volumeProfileConfig, ...config },
+    }));
   },
 
   reset: () => set(initialState),

@@ -22,6 +22,8 @@ import TrailingStopPanel from '@/components/trading/TrailingStopPanel';
 import PositionSizeCalculator from '@/components/trading/PositionSizeCalculator';
 import RiskRewardDisplay from '@/components/trading/RiskRewardDisplay';
 import MultiPositionManager from '@/components/trading/MultiPositionManager';
+import VWAPControls from '@/components/indicators/VWAPControls';
+import VolumeProfileControls from '@/components/indicators/VolumeProfileControls';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useOrderbook } from '@/hooks/useOrderbook';
 import { useSymbolTicker } from '@/hooks/useSymbolData';
@@ -127,6 +129,10 @@ export default function Dashboard() {
     totalRealizedPnL,
     addPosition,
     removePosition,
+    vwapConfig,
+    volumeProfileConfig,
+    setVwapConfig,
+    setVolumeProfileConfig,
   } = useTradingStore();
 
   // Keyboard shortcut: Ctrl+K to open symbol selector
@@ -484,11 +490,25 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* VWAP & Volume Profile Controls */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <VWAPControls
+              config={vwapConfig}
+              onChange={setVwapConfig}
+            />
+            <VolumeProfileControls
+              config={volumeProfileConfig}
+              onChange={setVolumeProfileConfig}
+            />
+          </div>
+
           <TradingChart
             data={chartData}
             symbol={symbol}
             emaPeriods={emaPeriods}
             emaEnabled={emaEnabled}
+            vwapConfig={vwapConfig}
+            volumeProfileConfig={volumeProfileConfig}
             patterns={detectedPatterns}
           />
 
