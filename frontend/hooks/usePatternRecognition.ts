@@ -81,6 +81,9 @@ export function usePatternRecognition(
       setIsDetecting(true);
       setError(null);
 
+      // Clear previous detections to avoid accumulation
+      detectorRef.current.clearHistory();
+
       const startTime = performance.now();
       const newPatterns = detectorRef.current.detectPatterns(candles);
       const endTime = performance.now();
@@ -95,8 +98,8 @@ export function usePatternRecognition(
         analyzerRef.current!.recordPattern(pattern);
       });
 
-      // Update state
-      setDetectedPatterns(prev => [...prev, ...newPatterns]);
+      // Replace patterns instead of accumulating
+      setDetectedPatterns(newPatterns);
       setRecentPatterns(analyzerRef.current.getRecentPatterns(10));
       setPatternStats(analyzerRef.current.getAllPatternStats());
       setOverallPerformance(analyzerRef.current.getOverallPerformance());

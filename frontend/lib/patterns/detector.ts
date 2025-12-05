@@ -16,6 +16,16 @@ import {
 export class PatternDetector {
   private settings: DetectionSettings;
   private detectedPatterns: DetectedPattern[] = [];
+  private patternTimestamps: Map<PatternType, number[]> = new Map();
+  
+  // Minimum candles between same pattern type (prevents over-detection)
+  private readonly MIN_CANDLES_BETWEEN_PATTERNS = 3;
+  
+  // Maximum inside bar size ratio relative to parent bar
+  private readonly MAX_INSIDE_BAR_SIZE_RATIO = 0.8;
+  
+  // Maximum pattern history to keep in memory (prevents unbounded growth)
+  private readonly MAX_PATTERN_HISTORY = 1000;
 
   constructor(settings?: Partial<DetectionSettings>) {
     this.settings = {
@@ -39,7 +49,41 @@ export class PatternDetector {
   }
 
   /**
+   * Check if a pattern should be detected based on timing constraints
+   */
+  private shouldDetectPattern(patternType: PatternType, candleIndex: number): boolean {
+    const timestamps = this.patternTimestamps.get(patternType) || [];
+    
+    // Check if there's a recent detection of this pattern type
+    for (const prevIndex of timestamps) {
+      if (Math.abs(candleIndex - prevIndex) < this.MIN_CANDLES_BETWEEN_PATTERNS) {
+        return false; // Too close to previous detection
+      }
+    }
+    
+    return true;
+  }
+
+  /**
+   * Record a pattern detection and maintain history size
+   */
+  private recordPatternDetection(patternType: PatternType, candleIndex: number): void {
+    if (!this.patternTimestamps.has(patternType)) {
+      this.patternTimestamps.set(patternType, []);
+    }
+    const timestamps = this.patternTimestamps.get(patternType)!;
+    timestamps.push(candleIndex);
+    
+    // Keep only recent timestamps to prevent unbounded memory growth
+    // Keep last 100 timestamps per pattern type (enough for spacing checks)
+    if (timestamps.length > 100) {
+      timestamps.shift();
+    }
+  }
+
+  /**
    * Detect patterns in candlestick data
+   * Now processes all candles instead of just the last one
    */
   detectPatterns(candles: CandleData[]): DetectedPattern[] {
     if (!candles || candles.length < 2) {
@@ -47,31 +91,58 @@ export class PatternDetector {
     }
 
     const newDetections: DetectedPattern[] = [];
-    const currentCandle = candles[candles.length - 1];
-    const previousCandle = candles.length > 1 ? candles[candles.length - 2] : null;
-
-    // Check each enabled pattern
-    for (const patternType of this.settings.enabledPatterns) {
-      const result = this.detectPattern(patternType, candles);
+    
+    // Process each candle (starting from index 1 since we need previous candle)
+    for (let i = 1; i < candles.length; i++) {
+      const currentCandle = candles[i];
+      const previousCandle = candles[i - 1];
       
-      if (result.detected && result.confidence >= this.settings.minConfidence && result.pattern) {
-        const detection: DetectedPattern = {
-          id: `${patternType}-${currentCandle.timestamp}`,
-          pattern: result.pattern,
-          timestamp: currentCandle.timestamp,
-          time: currentCandle.time,
-          confidence: result.confidence,
-          candles: previousCandle ? [previousCandle, currentCandle] : [currentCandle],
-          priceLevel: currentCandle.close,
-          signal: result.signal,
-          metadata: result.metadata,
-        };
+      // Create a window of candles for context (up to 10 candles back)
+      const windowStart = Math.max(0, i - 9);
+      const candleWindow = candles.slice(windowStart, i + 1);
+
+      // Check each enabled pattern
+      for (const patternType of this.settings.enabledPatterns) {
+        // Skip if pattern was recently detected
+        if (!this.shouldDetectPattern(patternType, i)) {
+          continue;
+        }
+
+        const result = this.detectPattern(patternType, candleWindow);
         
-        newDetections.push(detection);
+        if (result.detected && result.confidence >= this.settings.minConfidence && result.pattern) {
+          // Check if this exact pattern already exists
+          const patternId = `${patternType}-${currentCandle.timestamp}`;
+          const alreadyExists = this.detectedPatterns.some(p => p.id === patternId);
+          
+          if (!alreadyExists) {
+            const detection: DetectedPattern = {
+              id: patternId,
+              pattern: result.pattern,
+              timestamp: currentCandle.timestamp,
+              time: currentCandle.time,
+              confidence: result.confidence,
+              candles: [previousCandle, currentCandle],
+              priceLevel: currentCandle.close,
+              signal: result.signal,
+              metadata: result.metadata,
+            };
+            
+            newDetections.push(detection);
+            this.recordPatternDetection(patternType, i);
+          }
+        }
       }
     }
 
+    // Add new detections and maintain history limit
     this.detectedPatterns.push(...newDetections);
+    
+    // Trim old patterns if history exceeds limit
+    if (this.detectedPatterns.length > this.MAX_PATTERN_HISTORY) {
+      this.detectedPatterns = this.detectedPatterns.slice(-this.MAX_PATTERN_HISTORY);
+    }
+    
     return newDetections;
   }
 
@@ -340,6 +411,7 @@ export class PatternDetector {
   /**
    * Detect Inside Bar pattern
    * Criteria: Current candle range completely within previous candle range
+   * Made stricter to reduce false positives
    */
   private detectInsideBar(candles: CandleData[]): PatternResult {
     if (candles.length < 2) return this.noPattern();
@@ -347,13 +419,25 @@ export class PatternDetector {
     const current = candles[candles.length - 1];
     const previous = candles[candles.length - 2];
 
+    const previousRange = previous.high - previous.low;
+    const currentRange = current.high - current.low;
+    
+    // Prevent division by zero
+    if (previousRange === 0 || currentRange === 0) return this.noPattern();
+
     // Current candle must be completely within previous candle's range
     if (current.high <= previous.high && current.low >= previous.low) {
-      const previousRange = previous.high - previous.low;
-      const currentRange = current.high - current.low;
-      const containmentRatio = 1 - (currentRange / previousRange);
+      const sizeRatio = currentRange / previousRange;
       
-      const confidence = Math.min(Math.round(containmentRatio * 80 + 20), 85);
+      // Inside bar should be noticeably smaller than parent bar
+      if (sizeRatio > this.MAX_INSIDE_BAR_SIZE_RATIO) {
+        return this.noPattern(); // Too close in size
+      }
+      
+      const containmentRatio = 1 - sizeRatio;
+      
+      // Base confidence on how much smaller the inside bar is
+      const confidence = Math.min(Math.round(containmentRatio * 70 + 30), 85);
       
       return {
         detected: true,
@@ -361,7 +445,7 @@ export class PatternDetector {
         confidence,
         signal: 'NEUTRAL',
         strength: confidence,
-        metadata: { previousRange, currentRange, containmentRatio },
+        metadata: { previousRange, currentRange, containmentRatio, sizeRatio },
       };
     }
 
@@ -429,6 +513,7 @@ export class PatternDetector {
    */
   clearHistory(): void {
     this.detectedPatterns = [];
+    this.patternTimestamps.clear();
   }
 
   /**
