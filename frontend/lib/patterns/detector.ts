@@ -20,6 +20,12 @@ export class PatternDetector {
   
   // Minimum candles between same pattern type (prevents over-detection)
   private readonly MIN_CANDLES_BETWEEN_PATTERNS = 3;
+  
+  // Maximum inside bar size ratio relative to parent bar
+  private readonly MAX_INSIDE_BAR_SIZE_RATIO = 0.8;
+  
+  // Maximum pattern history to keep in memory (prevents unbounded growth)
+  private readonly MAX_PATTERN_HISTORY = 1000;
 
   constructor(settings?: Partial<DetectionSettings>) {
     this.settings = {
@@ -59,13 +65,20 @@ export class PatternDetector {
   }
 
   /**
-   * Record a pattern detection
+   * Record a pattern detection and maintain history size
    */
   private recordPatternDetection(patternType: PatternType, candleIndex: number): void {
     if (!this.patternTimestamps.has(patternType)) {
       this.patternTimestamps.set(patternType, []);
     }
-    this.patternTimestamps.get(patternType)!.push(candleIndex);
+    const timestamps = this.patternTimestamps.get(patternType)!;
+    timestamps.push(candleIndex);
+    
+    // Keep only recent timestamps to prevent unbounded memory growth
+    // Keep last 100 timestamps per pattern type (enough for spacing checks)
+    if (timestamps.length > 100) {
+      timestamps.shift();
+    }
   }
 
   /**
@@ -122,7 +135,14 @@ export class PatternDetector {
       }
     }
 
+    // Add new detections and maintain history limit
     this.detectedPatterns.push(...newDetections);
+    
+    // Trim old patterns if history exceeds limit
+    if (this.detectedPatterns.length > this.MAX_PATTERN_HISTORY) {
+      this.detectedPatterns = this.detectedPatterns.slice(-this.MAX_PATTERN_HISTORY);
+    }
+    
     return newDetections;
   }
 
@@ -407,11 +427,10 @@ export class PatternDetector {
 
     // Current candle must be completely within previous candle's range
     if (current.high <= previous.high && current.low >= previous.low) {
-      // Stricter criteria: Current range should be significantly smaller (at least 20% smaller)
       const sizeRatio = currentRange / previousRange;
       
       // Inside bar should be noticeably smaller than parent bar
-      if (sizeRatio > 0.8) {
+      if (sizeRatio > this.MAX_INSIDE_BAR_SIZE_RATIO) {
         return this.noPattern(); // Too close in size
       }
       
