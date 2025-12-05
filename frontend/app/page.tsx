@@ -44,7 +44,6 @@ import { CandleData, PatternType, ESSENTIAL_CANDLESTICK_PATTERNS } from '@/types
 
 const DEFAULT_SYMBOL = 'BTCUSDT';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
-const MAX_PATTERN_DETECTION_CANDLES = 100;
 
 // EMA Color indicators
 const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
@@ -238,16 +237,17 @@ export default function Dashboard() {
   // Convert ChartDataPoint to CandleData for pattern detection
   const convertToCandles = useCallback((chartPoints: ChartDataPoint[]): CandleData[] => {
     return chartPoints.map(point => {
-      // Ensure timestamp is in milliseconds
+      // Chart uses Unix seconds as Time, so keep timestamp consistent
       let timestamp: number;
       if (typeof point.time === 'number') {
-        // If in seconds (< year 2286), convert to milliseconds
-        timestamp = point.time > 9999999999 ? point.time : point.time * 1000;
+        // Chart time is in seconds, use it directly
+        timestamp = point.time;
+      } else if (typeof point.time === 'string') {
+        // Parse string date to seconds
+        timestamp = Math.floor(Date.parse(point.time) / 1000);
       } else {
-        // Parse string or date to milliseconds
-        timestamp = typeof point.time === 'string' 
-          ? Date.parse(point.time) 
-          : Date.now();
+        // Fallback to current time in seconds
+        timestamp = Math.floor(Date.now() / 1000);
       }
       
       return {
@@ -266,10 +266,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (chartData.length > 0) {
       const candles = convertToCandles(chartData);
-      // Only detect patterns on the most recent candles for performance
-      const recentCandles = candles.slice(-MAX_PATTERN_DETECTION_CANDLES);
-      if (recentCandles.length >= 2) {
-        detectPatterns(recentCandles);
+      // Process full chart data for better distribution across timeline
+      // Performance note: Detection is fast (<50ms requirement), so we can process all candles
+      if (candles.length >= 2) {
+        detectPatterns(candles);
       }
     }
   }, [chartData, convertToCandles, detectPatterns]);

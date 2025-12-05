@@ -60,7 +60,7 @@ export function convertPatternsToOverlays(patterns: DetectedPattern[]): PatternO
     confidence: pattern.confidence,
     signal: pattern.signal,
     coordinates: {
-      time: pattern.timestamp,
+      time: typeof pattern.time === 'number' ? pattern.time : pattern.timestamp,
       price: pattern.priceLevel,
     },
     name: pattern.pattern.name,
