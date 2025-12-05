@@ -80,7 +80,9 @@ export default function VWAPOverlay({ chart, vwapData, config }: VWAPOverlayProp
 
         // Calculate opacity based on band level (further bands are more transparent)
         const opacity = Math.max(0.3, 1 - (index * 0.2));
-        const bandColor = config.bandColor + Math.floor(opacity * 255).toString(16).padStart(2, '0');
+        // Ensure bandColor is valid hex format
+        const baseColor = config.bandColor.startsWith('#') ? config.bandColor : '#95E1D3';
+        const bandColor = baseColor + Math.floor(opacity * 255).toString(16).padStart(2, '0');
 
         // Upper band
         if (!bandSeriesRefs.current.has(upperKey)) {

@@ -1,7 +1,7 @@
 /**
  * useVWAP Hook
  * React hook for managing VWAP calculations and state
- * Optimized for real-time updates with <10ms calculation time
+ * Optimized for real-time updates with <5ms calculation time (target from vwap.ts)
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -48,8 +48,8 @@ export function useVWAP(options: UseVWAPOptions): UseVWAPResult {
       const data = vwapCalculator.calculate(candles, config, sessionStart);
       const elapsed = performance.now() - startTime;
       
-      if (elapsed > 10) {
-        console.warn(`[useVWAP] Calculation took ${elapsed.toFixed(2)}ms (target: <10ms)`);
+      if (elapsed > 5) {
+        console.warn(`[useVWAP] Calculation took ${elapsed.toFixed(2)}ms (target: <5ms)`);
       }
       
       setVwapData(data);

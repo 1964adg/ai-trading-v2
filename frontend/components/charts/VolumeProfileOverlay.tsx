@@ -46,8 +46,14 @@ export default function VolumeProfileOverlay({ chart, profileData, config }: Vol
     
     if (!visibleRange) return;
 
-    const startTime = visibleRange.from as number;
-    const endTime = visibleRange.to as number;
+    // Safely convert Time to number (handle both seconds and milliseconds)
+    const startTime = typeof visibleRange.from === 'number'
+      ? (visibleRange.from > 9999999999 ? Math.floor(visibleRange.from / 1000) : visibleRange.from)
+      : Math.floor(new Date(visibleRange.from as string).getTime() / 1000);
+    
+    const endTime = typeof visibleRange.to === 'number'
+      ? (visibleRange.to > 9999999999 ? Math.floor(visibleRange.to / 1000) : visibleRange.to)
+      : Math.floor(new Date(visibleRange.to as string).getTime() / 1000);
 
     // Create POC line
     if (config.showPOC && profileData.poc) {

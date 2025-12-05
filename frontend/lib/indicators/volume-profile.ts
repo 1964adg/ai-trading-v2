@@ -244,10 +244,20 @@ export class VolumeProfileCalculator {
     // Get candles from last 7 days
     if (candles.length === 0) return null;
 
-    const latestTime = candles[candles.length - 1].time as number;
-    const weekStart = latestTime - 7 * 24 * 60 * 60; // 7 days in seconds
+    const latestTime = candles[candles.length - 1].time;
+    // Handle both number (seconds) and potential milliseconds
+    const latestTimeSeconds = typeof latestTime === 'number' 
+      ? (latestTime > 9999999999 ? Math.floor(latestTime / 1000) : latestTime)
+      : Math.floor(new Date(latestTime as string).getTime() / 1000);
+    
+    const weekStart = latestTimeSeconds - 7 * 24 * 60 * 60; // 7 days in seconds
 
-    const weekCandles = candles.filter(c => (c.time as number) >= weekStart);
+    const weekCandles = candles.filter(c => {
+      const time = typeof c.time === 'number'
+        ? (c.time > 9999999999 ? Math.floor(c.time / 1000) : c.time)
+        : Math.floor(new Date(c.time as string).getTime() / 1000);
+      return time >= weekStart;
+    });
 
     return this.calculate(weekCandles, config);
   }
