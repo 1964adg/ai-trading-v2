@@ -40,7 +40,7 @@ import { PatternDashboard } from '@/components/PatternDashboard';
 import PatternSelector from '@/components/trading/PatternSelector';
 import CustomPatternBuilder from '@/components/trading/CustomPatternBuilder';
 import { usePatternRecognition } from '@/hooks/usePatternRecognition';
-import { CandleData, PatternType } from '@/types/patterns';
+import { CandleData, PatternType, ESSENTIAL_CANDLESTICK_PATTERNS } from '@/types/patterns';
 
 const DEFAULT_SYMBOL = 'BTCUSDT';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
@@ -94,18 +94,8 @@ export default function Dashboard() {
 
   const handleEnableAllPatterns = useCallback((enabled: boolean) => {
     if (enabled) {
-      updateSettings({
-        enabledPatterns: [
-          'DOJI',
-          'HAMMER',
-          'SHOOTING_STAR',
-          'BULLISH_ENGULFING',
-          'BEARISH_ENGULFING',
-          'BULLISH_PIN_BAR',
-          'BEARISH_PIN_BAR',
-          'INSIDE_BAR',
-        ],
-      });
+      const allPatternTypes = ESSENTIAL_CANDLESTICK_PATTERNS.map(p => p.type);
+      updateSettings({ enabledPatterns: allPatternTypes });
     } else {
       updateSettings({ enabledPatterns: [] });
     }

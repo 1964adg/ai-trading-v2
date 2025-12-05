@@ -405,7 +405,6 @@ function TradingChartComponent({
     try {
       // Set pattern markers on the chart
       series.setMarkers(markers);
-      console.log('[TradingChart] Pattern markers updated:', markers.length);
     } catch (error) {
       console.error('[TradingChart] Error setting pattern markers:', error);
     }

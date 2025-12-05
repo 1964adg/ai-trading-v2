@@ -64,7 +64,7 @@ export function convertPatternsToOverlays(patterns: DetectedPattern[]): PatternO
       price: pattern.priceLevel,
     },
     name: pattern.pattern.name,
-    strength: pattern.metadata?.strength as number || pattern.confidence,
+    strength: typeof pattern.metadata?.strength === 'number' ? pattern.metadata.strength : pattern.confidence,
   }));
 }
 
