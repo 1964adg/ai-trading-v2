@@ -1,10 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, memo } from 'react';
+import { useEffect, useRef, useState, useCallback, memo, useMemo } from 'react';
 import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData, MouseEventParams } from 'lightweight-charts';
 import { ChartDataPoint, Timeframe } from '@/lib/types';
 import { formatCurrency, formatNumber, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
+import { VWAPConfig, VolumeProfileConfig } from '@/types/indicators';
+import VWAPOverlay from './VWAPOverlay';
+import VolumeProfileOverlay from './VolumeProfileOverlay';
+import { useVWAP } from '@/hooks/useVWAP';
+import { useVolumeProfile } from '@/hooks/useVolumeProfile';
 
 interface TradingChartProps {
   data: ChartDataPoint[];
@@ -13,6 +18,8 @@ interface TradingChartProps {
   onTimeframeChange?: (timeframe: Timeframe) => void;
   emaPeriods?: [number, number, number, number];
   emaEnabled?: [boolean, boolean, boolean, boolean];
+  vwapConfig?: VWAPConfig;
+  volumeProfileConfig?: VolumeProfileConfig;
 }
 
 const TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w'];
@@ -96,7 +103,9 @@ function TradingChartComponent({
   timeframe = '15m',
   onTimeframeChange,
   emaPeriods = [9, 21, 50, 200],
-  emaEnabled = [true, true, true, true]
+  emaEnabled = [true, true, true, true],
+  vwapConfig,
+  volumeProfileConfig,
 }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -108,6 +117,30 @@ function TradingChartComponent({
   const updateBufferRef = useRef<NodeJS.Timeout | null>(null);
   const crosshairHandlerRef = useRef<((param: MouseEventParams<Time>) => void) | null>(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>(timeframe);
+
+  // Calculate session start (for today's trading session)
+  const sessionStart = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.floor(todayStart.getTime() / 1000);
+  }, []);
+
+  // Calculate VWAP data
+  const { vwapData } = useVWAP({
+    candles: data,
+    config: vwapConfig || { enabled: false, period: 'session', source: 'hlc3', bands: [1, 2], showBands: true, color: '#4ECDC4', bandColor: '#95E1D3' },
+    sessionStart,
+    enabled: vwapConfig?.enabled || false,
+  });
+
+  // Calculate Volume Profile data
+  const { profileData } = useVolumeProfile({
+    candles: data,
+    config: volumeProfileConfig || { enabled: false, bins: 50, valueAreaPercent: 70, period: 'session', showPOC: true, showValueArea: true, showNodes: true, opacity: 0.6, position: 'right', color: '#88D8C0', pocColor: '#FFD93D', valueAreaColor: '#A8E6CF' },
+    sessionStart,
+    sessionEnd: Math.floor(Date.now() / 1000),
+    enabled: volumeProfileConfig?.enabled || false,
+  });
 
   const handleTimeframeClick = useCallback((tf: Timeframe) => {
     setSelectedTimeframe(tf);
@@ -476,6 +509,24 @@ function TradingChartComponent({
           className="absolute bg-gray-900 border border-gray-700 rounded p-2 text-xs text-white pointer-events-none z-10 font-mono leading-relaxed"
           style={{ display: 'none' }}
         />
+        
+        {/* VWAP Overlay */}
+        {vwapConfig && (
+          <VWAPOverlay
+            chart={chartRef.current}
+            vwapData={vwapData}
+            config={vwapConfig}
+          />
+        )}
+        
+        {/* Volume Profile Overlay */}
+        {volumeProfileConfig && (
+          <VolumeProfileOverlay
+            chart={chartRef.current}
+            profileData={profileData}
+            config={volumeProfileConfig}
+          />
+        )}
       </div>
     </div>
   );
