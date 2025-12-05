@@ -6,6 +6,7 @@ import { ChartDataPoint, Timeframe } from '@/lib/types';
 import { formatCurrency, formatNumber, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
 import { DetectedPattern } from '@/types/patterns';
+import { usePatternMarkers } from '@/components/charts/PatternOverlay';
 
 interface TradingChartProps {
   data: ChartDataPoint[];
@@ -111,6 +112,9 @@ function TradingChartComponent({
   const dataRef = useRef<ChartDataPoint[]>([]);
   const updateBufferRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>(timeframe);
+
+  // Generate pattern markers
+  const { markers } = usePatternMarkers(patterns, { showMarkers: true });
 
   const handleTimeframeClick = useCallback((tf: Timeframe) => {
     setSelectedTimeframe(tf);
@@ -382,6 +386,30 @@ function TradingChartComponent({
       }
     }, UPDATE_BUFFER_MS);
   }, [data, preserveViewport, restoreViewport, updateEmaData]);
+
+  // Handle pattern markers update
+  useEffect(() => {
+    const series = seriesRef.current;
+    if (!series || !patterns || patterns.length === 0) {
+      // Clear markers if no patterns
+      if (series) {
+        try {
+          series.setMarkers([]);
+        } catch (error) {
+          console.error('[TradingChart] Error clearing markers:', error);
+        }
+      }
+      return;
+    }
+
+    try {
+      // Set pattern markers on the chart
+      series.setMarkers(markers);
+      console.log('[TradingChart] Pattern markers updated:', markers.length);
+    } catch (error) {
+      console.error('[TradingChart] Error setting pattern markers:', error);
+    }
+  }, [patterns, markers]);
 
   return (
     <div className="w-full">
