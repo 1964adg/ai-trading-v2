@@ -8,7 +8,6 @@ import {
   OrderFlowAlertType,
   AlertSeverity,
   AlertAction,
-  DivergenceSignal,
 } from '@/types/order-flow';
 
 /**
@@ -228,6 +227,7 @@ export class OrderFlowAlertManager {
     message: string;
     symbol: string;
     action: AlertAction;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: any;
   }): OrderFlowAlert {
     return {

@@ -280,19 +280,19 @@ export class MarketDepthFlowCalculator {
     if (!orderbook) return 0;
 
     // Find closest bid and ask to target price
-    const closestBid = orderbook.bids.reduce((closest, [price, qty]) => {
+    const closestBid = orderbook.bids.reduce<[number, number] | null>((closest, [price, qty]) => {
       if (!closest || Math.abs(price - targetPrice) < Math.abs(closest[0] - targetPrice)) {
-        return [price, qty];
+        return [price, qty] as [number, number];
       }
       return closest;
-    }, null as [number, number] | null);
+    }, null);
 
-    const closestAsk = orderbook.asks.reduce((closest, [price, qty]) => {
+    const closestAsk = orderbook.asks.reduce<[number, number] | null>((closest, [price, qty]) => {
       if (!closest || Math.abs(price - targetPrice) < Math.abs(closest[0] - targetPrice)) {
-        return [price, qty];
+        return [price, qty] as [number, number];
       }
       return closest;
-    }, null as [number, number] | null);
+    }, null);
 
     if (!closestBid || !closestAsk) return 0;
 

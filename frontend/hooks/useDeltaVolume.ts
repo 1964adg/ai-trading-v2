@@ -79,8 +79,7 @@ export function useDeltaVolume(options: UseDeltaVolumeOptions) {
     try {
       // Calculate delta volume data
       const data = calculatorRef.current.calculate(
-        tradesRef.current,
-        candlesRef.current
+        tradesRef.current
       );
 
       setDeltaData(data);

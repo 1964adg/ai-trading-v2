@@ -10,7 +10,6 @@ import {
   OrderbookData,
   DivergenceSignal,
   DivergenceType,
-  CandleData,
 } from '@/types/order-flow';
 
 /**

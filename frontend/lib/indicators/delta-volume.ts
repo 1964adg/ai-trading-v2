@@ -8,7 +8,6 @@ import {
   DeltaVolumeData,
   DeltaVolumeConfig,
   TradeData,
-  CandleData,
   DivergenceSignal,
   DivergenceType,
 } from '@/types/order-flow';
@@ -81,17 +80,18 @@ export class DeltaVolumeCalculator {
   }
 
   /**
-   * Calculate delta momentum (rate of change)
+   * Calculate delta momentum (rate of change) for a single value
    */
-  private calculateMomentum(currentDelta: number, previousDelta: number): number {
+  private calculateSingleMomentum(currentDelta: number, previousDelta: number): number {
     if (previousDelta === 0) return 0;
     return ((currentDelta - previousDelta) / Math.abs(previousDelta)) * 100;
   }
 
   /**
-   * Calculate delta volume data for trades and candles
+   * Calculate delta volume data for trades
+   * candles parameter is reserved for future use
    */
-  calculate(trades: TradeData[], candles: CandleData[]): DeltaVolumeData[] {
+  calculate(trades: TradeData[]): DeltaVolumeData[] {
     const result: DeltaVolumeData[] = [];
 
     if (!trades || trades.length === 0) return result;
@@ -108,7 +108,8 @@ export class DeltaVolumeCalculator {
     }
 
     // Calculate delta for each candle
-    for (const [timestamp, candleTrades] of tradesByCandle) {
+    for (const entry of Array.from(tradesByCandle.entries())) {
+      const [timestamp, candleTrades] = entry;
       const delta = this.calculateDelta(candleTrades);
 
       // Update cumulative delta
@@ -127,7 +128,7 @@ export class DeltaVolumeCalculator {
         .reduce((sum, t) => sum + t.quantity, 0);
 
       const { buyPressure, sellPressure } = this.calculatePressure(buyVolume, sellVolume);
-      const momentum = this.calculateMomentum(delta, this.previousDelta);
+      const momentum = this.calculateSingleMomentum(delta, this.previousDelta);
 
       result.push({
         timestamp,
