@@ -164,7 +164,6 @@ export async function register(): Promise<boolean> {
   // 2. Create credential with navigator.credentials.create()
   // 3. Store credential ID on server
   
-  console.warn('Biometric registration not yet implemented');
   return false;
 }
 
@@ -178,7 +177,6 @@ export async function remove(): Promise<boolean> {
   // TODO: Implement credential removal
   // For WebAuthn, this would remove stored credential IDs
   
-  console.warn('Biometric removal not yet implemented');
   return false;
 }
 

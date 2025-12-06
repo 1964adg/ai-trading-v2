@@ -78,18 +78,6 @@ export function useSecureStorage(
   }, []);
 
   /**
-   * Reset auto-lock timer
-   */
-  const resetAutoLockTimer = useCallback(() => {
-    clearAutoLockTimer();
-    if (!state.locked && autoLockTimeout > 0) {
-      autoLockTimer.current = setTimeout(() => {
-        lock();
-      }, autoLockTimeout);
-    }
-  }, [state.locked, autoLockTimeout]);
-
-  /**
    * Secure erase of sensitive data
    */
   const secureErase = useCallback(() => {
@@ -114,6 +102,18 @@ export function useSecureStorage(
     secureErase();
     setState(prev => ({ ...prev, locked: true, error: null }));
   }, [clearAutoLockTimer, secureErase]);
+
+  /**
+   * Reset auto-lock timer
+   */
+  const resetAutoLockTimer = useCallback(() => {
+    clearAutoLockTimer();
+    if (!state.locked && autoLockTimeout > 0) {
+      autoLockTimer.current = setTimeout(() => {
+        lock();
+      }, autoLockTimeout);
+    }
+  }, [state.locked, autoLockTimeout, clearAutoLockTimer, lock]);
 
   /**
    * Unlock the secure storage with master password

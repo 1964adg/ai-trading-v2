@@ -90,7 +90,8 @@ export class RealTradingAPIClient {
    * Note: This method accepts credentials in memory. For secure loading,
    * use loadCredentialsFromSecureStorage() instead.
    * 
-   * @deprecated Use loadCredentialsFromSecureStorage for secure credential management
+   * @deprecated Use loadCredentialsFromSecureStorage for secure credential management.
+   * This method will be removed in v2.0.0 once UI migration is complete.
    */
   setCredentials(credentials: APICredentials): void {
     this.credentials = credentials;
