@@ -24,6 +24,7 @@ import RiskRewardDisplay from '@/components/trading/RiskRewardDisplay';
 import MultiPositionManager from '@/components/trading/MultiPositionManager';
 import VWAPControls from '@/components/indicators/VWAPControls';
 import VolumeProfileControls from '@/components/indicators/VolumeProfileControls';
+import OrderFlowPanel from '@/components/indicators/OrderFlowPanel';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useOrderbook } from '@/hooks/useOrderbook';
 import { useSymbolTicker } from '@/hooks/useSymbolData';
@@ -42,6 +43,7 @@ import { PatternDashboard } from '@/components/PatternDashboard';
 import PatternSelector from '@/components/trading/PatternSelector';
 import CustomPatternBuilder from '@/components/trading/CustomPatternBuilder';
 import { usePatternRecognition } from '@/hooks/usePatternRecognition';
+import { useOrderFlow } from '@/hooks/useOrderFlow';
 import { CandleData, PatternType, ESSENTIAL_CANDLESTICK_PATTERNS } from '@/types/patterns';
 
 const DEFAULT_SYMBOL = 'BTCUSDT';
@@ -64,6 +66,25 @@ export default function Dashboard() {
   const { currentMode } = useTradingModeStore();
   useRealTrading({ enabled: true, refreshInterval: 5000 });
 
+  // Use Zustand store for trading state
+  const {
+    emaPeriods,
+    emaEnabled,
+    setEmaPeriods,
+    setEmaEnabled,
+    openPositions,
+    totalPnL,
+    totalRealizedPnL,
+    addPosition,
+    removePosition,
+    vwapConfig,
+    volumeProfileConfig,
+    setVwapConfig,
+    setVolumeProfileConfig,
+    orderFlowConfig,
+    setOrderFlowConfig,
+  } = useTradingStore();
+
   // Pattern Recognition Integration
   const {
     detectedPatterns,
@@ -79,6 +100,18 @@ export default function Dashboard() {
       minConfidence: 60,
       sensitivity: 'MEDIUM',
     },
+  });
+
+  // Order Flow Integration
+  const {
+    flowData,
+    currentDelta,
+    imbalance,
+    alerts: orderFlowAlerts,
+  } = useOrderFlow({
+    enabled: orderFlowConfig.enabled,
+    config: orderFlowConfig,
+    symbol,
   });
 
   // Pattern selector handlers
@@ -117,23 +150,6 @@ export default function Dashboard() {
 
   // Trading config store for SL/TP/Trailing
   const { stopLoss, trailingStop } = useTradingConfigStore();
-
-  // Use Zustand store for trading state
-  const {
-    emaPeriods,
-    emaEnabled,
-    setEmaPeriods,
-    setEmaEnabled,
-    openPositions,
-    totalPnL,
-    totalRealizedPnL,
-    addPosition,
-    removePosition,
-    vwapConfig,
-    volumeProfileConfig,
-    setVwapConfig,
-    setVolumeProfileConfig,
-  } = useTradingStore();
 
   // Keyboard shortcut: Ctrl+K to open symbol selector
   useEffect(() => {
@@ -501,6 +517,18 @@ export default function Dashboard() {
               onChange={setVolumeProfileConfig}
             />
           </div>
+
+          {/* Order Flow Controls */}
+          <OrderFlowPanel
+            config={orderFlowConfig}
+            onConfigChange={setOrderFlowConfig}
+            currentDelta={currentDelta}
+            cumulativeDelta={flowData?.cumulativeDelta}
+            imbalance={imbalance}
+            tickSpeed={flowData?.tickSpeed}
+            aggression={flowData?.aggression}
+            alertCount={orderFlowAlerts.length}
+          />
 
           <TradingChart
             data={chartData}
