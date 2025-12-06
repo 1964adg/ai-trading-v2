@@ -157,7 +157,7 @@ export async function decryptAESGCM(
       combined
     );
     return new Uint8Array(decryptedBuffer);
-  } catch (error) {
+  } catch {
     // Auth tag verification failed or decryption error
     throw new Error('Decryption failed: Authentication tag verification failed or invalid data');
   }

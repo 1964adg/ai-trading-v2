@@ -70,7 +70,7 @@ async function initDB(): Promise<IDBPDatabase<SecureStorageDB> | null> {
       },
     });
     return db;
-  } catch (error) {
+  } catch {
     // IndexedDB not available or failed to initialize
     console.warn('IndexedDB not available, falling back to localStorage');
     return null;
@@ -222,7 +222,7 @@ export async function saveCredentials(
     } else {
       saveToLocalStorage(userId, storageData);
     }
-  } catch (error) {
+  } catch {
     // Fallback to localStorage if IndexedDB fails
     saveToLocalStorage(userId, storageData);
   }
@@ -297,7 +297,7 @@ export async function getCredentials(
     secureClear(decryptedBytes);
 
     return record;
-  } catch (error) {
+  } catch {
     // Decryption failed (wrong password or corrupted data)
     throw new Error('Failed to decrypt credentials: Invalid password or corrupted data');
   }

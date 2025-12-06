@@ -183,7 +183,7 @@ export async function validatePBKDF2Implementation(): Promise<boolean> {
           return false;
         }
       }
-    } catch (error) {
+    } catch {
       return false;
     }
   }

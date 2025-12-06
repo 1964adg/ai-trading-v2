@@ -54,6 +54,13 @@ interface TradingState {
   orderFlowConfig: OrderFlowConfig;
   deltaVolumeConfig: DeltaVolumeConfig;
 
+  // API Security State
+  apiConnectionStatus: {
+    testnet: 'disconnected' | 'connected' | 'error';
+    mainnet: 'disconnected' | 'connected' | 'error';
+  };
+  credentialsLocked: boolean;
+
   // Actions
   setSymbol: (symbol: string) => void;
   setTimeframe: (timeframe: Timeframe) => void;
@@ -74,6 +81,8 @@ interface TradingState {
   setVolumeProfileConfig: (config: Partial<VolumeProfileConfig>) => void;
   setOrderFlowConfig: (config: Partial<OrderFlowConfig>) => void;
   setDeltaVolumeConfig: (config: Partial<DeltaVolumeConfig>) => void;
+  setApiConnectionStatus: (env: 'testnet' | 'mainnet', status: 'disconnected' | 'connected' | 'error') => void;
+  setCredentialsLocked: (locked: boolean) => void;
   reset: () => void;
 }
 
@@ -91,6 +100,11 @@ const initialState = {
   volumeProfileConfig: DEFAULT_VOLUME_PROFILE_CONFIG,
   orderFlowConfig: DEFAULT_ORDER_FLOW_CONFIG,
   deltaVolumeConfig: DEFAULT_DELTA_VOLUME_CONFIG,
+  apiConnectionStatus: {
+    testnet: 'disconnected' as const,
+    mainnet: 'disconnected' as const,
+  },
+  credentialsLocked: true,
 };
 
 export const useTradingStore = create<TradingState>((set, get) => ({
@@ -212,6 +226,16 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set((state) => ({
       deltaVolumeConfig: { ...state.deltaVolumeConfig, ...config },
     }));
+  },
+
+  setApiConnectionStatus: (env: 'testnet' | 'mainnet', status: 'disconnected' | 'connected' | 'error') => {
+    set((state) => ({
+      apiConnectionStatus: { ...state.apiConnectionStatus, [env]: status },
+    }));
+  },
+
+  setCredentialsLocked: (locked: boolean) => {
+    set({ credentialsLocked: locked });
   },
 
   reset: () => set(initialState),

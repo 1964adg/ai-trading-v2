@@ -59,10 +59,9 @@ export async function isAvailable(): Promise<boolean> {
 export async function authenticate(
   options: BiometricAuthOptions = {}
 ): Promise<BiometricAuthResult> {
-  const {
-    prompt = 'Authenticate to access your credentials',
-    timeout = 60000,
-  } = options;
+  // Options will be used when WebAuthn is fully implemented
+  // Currently: options contains prompt and timeout for future use
+  void options; // Mark as intentionally unused for now
 
   // Check if biometric auth is available
   const available = await isAvailable();

@@ -1,6 +1,8 @@
 /**
  * Real Trading API Client
  * Multi-mode client for Paper/Testnet/Real trading with Binance
+ * 
+ * Security: Credentials are loaded from secure storage and never logged
  */
 
 import {
@@ -12,6 +14,7 @@ import {
   OrderHistory,
   TradingEndpoints,
 } from '@/types/trading';
+import { CredentialRecord } from '@/lib/security/secureStorage';
 
 // Rate limiter for API calls
 class RateLimiter {
@@ -84,9 +87,33 @@ export class RealTradingAPIClient {
 
   /**
    * Set API credentials for testnet/real modes
+   * Note: This method accepts credentials in memory. For secure loading,
+   * use loadCredentialsFromSecureStorage() instead.
+   * 
+   * @deprecated Use loadCredentialsFromSecureStorage for secure credential management
    */
   setCredentials(credentials: APICredentials): void {
     this.credentials = credentials;
+  }
+
+  /**
+   * Load credentials from secure storage (preferred method)
+   * 
+   * @param credentialRecord Decrypted credential record from secure storage
+   */
+  loadCredentialsFromSecureStorage(credentialRecord: CredentialRecord): void {
+    this.credentials = {
+      apiKey: credentialRecord.apiKey,
+      secretKey: credentialRecord.secretKey,
+      testnet: credentialRecord.environment === 'testnet',
+    };
+  }
+
+  /**
+   * Clear credentials from memory (call when locking)
+   */
+  clearCredentials(): void {
+    this.credentials = null;
   }
 
   /**
@@ -371,6 +398,72 @@ export class RealTradingAPIClient {
     } catch (error) {
       console.error('Error fetching order history:', error);
       return [];
+    }
+  }
+
+  /**
+   * Test API connection with current credentials
+   * Returns connection status without exposing credentials
+   * 
+   * @param env Environment to test (testnet or mainnet)
+   * @returns Promise<{ success: boolean; message: string }>
+   */
+  async testConnection(env: 'testnet' | 'mainnet'): Promise<{
+    success: boolean;
+    message: string;
+    accountInfo?: unknown;
+  }> {
+    // Paper mode doesn't require credentials
+    if (this.mode === 'paper') {
+      return {
+        success: true,
+        message: 'Paper trading mode - no API connection needed',
+      };
+    }
+
+    // Check if credentials are loaded
+    if (!this.credentials) {
+      return {
+        success: false,
+        message: 'No credentials loaded. Please unlock credentials first.',
+      };
+    }
+
+    // Verify environment matches credentials
+    const expectedTestnet = env === 'testnet';
+    if (this.credentials.testnet !== expectedTestnet) {
+      return {
+        success: false,
+        message: `Credential mismatch: loaded ${this.credentials.testnet ? 'testnet' : 'mainnet'} credentials but testing ${env}`,
+      };
+    }
+
+    // Temporarily set mode to test environment
+    const originalMode = this.mode;
+    this.setMode(env === 'testnet' ? 'testnet' : 'real');
+
+    try {
+      // Test connection by fetching account info (lightweight API call)
+      const accountInfo = await this.getAccountInfo();
+      
+      // Restore original mode
+      this.setMode(originalMode);
+
+      return {
+        success: true,
+        message: `Successfully connected to Binance ${env}`,
+        accountInfo,
+      };
+    } catch (error) {
+      // Restore original mode
+      this.setMode(originalMode);
+
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      return {
+        success: false,
+        message: `Connection failed: ${errorMessage}`,
+      };
     }
   }
 }
