@@ -3,6 +3,7 @@ import { Timeframe } from '@/lib/types';
 import { TrailingStopConfig } from '@/lib/risk-management';
 import { VWAPConfig, VolumeProfileConfig, DEFAULT_VWAP_CONFIG, DEFAULT_VOLUME_PROFILE_CONFIG } from '@/types/indicators';
 import { OrderFlowConfig, DeltaVolumeConfig, DEFAULT_ORDER_FLOW_CONFIG, DEFAULT_DELTA_VOLUME_CONFIG } from '@/types/order-flow';
+import { EnhancedOrder } from '@/types/enhanced-orders';
 
 export interface Position {
   id: string;
@@ -38,6 +39,9 @@ interface TradingState {
   totalPnL: number;
   totalRealizedPnL: number;
 
+  // Enhanced Orders
+  enhancedOrders: EnhancedOrder[];
+
   // EMA Configuration
   emaPeriods: [number, number, number, number];
   emaEnabled: [boolean, boolean, boolean, boolean];
@@ -60,6 +64,9 @@ interface TradingState {
   updatePositionTrailingStop: (id: string, trailingStop: TrailingStopConfig) => void;
   addOrder: (order: Order) => void;
   cancelOrder: (id: string) => void;
+  addEnhancedOrder: (order: EnhancedOrder) => void;
+  updateEnhancedOrder: (id: string, updates: Partial<EnhancedOrder>) => void;
+  removeEnhancedOrder: (id: string) => void;
   setEmaPeriods: (periods: [number, number, number, number]) => void;
   setEmaEnabled: (enabled: [boolean, boolean, boolean, boolean]) => void;
   toggleEma: (index: number) => void;
@@ -75,6 +82,7 @@ const initialState = {
   selectedTimeframe: '1m' as Timeframe,
   openPositions: [],
   pendingOrders: [],
+  enhancedOrders: [],
   totalPnL: 0,
   totalRealizedPnL: 0,
   emaPeriods: [9, 21, 50, 200] as [number, number, number, number],
@@ -144,6 +152,26 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   cancelOrder: (id: string) => {
     set((state) => ({
       pendingOrders: state.pendingOrders.filter((o) => o.id !== id),
+    }));
+  },
+
+  addEnhancedOrder: (order: EnhancedOrder) => {
+    set((state) => ({
+      enhancedOrders: [...state.enhancedOrders, order],
+    }));
+  },
+
+  updateEnhancedOrder: (id: string, updates: Partial<EnhancedOrder>) => {
+    set((state) => ({
+      enhancedOrders: state.enhancedOrders.map((o) =>
+        o.id === id ? { ...o, ...updates } as EnhancedOrder : o
+      ),
+    }));
+  },
+
+  removeEnhancedOrder: (id: string) => {
+    set((state) => ({
+      enhancedOrders: state.enhancedOrders.filter((o) => o.id !== id),
     }));
   },
 
