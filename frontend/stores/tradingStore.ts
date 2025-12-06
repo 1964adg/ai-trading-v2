@@ -4,6 +4,7 @@ import { TrailingStopConfig } from '@/lib/risk-management';
 import { VWAPConfig, VolumeProfileConfig, DEFAULT_VWAP_CONFIG, DEFAULT_VOLUME_PROFILE_CONFIG } from '@/types/indicators';
 import { OrderFlowConfig, DeltaVolumeConfig, DEFAULT_ORDER_FLOW_CONFIG, DEFAULT_DELTA_VOLUME_CONFIG } from '@/types/order-flow';
 import { EnhancedOrder } from '@/types/enhanced-orders';
+import { LayoutType } from '@/components/workspace/LayoutManager';
 
 export interface Position {
   id: string;
@@ -42,6 +43,10 @@ interface TradingState {
   // Enhanced Orders
   enhancedOrders: EnhancedOrder[];
 
+  // Layout & UI
+  activeLayout: LayoutType;
+  apiConnectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
+
   // EMA Configuration
   emaPeriods: [number, number, number, number];
   emaEnabled: [boolean, boolean, boolean, boolean];
@@ -74,6 +79,8 @@ interface TradingState {
   setVolumeProfileConfig: (config: Partial<VolumeProfileConfig>) => void;
   setOrderFlowConfig: (config: Partial<OrderFlowConfig>) => void;
   setDeltaVolumeConfig: (config: Partial<DeltaVolumeConfig>) => void;
+  setActiveLayout: (layout: LayoutType) => void;
+  setApiConnectionStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void;
   reset: () => void;
 }
 
@@ -85,6 +92,8 @@ const initialState = {
   enhancedOrders: [],
   totalPnL: 0,
   totalRealizedPnL: 0,
+  activeLayout: 'SCALPING' as LayoutType,
+  apiConnectionStatus: 'disconnected' as const,
   emaPeriods: [9, 21, 50, 200] as [number, number, number, number],
   emaEnabled: [true, true, true, false] as [boolean, boolean, boolean, boolean],
   vwapConfig: DEFAULT_VWAP_CONFIG,
@@ -212,6 +221,14 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set((state) => ({
       deltaVolumeConfig: { ...state.deltaVolumeConfig, ...config },
     }));
+  },
+
+  setActiveLayout: (layout: LayoutType) => {
+    set({ activeLayout: layout });
+  },
+
+  setApiConnectionStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => {
+    set({ apiConnectionStatus: status });
   },
 
   reset: () => set(initialState),

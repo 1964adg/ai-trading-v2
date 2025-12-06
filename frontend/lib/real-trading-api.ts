@@ -12,6 +12,7 @@ import {
   OrderHistory,
   TradingEndpoints,
 } from '@/types/trading';
+import { secureStorage } from '@/lib/security/secureStorage';
 
 // Rate limiter for API calls
 class RateLimiter {
@@ -87,6 +88,87 @@ export class RealTradingAPIClient {
    */
   setCredentials(credentials: APICredentials): void {
     this.credentials = credentials;
+  }
+
+  /**
+   * Load API credentials from secure storage
+   * @param environment - 'testnet' or 'mainnet'
+   * @returns true if credentials loaded successfully
+   */
+  async loadCredentialsFromStorage(environment: 'testnet' | 'mainnet'): Promise<boolean> {
+    try {
+      if (!secureStorage.isUnlocked()) {
+        console.warn('Secure storage is locked. Cannot load credentials.');
+        return false;
+      }
+
+      const keysJson = await secureStorage.getItem('api_keys');
+      if (!keysJson) {
+        console.warn('No API keys found in secure storage');
+        return false;
+      }
+
+      const keys = JSON.parse(keysJson);
+      const key = keys.find((k: { environment: string }) => k.environment === environment);
+      
+      if (!key) {
+        console.warn(`No API key found for ${environment}`);
+        return false;
+      }
+
+      this.credentials = {
+        apiKey: key.apiKey,
+        secretKey: key.apiSecret,
+      };
+
+      return true;
+    } catch (error) {
+      console.error('Failed to load credentials from storage:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Test connection to API with current credentials
+   */
+  async testConnection(): Promise<{ success: boolean; message: string; permissions?: string[] }> {
+    if (!this.credentials) {
+      return { success: false, message: 'No credentials set' };
+    }
+
+    try {
+      const endpoint = this.getEndpoint();
+      const timestamp = Date.now();
+      const queryString = `timestamp=${timestamp}`;
+      const signature = await this.createSignature(queryString);
+
+      const response = await fetch(`${endpoint}/account?${queryString}&signature=${signature}`, {
+        headers: {
+          'X-MBX-APIKEY': this.credentials.apiKey,
+        },
+      });
+
+      if (!response.ok) {
+        return { 
+          success: false, 
+          message: `Connection failed: ${response.status} ${response.statusText}` 
+        };
+      }
+
+      const data = await response.json();
+      const permissions = data.permissions || ['SPOT'];
+
+      return {
+        success: true,
+        message: 'Connection successful',
+        permissions,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
   }
 
   /**
