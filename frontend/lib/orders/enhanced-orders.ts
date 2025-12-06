@@ -28,7 +28,7 @@ import {
  * Generate unique order ID
  */
 export function generateOrderId(type: string): string {
-  return `${type.toLowerCase()}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `${type.toLowerCase()}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
 /**

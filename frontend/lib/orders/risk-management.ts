@@ -301,10 +301,11 @@ function validateTWAPOrder(
     warnings.push('High volume participation (>30%) may increase market impact');
   }
 
-  // Check if slice sizes are reasonable
+  // Check if slice sizes are reasonable (using total quantity / intervals)
   const avgSliceSize = order.totalQuantity / order.intervals;
-  if (avgSliceSize * order.symbol.length < limits.minOrderValue) {
-    warnings.push('TWAP slice sizes may be too small');
+  // Note: Actual value check would need current price, so we just check relative size
+  if (avgSliceSize < 0.001) {
+    warnings.push('TWAP slice sizes may be too small for efficient execution');
   }
 }
 

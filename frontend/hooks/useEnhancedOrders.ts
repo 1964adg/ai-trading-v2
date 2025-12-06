@@ -317,7 +317,15 @@ export function useEnhancedOrders(config: UseEnhancedOrdersConfig): UseEnhancedO
       if (!order) return null;
 
       const progress = calculateOrderProgress(order);
-      const executedQty = 'executedQuantity' in order ? order.executedQuantity : 0;
+      
+      // Type-safe way to check for executedQuantity
+      let executedQty = 0;
+      if (order.type === 'ICEBERG') {
+        executedQty = order.executedQuantity;
+      } else if (order.type === 'TWAP') {
+        executedQty = order.executedQuantity;
+      }
+      
       const remainingQty = order.quantity - executedQty;
       const executedValue = executedQty * currentPrice;
 
