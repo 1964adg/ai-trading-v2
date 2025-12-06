@@ -85,7 +85,13 @@ export async function registerBiometric(
 
     // Convert credential ID to base64
     const rawIdArray = new Uint8Array(credential.rawId);
-    const credentialId = btoa(String.fromCharCode.apply(null, Array.from(rawIdArray)));
+    const CHUNK_SIZE = 8192;
+    let credentialId = '';
+    for (let i = 0; i < rawIdArray.length; i += CHUNK_SIZE) {
+      const chunk = rawIdArray.subarray(i, Math.min(i + CHUNK_SIZE, rawIdArray.length));
+      credentialId += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    credentialId = btoa(credentialId);
     
     // Store credential ID for later authentication
     localStorage.setItem('biometric_credential_id', credentialId);

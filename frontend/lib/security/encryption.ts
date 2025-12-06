@@ -23,7 +23,15 @@ function uint8ArrayToString(buffer: Uint8Array): string {
  * Convert Uint8Array to base64 string
  */
 function uint8ArrayToBase64(buffer: Uint8Array): string {
-  const binary = String.fromCharCode.apply(null, Array.from(buffer));
+  // Use chunking to avoid stack overflow with large arrays
+  const CHUNK_SIZE = 8192;
+  let binary = '';
+  
+  for (let i = 0; i < buffer.length; i += CHUNK_SIZE) {
+    const chunk = buffer.subarray(i, Math.min(i + CHUNK_SIZE, buffer.length));
+    binary += String.fromCharCode.apply(null, Array.from(chunk));
+  }
+  
   return btoa(binary);
 }
 
@@ -244,7 +252,7 @@ export async function verifyEncryption(): Promise<boolean> {
 export function hexToUint8Array(hex: string): Uint8Array {
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
   }
   return bytes;
 }

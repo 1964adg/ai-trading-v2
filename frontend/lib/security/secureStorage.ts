@@ -215,7 +215,15 @@ class SecureStorageManager {
       if (!saltStr) {
         // First time setup - create new salt
         salt = generateSalt();
-        const saltBase64 = btoa(String.fromCharCode.apply(null, Array.from(salt)));
+        
+        // Use chunking to avoid stack overflow
+        const CHUNK_SIZE = 8192;
+        let saltBase64 = '';
+        for (let i = 0; i < salt.length; i += CHUNK_SIZE) {
+          const chunk = salt.subarray(i, Math.min(i + CHUNK_SIZE, salt.length));
+          saltBase64 += String.fromCharCode.apply(null, Array.from(chunk));
+        }
+        saltBase64 = btoa(saltBase64);
         
         if (this.config.useIndexedDB) {
           await this.setInDB(saltKey, saltBase64);
@@ -470,7 +478,13 @@ class SecureStorageManager {
       }
 
       // Update salt
-      const saltBase64 = btoa(String.fromCharCode.apply(null, Array.from(newSalt)));
+      const CHUNK_SIZE = 8192;
+      let saltBase64 = '';
+      for (let i = 0; i < newSalt.length; i += CHUNK_SIZE) {
+        const chunk = newSalt.subarray(i, Math.min(i + CHUNK_SIZE, newSalt.length));
+        saltBase64 += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      saltBase64 = btoa(saltBase64);
       const saltKey = STORAGE_PREFIX + 'salt';
       if (this.config.useIndexedDB) {
         await this.setInDB(saltKey, saltBase64);

@@ -555,7 +555,7 @@ export default function APIKeyManager({ onClose }: APIKeyManagerProps) {
           {keys.length === 0 && !showAddKey && (
             <div className="text-center py-8 text-gray-400">
               <p>No API keys added yet</p>
-              <p className="text-sm mt-2">Click &quot;Add API Key&quot; to get started</p>
+              <p className="text-sm mt-2">Click &apos;Add API Key&apos; to get started</p>
             </div>
           )}
         </div>
