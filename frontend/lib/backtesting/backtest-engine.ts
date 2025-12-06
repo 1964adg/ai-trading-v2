@@ -89,7 +89,7 @@ export class BacktestEngine {
         this.updateEquity(bar);
         
         // Check risk limits
-        if (this.shouldStopBacktest()) {
+        if (this.shouldStopBacktest(bar)) {
           break;
         }
       }
@@ -509,9 +509,9 @@ export class BacktestEngine {
   /**
    * Check if backtest should stop
    */
-  private shouldStopBacktest(): boolean {
+  private shouldStopBacktest(bar: BarData): boolean {
     const currentEquity = this.cash + (this.currentPosition.isOpen ? 
-      this.getPositionValue(0) : 0);
+      this.getPositionValue(bar.close) : 0);
     
     // Check max drawdown
     if (this.config.maxDrawdown) {

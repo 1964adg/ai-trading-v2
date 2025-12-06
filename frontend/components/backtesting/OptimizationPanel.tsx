@@ -11,6 +11,7 @@ import {
   OptimizationParameter,
   OptimizationMethod,
   StrategyTemplate,
+  PerformanceMetrics,
 } from '@/types/backtesting';
 import { STRATEGY_TEMPLATES } from '@/lib/backtesting/strategy-templates';
 
@@ -70,7 +71,7 @@ export default function OptimizationPanel({
     const config: OptimizationConfig = {
       method,
       parameters,
-      objective: objective as keyof typeof import('@/types/backtesting').PerformanceMetrics,
+      objective: objective as keyof PerformanceMetrics,
       maximize,
       populationSize: method === 'GENETIC' ? populationSize : undefined,
       generations: method === 'GENETIC' ? generations : undefined,

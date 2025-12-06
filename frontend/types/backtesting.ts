@@ -320,7 +320,7 @@ export interface BacktestResult {
 
 // ==================== Optimization ====================
 
-export type OptimizationMethod = 'GRID' | 'GENETIC' | 'WALK_FORWARD' | 'MONTE_CARLO';
+export type OptimizationMethod = 'GRID' | 'GENETIC' | 'WALK_FORWARD';
 
 export interface OptimizationParameter {
   name: string;

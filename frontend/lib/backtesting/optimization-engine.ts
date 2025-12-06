@@ -233,6 +233,10 @@ export class OptimizationEngine {
 
   /**
    * Walk-forward analysis
+   * Note: This is a simplified implementation that currently falls back to grid search.
+   * A full walk-forward implementation would split data into training/testing windows,
+   * optimize on training data, and validate on testing data in rolling windows.
+   * This approach helps detect overfitting and provides more realistic performance estimates.
    */
   private async walkForwardAnalysis(
     data: BarData[],
@@ -240,8 +244,8 @@ export class OptimizationEngine {
     optimizationConfig: OptimizationConfig,
     onProgress?: (progress: number) => void
   ): Promise<OptimizationResult> {
-    // Implementation would split data into training/testing windows
-    // For now, return a simple implementation
+    // TODO: Implement true walk-forward analysis with rolling windows
+    // For now, using grid search as fallback
     const gridResult = await this.gridSearch(data, baseConfig, optimizationConfig, onProgress);
     
     return {

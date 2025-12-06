@@ -244,7 +244,7 @@ export class DataManager {
   }
 
   private addToCache(key: string, data: BarData[]): void {
-    // Implement LRU cache
+    // Simple FIFO cache eviction
     if (this.cache.size >= this.maxCacheSize) {
       const firstKey = this.cache.keys().next().value;
       this.cache.delete(firstKey);
