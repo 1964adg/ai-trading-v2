@@ -58,9 +58,11 @@ export function useBacktest() {
       engineRef.current = new BacktestEngine();
       
       // Simulate progress updates
+      let currentProgress = 20;
       const progressInterval = setInterval(() => {
-        if (!cancelledRef.current) {
-          setProgress((prev) => Math.min(prev + 5, 90));
+        if (!cancelledRef.current && currentProgress < 90) {
+          currentProgress = Math.min(currentProgress + 5, 90);
+          setProgress(currentProgress);
         }
       }, 200);
 
