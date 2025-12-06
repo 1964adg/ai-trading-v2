@@ -4,6 +4,8 @@ import TradingModeSelector from '@/components/trading/TradingModeSelector';
 import RealBalancePanel from '@/components/trading/RealBalancePanel';
 import RealPositionsPanel from '@/components/trading/RealPositionsPanel';
 import RiskControlsPanel from '@/components/trading/RiskControlsPanel';
+import EnhancedOrderPanel from '@/components/orders/EnhancedOrderPanel';
+import OrderMonitoringPanel from '@/components/orders/OrderMonitoringPanel';
 import { useRealTrading } from '@/hooks/useRealTrading';
 import { useTradingModeStore } from '@/stores/tradingModeStore';
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -57,6 +59,7 @@ export default function Dashboard() {
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [isSymbolSelectorOpen, setIsSymbolSelectorOpen] = useState(false);
+  const [showEnhancedOrders, setShowEnhancedOrders] = useState(false);
   
   // Store viewport range for preservation on timeframe change
   const viewportRangeRef = useRef<{ from: number; to: number } | null>(null);
@@ -83,6 +86,7 @@ export default function Dashboard() {
     setVolumeProfileConfig,
     orderFlowConfig,
     setOrderFlowConfig,
+    enhancedOrders,
   } = useTradingStore();
 
   // Pattern Recognition Integration
@@ -529,6 +533,42 @@ export default function Dashboard() {
             aggression={flowData?.aggression}
             alertCount={orderFlowAlerts.length}
           />
+
+          {/* Enhanced Orders Section - NEW */}
+          <div className="space-y-4">
+            {/* Toggle Button */}
+            <button
+              onClick={() => setShowEnhancedOrders(!showEnhancedOrders)}
+              className="w-full p-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-lg transition-all shadow-lg flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">⚡</span>
+                <div className="text-left">
+                  <div className="text-white font-bold text-lg">Enhanced Orders</div>
+                  <div className="text-blue-100 text-sm">
+                    Professional order types • Iceberg • OCO • Bracket • TWAP
+                  </div>
+                </div>
+              </div>
+              <div className="text-white text-xl group-hover:scale-110 transition-transform">
+                {showEnhancedOrders ? '▼' : '▶'}
+              </div>
+            </button>
+
+            {/* Enhanced Orders Panel */}
+            {showEnhancedOrders && (
+              <EnhancedOrderPanel
+                symbol={symbol}
+                currentPrice={currentPrice}
+                onClose={() => setShowEnhancedOrders(false)}
+              />
+            )}
+
+            {/* Order Monitoring */}
+            {enhancedOrders.length > 0 && (
+              <OrderMonitoringPanel orders={enhancedOrders} />
+            )}
+          </div>
 
           <TradingChart
             data={chartData}
