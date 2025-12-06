@@ -462,6 +462,27 @@ export default function Dashboard() {
             onSymbolChange={handleSymbolChange}
           />
         </div>
+        
+        {/* Backtesting Link */}
+        <div className="mt-3">
+          <a
+            href="/backtest"
+            className="block w-full p-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-lg transition-all shadow-lg"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">📊</span>
+                <div>
+                  <div className="text-white font-bold text-lg">Professional Backtesting Engine</div>
+                  <div className="text-blue-100 text-sm">
+                    Strategy development • Optimization • Monte Carlo • 50+ metrics
+                  </div>
+                </div>
+              </div>
+              <div className="text-white text-2xl">→</div>
+            </div>
+          </a>
+        </div>
       </div>
 
       {/* Main Grid Layout: Chart + Orderbook + Trading Sidebar */}
