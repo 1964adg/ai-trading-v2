@@ -47,6 +47,9 @@ import CustomPatternBuilder from '@/components/trading/CustomPatternBuilder';
 import { usePatternRecognition } from '@/hooks/usePatternRecognition';
 import { useOrderFlow } from '@/hooks/useOrderFlow';
 import { CandleData, PatternType, ESSENTIAL_CANDLESTICK_PATTERNS } from '@/types/patterns';
+import APIKeyManager from '@/components/security/APIKeyManager';
+import LayoutManager, { LayoutConfig } from '@/components/workspace/LayoutManager';
+import { useShortcuts, useShortcutManager } from '@/hooks/useShortcuts';
 
 const DEFAULT_SYMBOL = 'BTCUSDT';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
@@ -60,10 +63,15 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [isSymbolSelectorOpen, setIsSymbolSelectorOpen] = useState(false);
   const [showEnhancedOrders, setShowEnhancedOrders] = useState(false);
+  const [showAPIKeyManager, setShowAPIKeyManager] = useState(false);
+  const [showLayoutManager, setShowLayoutManager] = useState(false);
   
   // Store viewport range for preservation on timeframe change
   const viewportRangeRef = useRef<{ from: number; to: number } | null>(null);
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
+
+  // Initialize global shortcut manager
+  useShortcutManager();
 
   // Real Trading Integration
   const { currentMode } = useTradingModeStore();
@@ -87,6 +95,8 @@ export default function Dashboard() {
     orderFlowConfig,
     setOrderFlowConfig,
     enhancedOrders,
+    activeLayout,
+    setActiveLayout,
   } = useTradingStore();
 
   // Pattern Recognition Integration
@@ -347,11 +357,28 @@ export default function Dashboard() {
     openPositions.forEach((pos) => removePosition(pos.id));
   }, [openPositions, removePosition]);
 
+  // Global shortcuts for UI and layout management
+  useShortcuts({
+    handlers: {
+      LAYOUT_SCALPING: () => setActiveLayout('SCALPING'),
+      LAYOUT_ANALYSIS: () => setActiveLayout('ANALYSIS'),
+      LAYOUT_RISK: () => setActiveLayout('RISK_MONITORING'),
+      API_MANAGER: () => setShowAPIKeyManager(true),
+      CANCEL_ALL: handleCloseAll,
+    },
+    enabled: true,
+  });
+
   // Keyboard shortcuts for trading
   useKeyboardShortcuts({
     enabled: true,
     onCloseAll: handleCloseAll,
   });
+
+  // Handle layout changes
+  const handleLayoutChange = useCallback((layout: LayoutConfig) => {
+    setActiveLayout(layout.type);
+  }, [setActiveLayout]);
 
   // Demo order handlers with full stop loss, take profit, and trailing stop support
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -461,6 +488,41 @@ export default function Dashboard() {
             currentSymbol={symbol}
             onSymbolChange={handleSymbolChange}
           />
+        </div>
+
+        {/* Security & Layout Management */}
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            onClick={() => setShowAPIKeyManager(true)}
+            className="p-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 rounded-lg transition-all shadow-lg text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🔐</span>
+                <div>
+                  <div className="text-white font-bold text-sm">API Key Manager</div>
+                  <div className="text-blue-100 text-xs">Secure credential storage (Ctrl+A)</div>
+                </div>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setShowLayoutManager(true)}
+            className="p-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-lg transition-all shadow-lg text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">⚙️</span>
+                <div>
+                  <div className="text-white font-bold text-sm">Layout Manager</div>
+                  <div className="text-purple-100 text-xs">
+                    Current: {activeLayout} (F1/F2/F3/F4)
+                  </div>
+                </div>
+              </div>
+            </div>
+          </button>
         </div>
         
         {/* Backtesting Link */}
@@ -723,6 +785,19 @@ export default function Dashboard() {
           />
         </div>
       </div>
+
+      {/* Security & Layout Managers */}
+      {showAPIKeyManager && (
+        <APIKeyManager onClose={() => setShowAPIKeyManager(false)} />
+      )}
+
+      {showLayoutManager && (
+        <LayoutManager
+          currentLayout={activeLayout}
+          onLayoutChange={handleLayoutChange}
+          onClose={() => setShowLayoutManager(false)}
+        />
+      )}
     </div>
   );
 }
