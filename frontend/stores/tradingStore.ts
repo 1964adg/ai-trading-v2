@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Timeframe } from '@/lib/types';
 import { TrailingStopConfig } from '@/lib/risk-management';
 import { VWAPConfig, VolumeProfileConfig, DEFAULT_VWAP_CONFIG, DEFAULT_VOLUME_PROFILE_CONFIG } from '@/types/indicators';
+import { OrderFlowConfig, DeltaVolumeConfig, DEFAULT_ORDER_FLOW_CONFIG, DEFAULT_DELTA_VOLUME_CONFIG } from '@/types/order-flow';
 
 export interface Position {
   id: string;
@@ -45,6 +46,10 @@ interface TradingState {
   vwapConfig: VWAPConfig;
   volumeProfileConfig: VolumeProfileConfig;
 
+  // Order Flow Configuration
+  orderFlowConfig: OrderFlowConfig;
+  deltaVolumeConfig: DeltaVolumeConfig;
+
   // Actions
   setSymbol: (symbol: string) => void;
   setTimeframe: (timeframe: Timeframe) => void;
@@ -60,6 +65,8 @@ interface TradingState {
   toggleEma: (index: number) => void;
   setVwapConfig: (config: Partial<VWAPConfig>) => void;
   setVolumeProfileConfig: (config: Partial<VolumeProfileConfig>) => void;
+  setOrderFlowConfig: (config: Partial<OrderFlowConfig>) => void;
+  setDeltaVolumeConfig: (config: Partial<DeltaVolumeConfig>) => void;
   reset: () => void;
 }
 
@@ -74,6 +81,8 @@ const initialState = {
   emaEnabled: [true, true, true, false] as [boolean, boolean, boolean, boolean],
   vwapConfig: DEFAULT_VWAP_CONFIG,
   volumeProfileConfig: DEFAULT_VOLUME_PROFILE_CONFIG,
+  orderFlowConfig: DEFAULT_ORDER_FLOW_CONFIG,
+  deltaVolumeConfig: DEFAULT_DELTA_VOLUME_CONFIG,
 };
 
 export const useTradingStore = create<TradingState>((set, get) => ({
@@ -162,6 +171,18 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   setVolumeProfileConfig: (config: Partial<VolumeProfileConfig>) => {
     set((state) => ({
       volumeProfileConfig: { ...state.volumeProfileConfig, ...config },
+    }));
+  },
+
+  setOrderFlowConfig: (config: Partial<OrderFlowConfig>) => {
+    set((state) => ({
+      orderFlowConfig: { ...state.orderFlowConfig, ...config },
+    }));
+  },
+
+  setDeltaVolumeConfig: (config: Partial<DeltaVolumeConfig>) => {
+    set((state) => ({
+      deltaVolumeConfig: { ...state.deltaVolumeConfig, ...config },
     }));
   },
 
