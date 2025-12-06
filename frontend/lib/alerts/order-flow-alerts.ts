@@ -8,6 +8,7 @@ import {
   OrderFlowAlertType,
   AlertSeverity,
   AlertAction,
+  OrderFlowAlertData,
 } from '@/types/order-flow';
 
 /**
@@ -227,11 +228,10 @@ export class OrderFlowAlertManager {
     message: string;
     symbol: string;
     action: AlertAction;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data: any;
+    data: OrderFlowAlertData;
   }): OrderFlowAlert {
     return {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       type: params.type,
       severity: params.severity,
       message: params.message,

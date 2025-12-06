@@ -100,8 +100,8 @@ export default function OrderFlowPanel({
         <div className="space-y-2 mb-4">
           {/* Delta Volume */}
           {config.deltaEnabled && (
-            <div className="flex items-center justify-between bg-gray-800 p-2 rounded">
-              <span className="text-gray-400 text-sm">☑️ Delta Volume</span>
+            <div className="flex items-center justify-between bg-gray-800 p-2 rounded" role="status" aria-label="Delta Volume Status">
+              <span className="text-gray-400 text-sm" aria-hidden="true">☑️ Delta Volume</span>
               <span className={`font-mono font-semibold ${getDeltaColor(currentDelta)}`}>
                 {currentDelta > 0 ? '+' : ''}{currentDelta.toFixed(0)}
               </span>
@@ -120,8 +120,8 @@ export default function OrderFlowPanel({
 
           {/* Imbalance */}
           {config.imbalanceEnabled && (
-            <div className="flex items-center justify-between bg-gray-800 p-2 rounded">
-              <span className="text-gray-400 text-sm">☑️ Imbalance</span>
+            <div className="flex items-center justify-between bg-gray-800 p-2 rounded" role="status" aria-label="Imbalance Status">
+              <span className="text-gray-400 text-sm" aria-hidden="true">☑️ Imbalance</span>
               <span className="text-cyan-400 font-semibold text-sm">
                 {getImbalanceDisplay()}
               </span>
@@ -130,8 +130,8 @@ export default function OrderFlowPanel({
 
           {/* Tick Speed */}
           {config.speedEnabled && (
-            <div className="flex items-center justify-between bg-gray-800 p-2 rounded">
-              <span className="text-gray-400 text-sm">☑️ Tick Speed</span>
+            <div className="flex items-center justify-between bg-gray-800 p-2 rounded" role="status" aria-label="Tick Speed Status">
+              <span className="text-gray-400 text-sm" aria-hidden="true">☑️ Tick Speed</span>
               <span className="text-blue-400 font-mono font-semibold">
                 {tickSpeed.toFixed(1)} t/s
               </span>

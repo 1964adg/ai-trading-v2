@@ -104,6 +104,36 @@ export type AlertSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 // Action Recommendation
 export type AlertAction = 'BUY' | 'SELL' | 'WATCH';
 
+// Alert Data Types
+export interface DeltaDivergenceAlertData {
+  divergenceType: 'BULLISH' | 'BEARISH';
+  priceChange: number;
+  deltaChange: number;
+}
+
+export interface ImbalanceAlertData {
+  imbalance: number;
+  side: 'BUY' | 'SELL';
+}
+
+export interface SpeedSurgeAlertData {
+  currentSpeed: number;
+  avgSpeed: number;
+  speedRatio: number;
+}
+
+export interface VolumeSpikeAlertData {
+  volumeRate: number;
+  avgRate: number;
+  volumeRatio: number;
+}
+
+export type OrderFlowAlertData = 
+  | DeltaDivergenceAlertData
+  | ImbalanceAlertData
+  | SpeedSurgeAlertData
+  | VolumeSpikeAlertData;
+
 // Order Flow Alert
 export interface OrderFlowAlert {
   id: string;
@@ -111,7 +141,7 @@ export interface OrderFlowAlert {
   severity: AlertSeverity;
   message: string;
   timestamp: number;
-  data: any; // Alert-specific data
+  data: OrderFlowAlertData; // Alert-specific data
   symbol: string;
   action: AlertAction;
 }
