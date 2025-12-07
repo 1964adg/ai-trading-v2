@@ -692,17 +692,18 @@ function executeSwitchTimeframe(timeframe: Timeframe): ShortcutExecutionResult {
 
 /**
  * Refresh market data
+ * Note: This triggers a data refresh in the application
  */
 function executeRefreshData(): ShortcutExecutionResult {
   try {
-    // Trigger refresh in market store
-    // Force refresh by updating a timestamp
-    // This is a placeholder - actual implementation would trigger data refresh
+    // Trigger data refresh by dispatching a custom event
+    // The main dashboard component listens for this and triggers SWR revalidation
+    window.dispatchEvent(new CustomEvent('refresh-market-data'));
     
     return {
       success: true,
       action: 'REFRESH_DATA',
-      message: 'Market data refreshed',
+      message: 'Market data refresh triggered',
       timestamp: Date.now(),
     };
   } catch (error) {
@@ -710,6 +711,84 @@ function executeRefreshData(): ShortcutExecutionResult {
       success: false,
       action: 'REFRESH_DATA',
       message: 'Failed to refresh data',
+      timestamp: Date.now(),
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Open custom position size dialog
+ * Note: This is a placeholder that triggers a custom event for the UI to handle
+ */
+function executeCustomPositionSize(): ShortcutExecutionResult {
+  try {
+    // Dispatch event for UI to show position size dialog
+    window.dispatchEvent(new CustomEvent('open-position-size-dialog'));
+    
+    return {
+      success: true,
+      action: 'SIZE_CUSTOM',
+      message: 'Position size dialog opened',
+      timestamp: Date.now(),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      action: 'SIZE_CUSTOM',
+      message: 'Failed to open position size dialog',
+      timestamp: Date.now(),
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Confirm active dialog
+ * Note: This triggers a confirmation event for any active modal/dialog
+ */
+function executeConfirm(): ShortcutExecutionResult {
+  try {
+    // Dispatch generic confirmation event
+    window.dispatchEvent(new CustomEvent('confirm-action'));
+    
+    return {
+      success: true,
+      action: 'CONFIRM',
+      message: 'Confirmation sent',
+      timestamp: Date.now(),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      action: 'CONFIRM',
+      message: 'Failed to confirm',
+      timestamp: Date.now(),
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Quick confirm without dialog
+ * Note: This is similar to regular confirm but with a flag for quick mode
+ */
+function executeQuickConfirm(): ShortcutExecutionResult {
+  try {
+    // Dispatch quick confirmation event
+    window.dispatchEvent(new CustomEvent('confirm-action', { detail: { quick: true } }));
+    
+    return {
+      success: true,
+      action: 'QUICK_CONFIRM',
+      message: 'Quick confirmation sent',
+      timestamp: Date.now(),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      action: 'QUICK_CONFIRM',
+      message: 'Failed to quick confirm',
       timestamp: Date.now(),
       error: error instanceof Error ? error.message : 'Unknown error',
     };
@@ -801,6 +880,9 @@ export async function executeShortcutAction(
     case 'SIZE_5_PERCENT':
       result = executeSetPositionSize(5);
       break;
+    case 'SIZE_CUSTOM':
+      result = executeCustomPositionSize();
+      break;
     case 'NEXT_SYMBOL':
       result = executeNextSymbol();
       break;
@@ -824,6 +906,12 @@ export async function executeShortcutAction(
       break;
     case 'REFRESH_DATA':
       result = executeRefreshData();
+      break;
+    case 'CONFIRM':
+      result = executeConfirm();
+      break;
+    case 'QUICK_CONFIRM':
+      result = executeQuickConfirm();
       break;
     case 'TOGGLE_HELP':
       result = executeToggleHelp();
