@@ -582,7 +582,7 @@ async function executeUndoLast(): Promise<ShortcutExecutionResult> {
 function executeSetPositionSize(percentage: number): ShortcutExecutionResult {
   try {
     const configStore = useTradingConfigStore.getState();
-    configStore.setRiskPercentage(percentage);
+    configStore.setSelectedRiskPercentage(percentage);
     
     return {
       success: true,
@@ -694,7 +694,6 @@ function executeSwitchTimeframe(timeframe: Timeframe): ShortcutExecutionResult {
 function executeRefreshData(): ShortcutExecutionResult {
   try {
     // Trigger refresh in market store
-    const marketStore = useMarketStore.getState();
     // Force refresh by updating a timestamp
     // This is a placeholder - actual implementation would trigger data refresh
     
