@@ -57,7 +57,7 @@ export async function encryptAESGCM(
     }
     cryptoKey = await crypto.subtle.importKey(
       'raw',
-      key,
+      key as BufferSource,
       { name: 'AES-GCM' },
       false,
       ['encrypt']
@@ -69,15 +69,15 @@ export async function encryptAESGCM(
   // Prepare algorithm parameters
   const algorithm: AesGcmParams = {
     name: 'AES-GCM',
-    iv: iv,
-    ...(aad && { additionalData: aad }),
+    iv: iv as BufferSource,
+    ...(aad && { additionalData: aad as BufferSource }),
   };
 
   // Encrypt
   const encryptedBuffer = await crypto.subtle.encrypt(
     algorithm,
     cryptoKey,
-    plaintextBytes
+    plaintextBytes as BufferSource
   );
 
   // GCM returns ciphertext with auth tag appended (last 16 bytes)
@@ -128,7 +128,7 @@ export async function decryptAESGCM(
     }
     cryptoKey = await crypto.subtle.importKey(
       'raw',
-      key,
+      key as BufferSource,
       { name: 'AES-GCM' },
       false,
       ['decrypt']
@@ -145,8 +145,8 @@ export async function decryptAESGCM(
   // Prepare algorithm parameters
   const algorithm: AesGcmParams = {
     name: 'AES-GCM',
-    iv: iv,
-    ...(aad && { additionalData: aad }),
+    iv: iv as BufferSource,
+    ...(aad && { additionalData: aad as BufferSource }),
   };
 
   try {
@@ -154,7 +154,7 @@ export async function decryptAESGCM(
     const decryptedBuffer = await crypto.subtle.decrypt(
       algorithm,
       cryptoKey,
-      combined
+      combined as BufferSource
     );
     return new Uint8Array(decryptedBuffer);
   } catch {

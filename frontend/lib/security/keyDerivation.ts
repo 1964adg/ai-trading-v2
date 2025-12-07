@@ -63,7 +63,7 @@ export async function deriveKeyFromPassword(
   const derivedKey = await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: salt,
+      salt: salt as BufferSource,
       iterations: iterations,
       hash: 'SHA-256',
     },
@@ -115,7 +115,7 @@ export async function deriveRawKeyFromPassword(
   const derivedBits = await crypto.subtle.deriveBits(
     {
       name: 'PBKDF2',
-      salt: salt,
+      salt: salt as BufferSource,
       iterations: iterations,
       hash: 'SHA-256',
     },

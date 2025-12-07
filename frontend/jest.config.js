@@ -14,8 +14,8 @@ module.exports = {
       }
     }],
   },
-  moduleNameMapping: {
-    '^@/(.*)$': '<rootDir>/$1',  // Punta alla root di frontend/
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy'
   },
   setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
