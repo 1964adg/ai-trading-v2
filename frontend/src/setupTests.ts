@@ -12,8 +12,8 @@ global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
 // Mock IndexedDB
-const FDBFactory = require('fake-indexeddb/lib/FDBFactory');
-const FDBKeyRange = require('fake-indexeddb/lib/FDBKeyRange');
+import FDBFactory from 'fake-indexeddb/lib/FDBFactory';
+import FDBKeyRange from 'fake-indexeddb/lib/FDBKeyRange';
 
 global.indexedDB = new FDBFactory();
 global.IDBKeyRange = FDBKeyRange;
