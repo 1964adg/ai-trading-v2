@@ -67,9 +67,11 @@ function calculatePositionSize(percentage: number): number {
 
 /**
  * Calculate stop loss price for protected orders
+ * Note: Assumes stop loss is configured as a percentage
  */
 function calculateStopLoss(side: 'BUY' | 'SELL', entryPrice: number): number {
   const configStore = useTradingConfigStore.getState();
+  // Use the configured stop loss value (assumed to be percentage)
   const stopLossPercent = configStore.stopLoss.value / 100;
   
   if (side === 'BUY') {
