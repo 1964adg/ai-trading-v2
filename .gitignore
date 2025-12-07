@@ -219,3 +219,18 @@ package-lock.json
 # Next.js
 .next/
 out/
+
+# Docker
+docker-compose.override.yml
+.docker/
+*.log
+
+# SSL Certificates
+infrastructure/nginx/ssl/*.pem
+infrastructure/nginx/ssl/*.key
+infrastructure/nginx/ssl/*.crt
+
+# Database dumps
+*.sql.gz
+*.dump
+backup.sql

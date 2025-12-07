@@ -1,0 +1,100 @@
+# AI Trading V2 - Monitoring Alerts
+
+groups:
+  - name: trading_api_alerts
+    interval: 30s
+    rules:
+      # API availability
+      - alert: BackendDown
+        expr: up{job="backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend API is down"
+          description: "Backend API has been down for more than 1 minute"
+
+      # High response time
+      - alert: HighResponseTime
+        expr: http_request_duration_seconds{quantile="0.95"} > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API response time"
+          description: "95th percentile response time is above 1 second"
+
+      # Database connection issues
+      - alert: DatabaseConnectionFailure
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection failed"
+          description: "Cannot connect to PostgreSQL database"
+
+      # Redis connection issues
+      - alert: RedisConnectionFailure
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis connection failed"
+          description: "Cannot connect to Redis cache"
+
+  - name: resource_alerts
+    interval: 30s
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for 5 minutes"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 > 1024
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 1GB"
+
+      # Disk space low
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space"
+          description: "Less than 10% disk space available"
+
+  - name: trading_specific_alerts
+    interval: 30s
+    rules:
+      # High error rate in trading operations
+      - alert: HighTradingErrorRate
+        expr: rate(trading_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate in trading operations"
+          description: "More than 10% of trading operations are failing"
+
+      # API rate limit approaching
+      - alert: APIRateLimitApproaching
+        expr: api_rate_limit_remaining < 100
+        labels:
+          severity: warning
+        annotations:
+          summary: "API rate limit approaching"
+          description: "Less than 100 API requests remaining"

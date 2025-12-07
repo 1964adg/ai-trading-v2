@@ -1,0 +1,54 @@
+# Docker Compose Override Example
+# Copy this file to docker-compose.override.yml and customize as needed
+# This file is loaded automatically by docker-compose and overrides settings in docker-compose.yml
+
+version: '3.8'
+
+services:
+  # Frontend customizations
+  frontend:
+    # Override port mapping
+    # ports:
+    #   - "3001:3000"
+    
+    # Add custom environment variables
+    # environment:
+    #   - NEXT_PUBLIC_API_URL=http://localhost:8001
+    
+    # Mount additional volumes
+    # volumes:
+    #   - ./custom-config:/app/config
+
+  # Backend customizations
+  backend:
+    # Override port mapping
+    # ports:
+    #   - "8001:8000"
+    
+    # Add custom environment variables
+    # environment:
+    #   - DEBUG=true
+    #   - LOG_LEVEL=DEBUG
+    
+    # Mount additional volumes
+    # volumes:
+    #   - ./logs:/app/logs
+
+  # PostgreSQL customizations
+  postgres:
+    # Override port mapping
+    # ports:
+    #   - "5433:5432"
+    
+    # Add custom configuration
+    # volumes:
+    #   - ./custom-postgres.conf:/etc/postgresql/postgresql.conf
+
+  # Redis customizations
+  redis:
+    # Override port mapping
+    # ports:
+    #   - "6380:6379"
+    
+    # Add custom configuration
+    # command: redis-server --appendonly yes --maxmemory 256mb
