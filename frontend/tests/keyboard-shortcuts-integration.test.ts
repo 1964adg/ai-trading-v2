@@ -183,4 +183,3 @@ describe('F1/F2 Keyboard Shortcuts Integration', () => {
     });
   });
 });
-
