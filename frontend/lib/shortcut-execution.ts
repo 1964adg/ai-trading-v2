@@ -29,11 +29,26 @@ const TRADING_SYMBOLS = [
 ];
 
 /**
- * Get current market price
+ * Get current market price with fallback mechanisms
  */
 function getCurrentPrice(): number {
   const marketStore = useMarketStore.getState();
-  return marketStore.currentPrice || 0;
+  let price = marketStore.currentPrice || 0;
+  
+  // Fallback 1: Try to get from candlestick data
+  if (price === 0 && marketStore.candlestickData.length > 0) {
+    const lastCandle = marketStore.candlestickData[marketStore.candlestickData.length - 1];
+    price = lastCandle.close;
+  }
+  
+  // Fallback 2: Try to get average from orderbook
+  if (price === 0 && marketStore.bids.length > 0 && marketStore.asks.length > 0) {
+    const bestBid = marketStore.bids[0].price;
+    const bestAsk = marketStore.asks[0].price;
+    price = (bestBid + bestAsk) / 2;
+  }
+  
+  return price;
 }
 
 /**
@@ -91,13 +106,13 @@ async function executeBuyMarket(): Promise<ShortcutExecutionResult> {
     const currentPrice = getCurrentPrice();
     
     if (currentPrice === 0) {
-      throw new Error('Market price not available');
+      throw new Error('Market price not available. Please wait for chart data to load.');
     }
     
     const quantity = calculatePositionSize(configStore.selectedRiskPercentage);
     
     if (quantity === 0) {
-      throw new Error('Invalid position size');
+      throw new Error('Invalid position size. Check your account balance and risk settings.');
     }
     
     const order: OrderRequest = {
@@ -140,13 +155,13 @@ async function executeSellMarket(): Promise<ShortcutExecutionResult> {
     const currentPrice = getCurrentPrice();
     
     if (currentPrice === 0) {
-      throw new Error('Market price not available');
+      throw new Error('Market price not available. Please wait for chart data to load.');
     }
     
     const quantity = calculatePositionSize(configStore.selectedRiskPercentage);
     
     if (quantity === 0) {
-      throw new Error('Invalid position size');
+      throw new Error('Invalid position size. Check your account balance and risk settings.');
     }
     
     const order: OrderRequest = {

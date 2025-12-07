@@ -40,6 +40,7 @@ import { useTradingStore } from '@/stores/tradingStore';
 import { Position } from '@/stores/tradingStore';
 import { usePositionStore } from '@/stores/positionStore';
 import { useTradingConfigStore } from '@/stores/tradingConfigStore';
+import { useMarketStore } from '@/stores/marketStore';
 import { PatternDetector } from '@/components/PatternDetector';
 import { PatternDashboard } from '@/components/PatternDashboard';
 import PatternSelector from '@/components/trading/PatternSelector';
@@ -88,6 +89,9 @@ export default function Dashboard() {
     setOrderFlowConfig,
     enhancedOrders,
   } = useTradingStore();
+
+  // Market store for price updates
+  const { updatePrice } = useMarketStore();
 
   // Pattern Recognition Integration
   const {
@@ -317,6 +321,13 @@ export default function Dashboard() {
   }, []);
 
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
+
+  // Update market store with current price for keyboard shortcuts
+  useEffect(() => {
+    if (currentPrice > 0) {
+      updatePrice(currentPrice);
+    }
+  }, [currentPrice, updatePrice]);
 
   // Calculate position sizing (depends on currentPrice)
   const positionSizing = usePositionSizing({
