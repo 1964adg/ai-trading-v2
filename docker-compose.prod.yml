@@ -1,12 +1,10 @@
-version: '3.8'
-
 services:
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
     ports:
-      - "80:80"
+      - "3000:3000"
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://api.trading.example.com
@@ -14,7 +12,7 @@ services:
     networks:
       - trading-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3

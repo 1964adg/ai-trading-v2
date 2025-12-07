@@ -2,8 +2,6 @@
 # Copy this file to docker-compose.override.yml and customize as needed
 # This file is loaded automatically by docker-compose and overrides settings in docker-compose.yml
 
-version: '3.8'
-
 services:
   # Frontend customizations
   frontend:
