@@ -69,7 +69,9 @@ sleep 20
 echo ""
 echo -e "${BLUE}Checking service health...${NC}"
 
-if curl -f http://localhost:8000/ > /dev/null 2>&1; then
+BACKEND_HOST="${BACKEND_HOST:-localhost}"
+
+if curl -f "http://${BACKEND_HOST}:8000/" > /dev/null 2>&1; then
     echo -e "${GREEN}✅ Backend is healthy${NC}"
 else
     echo -e "${RED}❌ Backend health check failed${NC}"

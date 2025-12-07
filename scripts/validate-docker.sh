@@ -35,9 +35,9 @@ fi
 
 # Test 3: Validate docker-compose.yml
 echo -n "✓ Validating docker-compose.yml... "
-if docker compose config --quiet 2>&1 | grep -q "ERROR"; then
+if ! docker compose config > /dev/null 2>&1; then
     echo -e "${RED}FAIL${NC}"
-    docker compose config --quiet
+    docker compose config
     exit 1
 else
     echo -e "${GREEN}OK${NC}"
@@ -45,9 +45,9 @@ fi
 
 # Test 4: Validate docker-compose.prod.yml
 echo -n "✓ Validating docker-compose.prod.yml... "
-if docker compose -f docker-compose.prod.yml config --quiet 2>&1 | grep -q "ERROR"; then
+if ! docker compose -f docker-compose.prod.yml config > /dev/null 2>&1; then
     echo -e "${RED}FAIL${NC}"
-    docker compose -f docker-compose.prod.yml config --quiet
+    docker compose -f docker-compose.prod.yml config
     exit 1
 else
     echo -e "${GREEN}OK${NC}"

@@ -80,14 +80,14 @@ else
 fi
 
 # Check postgres
-if docker exec $(docker ps -qf "name=postgres") pg_isready -U trader > /dev/null 2>&1; then
+if $DOCKER_COMPOSE_CMD exec postgres pg_isready -U trader > /dev/null 2>&1; then
     echo -e "${GREEN}✅ PostgreSQL is healthy${NC}"
 else
     echo -e "${YELLOW}⚠️  PostgreSQL is starting...${NC}"
 fi
 
 # Check redis
-if docker exec $(docker ps -qf "name=redis") redis-cli ping > /dev/null 2>&1; then
+if $DOCKER_COMPOSE_CMD exec redis redis-cli ping > /dev/null 2>&1; then
     echo -e "${GREEN}✅ Redis is healthy${NC}"
 else
     echo -e "${YELLOW}⚠️  Redis is starting...${NC}"

@@ -146,9 +146,15 @@ SELECT add_compression_policy('trading_audit', INTERVAL '30 days', if_not_exists
 -- INITIALIZATION COMPLETE
 -- ============================================================
 
--- Grant permissions to trading user
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO trader;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO trader;
+-- Grant permissions to trading user (least privilege)
+GRANT CONNECT ON DATABASE trading_ai TO trader;
+GRANT USAGE ON SCHEMA public TO trader;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO trader;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO trader;
+
+-- Grant permissions on future tables
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO trader;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO trader;
 
 -- Success message
 DO $$
