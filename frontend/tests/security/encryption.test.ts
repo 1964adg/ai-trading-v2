@@ -1,6 +1,6 @@
 /**
  * Encryption and Key Derivation Tests
- * 
+ *
  * Tests for AES-256-GCM encryption and PBKDF2 key derivation
  */
 
@@ -11,7 +11,7 @@ import {
   arrayBufferToBase64,
   base64ToArrayBuffer,
   secureClear,
-} from '@/lib/security/encryption';
+} from '../../lib/security/encryption';
 
 import {
   deriveKeyFromPassword,
@@ -19,7 +19,7 @@ import {
   validatePBKDF2Implementation,
   DEFAULT_PBKDF2_ITERATIONS,
   PBKDF2_TEST_VECTORS,
-} from '@/lib/security/keyDerivation';
+} from '../../lib/security/keyDerivation';
 
 describe('Encryption Utilities', () => {
   describe('generateRandomBytes', () => {
@@ -47,7 +47,7 @@ describe('Encryption Utilities', () => {
 
     it('should encrypt and decrypt text correctly', async () => {
       const encrypted = await encryptAESGCM(testPlaintext, testKey);
-      
+
       expect(encrypted.iv).toBeInstanceOf(Uint8Array);
       expect(encrypted.iv.length).toBe(12); // Standard GCM IV length
       expect(encrypted.ciphertext).toBeInstanceOf(Uint8Array);
@@ -98,7 +98,7 @@ describe('Encryption Utilities', () => {
 
     it('should fail decryption with tampered ciphertext', async () => {
       const encrypted = await encryptAESGCM(testPlaintext, testKey);
-      
+
       // Tamper with ciphertext
       const tampered = new Uint8Array(encrypted.ciphertext);
       tampered[0] ^= 1; // Flip one bit
@@ -136,7 +136,7 @@ describe('Encryption Utilities', () => {
     it('should fail with mismatched AAD', async () => {
       const aad1 = new TextEncoder().encode('metadata1');
       const aad2 = new TextEncoder().encode('metadata2');
-      
+
       const encrypted = await encryptAESGCM(testPlaintext, testKey, aad1);
 
       await expect(
@@ -206,7 +206,7 @@ describe('Key Derivation (PBKDF2)', () => {
       // Verify key is a valid CryptoKey by using it
       expect(key).toBeDefined();
       expect(key).not.toBeNull();
-      
+
       // CryptoKey should be usable for encryption
       const plaintext = 'test';
       const encrypted = await encryptAESGCM(plaintext, key);
@@ -324,7 +324,7 @@ describe('Key Derivation (PBKDF2)', () => {
     it('should pass known test vectors', async () => {
       // Test the first vector which has a known expected output
       const vector = PBKDF2_TEST_VECTORS[0];
-      
+
       const derived = await deriveRawKeyFromPassword(
         vector.password,
         vector.salt,
@@ -344,7 +344,7 @@ describe('Key Derivation (PBKDF2)', () => {
   describe('Performance', () => {
     it('should complete derivation within reasonable time', async () => {
       const startTime = Date.now();
-      
+
       await deriveKeyFromPassword(
         testPassword,
         testSalt,
@@ -352,7 +352,7 @@ describe('Key Derivation (PBKDF2)', () => {
       );
 
       const duration = Date.now() - startTime;
-      
+
       // Should complete in less than 5 seconds (generous for CI environments)
       expect(duration).toBeLessThan(5000);
     }, 10000); // Increase test timeout

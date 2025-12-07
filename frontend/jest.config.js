@@ -1,19 +1,23 @@
+/** @type {import('jest').Config} */
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
-  roots: ['<rootDir>'],
-  testMatch: ['**/__tests__/**/*.ts?(x)', '**/?(*.)+(spec|test).ts?(x)'],
-  transform: {
-    '^.+\\.tsx?$': 'ts-jest',
-  },
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1',
-  },
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  collectCoverageFrom: [
-    'lib/security/**/*.ts',
-    'hooks/useSecureStorage.ts',
-    '!**/*.d.ts',
-    '!**/node_modules/**',
+  roots: ['<rootDir>/lib', '<rootDir>/tests', '<rootDir>/src', '<rootDir>/hooks', '<rootDir>/stores'],
+  testMatch: [
+    '**/tests/**/*.test.ts',
+    '**/__tests__/**/*.test.ts'
   ],
+  transform: {
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
+      tsconfig: {
+        jsx: 'react-jsx'
+      }
+    }],
+  },
+  moduleNameMapping: {
+    '^@/(.*)$': '<rootDir>/$1',  // Punta alla root di frontend/
+    '\\.(css|less|scss|sass)$': 'identity-obj-proxy'
+  },
+  setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
+  testTimeout: 10000
 };
