@@ -304,12 +304,38 @@ export class RealTradingAPIClient {
    */
   async getPositions(): Promise<RealPosition[]> {
     try {
-      // Note: This is for futures API
-      // Spot trading doesn't have "positions" in the same way
+      // Paper mode - fetch from paper trading backend
       if (this.mode === 'paper') {
-        return [];
+        const data = await this.makeAuthenticatedRequest('/positions');
+        const response = data as { positions: Array<{
+          id: string;
+          symbol: string;
+          type: string;
+          quantity: number;
+          entry_price: number;
+          current_price?: number;
+          current_pnl: number;
+          timestamp: string;
+          status: string;
+        }> };
+        
+        return response.positions.map(p => ({
+          id: p.id,
+          symbol: p.symbol,
+          side: (p.type === 'buy' ? 'LONG' : 'SHORT') as 'LONG' | 'SHORT',
+          entryPrice: p.entry_price,
+          quantity: p.quantity,
+          markPrice: p.current_price || p.entry_price,
+          unrealizedPnL: p.current_pnl,
+          marginType: 'ISOLATED' as const,
+          leverage: 1,
+          openTime: Date.parse(p.timestamp),
+        }));
       }
 
+      // Testnet/Real modes - fetch from Binance API
+      // Note: This is for futures API
+      // Spot trading doesn't have "positions" in the same way
       const data = await this.makeAuthenticatedRequest('/positionRisk');
       const positions = data as Array<{
         symbol: string;

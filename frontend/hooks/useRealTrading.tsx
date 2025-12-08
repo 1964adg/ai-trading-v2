@@ -46,7 +46,7 @@ export function useRealTrading(options: UseRealTradingOptions = {}) {
 
   // Fetch positions
   const fetchPositions = useCallback(async () => {
-    if (!enabled || currentMode === 'paper') return;
+    if (!enabled) return;
 
     try {
       setPositionsLoading(true);
@@ -56,7 +56,7 @@ export function useRealTrading(options: UseRealTradingOptions = {}) {
       console.error('Error fetching positions:', error);
       setPositionsError(error instanceof Error ? error.message : 'Failed to fetch positions');
     }
-  }, [enabled, currentMode, setPositions, setPositionsLoading, setPositionsError]);
+  }, [enabled, setPositions, setPositionsLoading, setPositionsError]);
 
   // Place order
   const placeOrder = useCallback(async (order: OrderRequest) => {
@@ -102,20 +102,16 @@ export function useRealTrading(options: UseRealTradingOptions = {}) {
 
     // Initial fetch
     fetchBalance();
-    if (currentMode !== 'paper') {
-      fetchPositions();
-    }
+    fetchPositions();
 
     // Setup interval
     const interval = setInterval(() => {
       fetchBalance();
-      if (currentMode !== 'paper') {
-        fetchPositions();
-      }
+      fetchPositions();
     }, refreshInterval);
 
     return () => clearInterval(interval);
-  }, [enabled, currentMode, refreshInterval, fetchBalance, fetchPositions]);
+  }, [enabled, refreshInterval, fetchBalance, fetchPositions]);
 
   return {
     // State
