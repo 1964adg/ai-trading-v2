@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from api.market import router as market_router
+from api.paper_trading import router as paper_trading_router
 from config import settings
 import uvicorn
 from datetime import datetime
@@ -38,9 +39,13 @@ CONFIGURATION:
   • Auto-reload:    {reload}
 
 AVAILABLE ENDPOINTS:
-  • GET  /                           - Health check + server info
-  • GET  /api/klines/{{symbol}}/{{interval}} - Real-time klines data
-  • WS   /api/ws/klines/{{symbol}}/{{interval}} - Live WebSocket stream
+  • GET    /                           - Health check + server info
+  • GET    /api/klines/{{symbol}}/{{interval}} - Real-time klines data
+  • WS     /api/ws/klines/{{symbol}}/{{interval}} - Live WebSocket stream
+  • POST   /api/paper/order            - Create paper trading order
+  • GET    /api/paper/positions        - Get active paper positions
+  • GET    /api/paper/portfolio        - Get portfolio status
+  • DELETE /api/paper/position/{{id}}  - Close a paper trading position
 
 TEST COMMANDS:
   curl http://localhost:{port}/
@@ -81,6 +86,7 @@ app.add_middleware(
 )
 
 app.include_router(market_router, prefix="/api", tags=["market"])
+app.include_router(paper_trading_router, prefix="/api/paper", tags=["paper-trading"])
 
 
 @app.get("/")
@@ -98,7 +104,8 @@ async def root():
         "features": {
             "klines": True,
             "websocket": True,
-            "portfolio": False
+            "paper_trading": True,
+            "portfolio": True
         },
         "timestamp": datetime.now().isoformat()
     }
