@@ -711,12 +711,10 @@ export default function Dashboard() {
             overallPerformance={overallPerformance}
           />
           
-          {/* Real Trading Components - NEW */}
+          {/* Real Trading Components - Show for all modes */}
+          <RealPositionsPanel />
           {currentMode !== 'paper' && (
-            <>
-              <RealPositionsPanel />
-              <RiskControlsPanel />
-            </>
+            <RiskControlsPanel />
           )}
           
           {/* Multi-Position Manager */}
