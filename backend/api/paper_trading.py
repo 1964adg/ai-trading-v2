@@ -84,6 +84,7 @@ async def get_paper_positions():
         positions = paper_trading_service.get_positions()
         
         # Update current prices and P&L for each position
+        import logging
         for position in positions:
             try:
                 # Fetch current market price
@@ -94,19 +95,14 @@ async def get_paper_positions():
                 )
                 if klines:
                     current_price = klines[0]["close"]
-                    position["current_price"] = current_price
-                    
-                    # Calculate P&L
-                    if position["type"] == "buy":
-                        position["current_pnl"] = (current_price - position["entry_price"]) * position["quantity"]
-                    else:  # sell
-                        position["current_pnl"] = (position["entry_price"] - current_price) * position["quantity"]
-                    
-                    # Update in service
+                    # Update in service (which also calculates P&L)
                     paper_trading_service.update_position_price(position["id"], current_price)
             except Exception as e:
-                print(f"[WARNING] Failed to update price for {position['symbol']}: {e}")
+                logging.warning(f"Failed to update price for {position['symbol']}: {e}")
                 # Keep the position with last known values
+        
+        # Get fresh positions data after all updates
+        positions = paper_trading_service.get_positions()
         
         return {"positions": positions}
         

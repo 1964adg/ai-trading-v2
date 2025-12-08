@@ -39,12 +39,13 @@ CONFIGURATION:
   • Auto-reload:    {reload}
 
 AVAILABLE ENDPOINTS:
-  • GET  /                           - Health check + server info
-  • GET  /api/klines/{{symbol}}/{{interval}} - Real-time klines data
-  • WS   /api/ws/klines/{{symbol}}/{{interval}} - Live WebSocket stream
-  • POST /api/paper/order            - Create paper trading order
-  • GET  /api/paper/positions        - Get active paper positions
-  • GET  /api/paper/portfolio        - Get portfolio status
+  • GET    /                           - Health check + server info
+  • GET    /api/klines/{{symbol}}/{{interval}} - Real-time klines data
+  • WS     /api/ws/klines/{{symbol}}/{{interval}} - Live WebSocket stream
+  • POST   /api/paper/order            - Create paper trading order
+  • GET    /api/paper/positions        - Get active paper positions
+  • GET    /api/paper/portfolio        - Get portfolio status
+  • DELETE /api/paper/position/{{id}}  - Close a paper trading position
 
 TEST COMMANDS:
   curl http://localhost:{port}/
