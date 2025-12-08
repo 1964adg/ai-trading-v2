@@ -11,10 +11,14 @@ router = APIRouter()
 
 class OrderRequest(BaseModel):
     """Paper trading order request model."""
-    type: str = Field(..., description="Order type: 'buy' or 'sell'")
     symbol: str = Field(..., description="Trading pair symbol (e.g., BTCUSDT)")
+    side: str = Field(..., description="Order side: 'BUY' or 'SELL'")
+    type: str = Field(..., description="Order type: 'MARKET', 'LIMIT', etc.")
     quantity: float = Field(..., gt=0, description="Order quantity")
-    price: Optional[float] = Field(None, description="Order price (optional, uses market price if not provided)")
+    price: Optional[float] = Field(None, description="Order price (optional for MARKET orders)")
+    stopPrice: Optional[float] = Field(None, description="Stop price for stop orders")
+    timeInForce: Optional[str] = Field(None, description="Time in force: 'GTC', 'IOC', 'FOK'")
+    reduceOnly: Optional[bool] = Field(None, description="Reduce only flag")
 
 
 @router.post("/order")
@@ -29,12 +33,14 @@ async def create_paper_order(order: OrderRequest):
         Order response with status, order_id, and timestamp
     """
     try:
-        # Validate order type
-        if order.type.lower() not in ["buy", "sell"]:
-            raise HTTPException(status_code=400, detail="Order type must be 'buy' or 'sell'")
+        # Validate order side
+        if order.side.upper() not in ["BUY", "SELL"]:
+            raise HTTPException(status_code=400, detail="Order side must be 'BUY' or 'SELL'")
         
-        # If no price provided, fetch current market price
+        # Determine execution price
         execution_price = order.price
+        
+        # For MARKET orders or when no price is provided, fetch current market price
         if execution_price is None:
             try:
                 # Get the latest price from Binance
@@ -52,7 +58,7 @@ async def create_paper_order(order: OrderRequest):
         
         # Create the order
         result = paper_trading_service.create_order(
-            order_type=order.type.lower(),
+            order_type=order.side.lower(),
             symbol=order.symbol.upper(),
             quantity=order.quantity,
             price=execution_price
