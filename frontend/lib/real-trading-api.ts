@@ -320,9 +320,14 @@ export class RealTradingAPIClient {
         }> };
         
         return response.positions.map(p => {
-          // Parse timestamp safely, fallback to current time if invalid
-          const timestamp = Date.parse(p.timestamp);
-          const openTime = !isNaN(timestamp) ? timestamp : Date.now();
+          // Parse timestamp safely with validation
+          let openTime = Date.now();
+          if (p.timestamp && typeof p.timestamp === 'string') {
+            const parsed = Date.parse(p.timestamp);
+            if (!isNaN(parsed) && parsed > 0) {
+              openTime = parsed;
+            }
+          }
           
           return {
             id: p.id,
