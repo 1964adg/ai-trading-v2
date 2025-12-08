@@ -10,11 +10,11 @@ class Settings(BaseSettings):
     
     # Server Configuration
     PORT: int = 8000
-    CORS_ORIGINS: Union[str, list[str]] = "http://localhost:3000"
+    CORS_ORIGINS: Union[str, list[str]] = ["http://localhost:3000"]
     
     @field_validator('CORS_ORIGINS', mode='before')
     @classmethod
-    def parse_cors_origins(cls, v):
+    def parse_cors_origins(cls, v: Union[str, list[str]]) -> list[str]:
         """Parse CORS_ORIGINS from comma-separated string or list."""
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(',') if origin.strip()]
