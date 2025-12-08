@@ -74,11 +74,14 @@ class PaperTradingService:
         self.portfolio.positions_count = len([p for p in self.positions.values() if p.status == "open"])
         
         # Return Binance-compatible response format
+        # Use first 8 chars of UUID for shorter client order ID
+        client_order_id = f"paper_{order_id[:8]}" if len(order_id) >= 8 else f"paper_{order_id}"
+        
         return {
             "orderId": order_id,
             "symbol": position.symbol,
             "status": "FILLED",
-            "clientOrderId": f"paper_{order_id[:8]}",
+            "clientOrderId": client_order_id,
             "price": str(position.entry_price),
             "avgPrice": str(position.entry_price),
             "origQty": str(position.quantity),

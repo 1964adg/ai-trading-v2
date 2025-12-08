@@ -319,18 +319,24 @@ export class RealTradingAPIClient {
           status: string;
         }> };
         
-        return response.positions.map(p => ({
-          id: p.id,
-          symbol: p.symbol,
-          side: (p.type === 'buy' ? 'LONG' : 'SHORT') as 'LONG' | 'SHORT',
-          entryPrice: p.entry_price,
-          quantity: p.quantity,
-          markPrice: p.current_price || p.entry_price,
-          unrealizedPnL: p.current_pnl,
-          marginType: 'ISOLATED' as const,
-          leverage: 1,
-          openTime: Date.parse(p.timestamp),
-        }));
+        return response.positions.map(p => {
+          // Parse timestamp safely, fallback to current time if invalid
+          const timestamp = Date.parse(p.timestamp);
+          const openTime = !isNaN(timestamp) ? timestamp : Date.now();
+          
+          return {
+            id: p.id,
+            symbol: p.symbol,
+            side: (p.type === 'buy' ? 'LONG' : 'SHORT') as 'LONG' | 'SHORT',
+            entryPrice: p.entry_price,
+            quantity: p.quantity,
+            markPrice: p.current_price || p.entry_price,
+            unrealizedPnL: p.current_pnl,
+            marginType: 'ISOLATED' as const,
+            leverage: 1,
+            openTime,
+          };
+        });
       }
 
       // Testnet/Real modes - fetch from Binance API
