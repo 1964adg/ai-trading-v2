@@ -73,14 +73,20 @@ class PaperTradingService:
         self.positions[order_id] = position
         self.portfolio.positions_count = len([p for p in self.positions.values() if p.status == "open"])
         
+        # Return Binance-compatible response format
         return {
-            "status": "executed",
-            "order_id": order_id,
-            "timestamp": timestamp,
+            "orderId": order_id,
             "symbol": position.symbol,
-            "type": position.type,
-            "quantity": position.quantity,
-            "price": position.entry_price
+            "status": "FILLED",
+            "clientOrderId": f"paper_{order_id[:8]}",
+            "price": str(position.entry_price),
+            "avgPrice": str(position.entry_price),
+            "origQty": str(position.quantity),
+            "executedQty": str(position.quantity),
+            "type": "MARKET",
+            "side": order_type.upper(),
+            "timeInForce": "GTC",
+            "transactTime": int(datetime.now().timestamp() * 1000)
         }
     
     def get_positions(self) -> List[Dict]:

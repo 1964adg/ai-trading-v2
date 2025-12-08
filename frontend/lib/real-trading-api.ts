@@ -246,26 +246,10 @@ export class RealTradingAPIClient {
 
       const data = await this.makeAuthenticatedRequest('/order', params, 'POST');
 
-      if (this.mode === 'paper') {
-        // Paper mode returns mock order
-        return {
-          orderId: `paper_${Date.now()}`,
-          symbol: order.symbol,
-          status: 'FILLED',
-          clientOrderId: `paper_${Date.now()}`,
-          price: order.price || 0,
-          avgPrice: order.price || 0,
-          origQty: order.quantity,
-          executedQty: order.quantity,
-          type: order.type,
-          side: order.side,
-          timeInForce: order.timeInForce,
-          transactTime: Date.now(),
-        };
-      }
-
+      // Paper mode backend returns the same structure as real API
+      // Parse response consistently for all modes
       const response = data as {
-        orderId: number;
+        orderId: number | string;
         symbol: string;
         status: string;
         clientOrderId: string;
