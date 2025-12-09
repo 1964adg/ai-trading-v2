@@ -129,6 +129,14 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}): vo
         return;
       }
 
+      // Check if a modal is open (detect backdrop or modal elements)
+      const hasModal = document.querySelector('[class*="fixed"][class*="inset-0"][class*="z-50"]') !== null;
+      
+      // If ESC or Space is pressed with modal open, let the modal handle it (don't prevent default)
+      if (hasModal && (event.key === 'Escape' || event.key === ' ')) {
+        return; // Don't handle these keys when modal is open
+      }
+
       // Handle pending confirmation
       if (pendingConfirmation) {
         if (event.key === 'Enter') {

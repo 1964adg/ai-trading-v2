@@ -3,7 +3,6 @@
 import { useState, memo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { formatCurrency, formatNumber } from '@/lib/formatters';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useOrderbookStore } from '@/stores/orderbookStore';
 
 interface QuickTradePanelProps {
@@ -125,21 +124,6 @@ function QuickTradePanelComponent({
     onOrderPlaced?.(order);
     onSell?.(selectedSize, price, stopLoss, takeProfit);
   }, [symbol, selectedSize, orderType, limitPrice, bidPrice, getStopLossPrice, getTakeProfitPrice, onOrderPlaced, onSell]);
-
-  // Handle size selection from keyboard
-  const handleSizeSelect = useCallback((index: number) => {
-    if (index >= 0 && index < QUICK_SIZES.length) {
-      setSelectedSizeIndex(index);
-    }
-  }, []);
-
-  // Keyboard shortcuts
-  useKeyboardShortcuts({
-    enabled: true,
-    onBuy: handleBuy,
-    onSell: handleSell,
-    onSizeSelect: handleSizeSelect,
-  });
 
   // Update limit price when switching to limit mode
   useEffect(() => {

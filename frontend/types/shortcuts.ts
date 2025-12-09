@@ -159,7 +159,7 @@ export const DEFAULT_SHORTCUTS: ShortcutConfig[] = [
   // Emergency controls
   {
     action: 'CANCEL_ALL',
-    keys: { key: 'Escape' },
+    keys: { key: 'Delete', shift: true },
     enabled: true,
     description: 'Cancel ALL pending orders (panic stop)',
     category: 'emergency',
@@ -167,7 +167,7 @@ export const DEFAULT_SHORTCUTS: ShortcutConfig[] = [
   },
   {
     action: 'CLOSE_ALL',
-    keys: { key: ' ' }, // Space
+    keys: { key: 'Delete', ctrl: true },
     enabled: true,
     description: 'Close ALL open positions immediately',
     category: 'emergency',
@@ -175,7 +175,7 @@ export const DEFAULT_SHORTCUTS: ShortcutConfig[] = [
   },
   {
     action: 'PANIC_CLOSE',
-    keys: { key: 'Escape', alt: true },
+    keys: { key: 'Delete', ctrl: true, shift: true },
     enabled: true,
     description: 'PANIC CLOSE - emergency market exit of everything',
     category: 'emergency',
