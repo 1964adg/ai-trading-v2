@@ -82,16 +82,15 @@ export default function TrailingStopForm({
     }
     
     // Calculate profit protection
-    const profitAtStop = side === 'BUY'
-      ? (currentStopPrice - currentPrice) * qty
-      : (currentPrice - currentStopPrice) * qty;
+    // Note: For display purposes, we show the distance from entry, not actual P&L
+    const protectionDistance = Math.abs(currentStopPrice - currentPrice);
     
     return {
       positionValue,
       trailDistance,
       currentStopPrice,
       activationLevel,
-      profitAtStop,
+      protectionDistance, // Distance the stop provides as protection
       trailDistancePercent: (trailDistance / currentPrice) * 100,
     };
   }, [quantity, currentPrice, trailType, trailPercent, trailAmount, side, useActivation, activationPrice, activationPercent]);

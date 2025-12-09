@@ -77,16 +77,24 @@ export default function IcebergOrderForm({
     }
     
     if (randomizeSlices) {
-      const min = parseFloat(minSliceSize) || 0;
-      const max = parseFloat(maxSliceSize) || 0;
+      const min = parseFloat(minSliceSize);
+      const max = parseFloat(maxSliceSize);
+      // Check that values are provided and valid
+      if (!minSliceSize || !maxSliceSize || isNaN(min) || isNaN(max)) {
+        return false;
+      }
       if (min <= 0 || max <= 0 || min > max || max > total) {
         return false;
       }
     }
     
     if (randomizeTime) {
-      const minT = parseFloat(minInterval) || 0;
-      const maxT = parseFloat(maxInterval) || 0;
+      const minT = parseFloat(minInterval);
+      const maxT = parseFloat(maxInterval);
+      // Check that values are provided and valid
+      if (!minInterval || !maxInterval || isNaN(minT) || isNaN(maxT)) {
+        return false;
+      }
       if (minT <= 0 || maxT <= 0 || minT > maxT) {
         return false;
       }

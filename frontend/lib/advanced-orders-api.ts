@@ -13,13 +13,18 @@ import {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-interface ApiResponse<T = unknown> {
+interface BaseApiResponse {
   success: boolean;
-  data?: T;
-  order?: T;
-  orders?: T;
   error?: string;
   message?: string;
+}
+
+interface OrderApiResponse extends BaseApiResponse {
+  order?: EnhancedOrder;
+}
+
+interface OrdersApiResponse extends BaseApiResponse {
+  orders?: Record<string, EnhancedOrder[]>;
 }
 
 /**
@@ -27,7 +32,7 @@ interface ApiResponse<T = unknown> {
  */
 export async function createOCOOrder(
   request: CreateOCOOrderRequest
-): Promise<ApiResponse<EnhancedOrder>> {
+): Promise<OrderApiResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/paper/advanced-order/oco`, {
       method: 'POST',
@@ -71,7 +76,7 @@ export async function createOCOOrder(
  */
 export async function createBracketOrder(
   request: CreateBracketOrderRequest
-): Promise<ApiResponse<EnhancedOrder>> {
+): Promise<OrderApiResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/paper/advanced-order/bracket`, {
       method: 'POST',
@@ -113,7 +118,7 @@ export async function createBracketOrder(
  */
 export async function createIcebergOrder(
   request: CreateIcebergOrderRequest
-): Promise<ApiResponse<EnhancedOrder>> {
+): Promise<OrderApiResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/paper/advanced-order/iceberg`, {
       method: 'POST',
@@ -148,7 +153,7 @@ export async function createIcebergOrder(
  */
 export async function createTrailingStopOrder(
   request: CreateAdvancedTrailingStopRequest
-): Promise<ApiResponse<EnhancedOrder>> {
+): Promise<OrderApiResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/paper/advanced-order/trailing-stop`, {
       method: 'POST',
@@ -181,7 +186,7 @@ export async function createTrailingStopOrder(
 /**
  * Get all advanced orders
  */
-export async function getAdvancedOrders(): Promise<ApiResponse<Record<string, EnhancedOrder[]>>> {
+export async function getAdvancedOrders(): Promise<OrdersApiResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/paper/advanced-orders`);
 
@@ -201,7 +206,7 @@ export async function getAdvancedOrders(): Promise<ApiResponse<Record<string, En
 /**
  * Cancel an advanced order
  */
-export async function cancelAdvancedOrder(orderId: string): Promise<ApiResponse> {
+export async function cancelAdvancedOrder(orderId: string): Promise<BaseApiResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/paper/advanced-order/${orderId}`, {
       method: 'DELETE',
@@ -223,7 +228,7 @@ export async function cancelAdvancedOrder(orderId: string): Promise<ApiResponse>
 /**
  * Update market prices for monitored orders
  */
-export async function updateOrderPrices(): Promise<ApiResponse> {
+export async function updateOrderPrices(): Promise<BaseApiResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/paper/advanced-orders/update-prices`, {
       method: 'POST',
