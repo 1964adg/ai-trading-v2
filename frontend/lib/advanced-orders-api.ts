@@ -13,7 +13,7 @@ import {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   order?: T;
@@ -181,7 +181,7 @@ export async function createTrailingStopOrder(
 /**
  * Get all advanced orders
  */
-export async function getAdvancedOrders(): Promise<ApiResponse<any>> {
+export async function getAdvancedOrders(): Promise<ApiResponse<Record<string, EnhancedOrder[]>>> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/paper/advanced-orders`);
 

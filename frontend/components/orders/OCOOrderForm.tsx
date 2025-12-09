@@ -161,7 +161,7 @@ export default function OCOOrderForm({
     }
   };
 
-  const getOrderTypeLabel = (type: OrderLegType, orderNum: number) => {
+  const getOrderTypeLabel = (type: OrderLegType) => {
     const labels: Record<OrderLegType, string> = {
       'LIMIT': side === 'BUY' ? '🎯 Limit Buy (at or below price)' : '🎯 Limit Sell (at or above price)',
       'STOP_MARKET': side === 'BUY' ? '🔥 Stop Buy (breaks above)' : '🔥 Stop Sell (breaks below)',
@@ -232,7 +232,7 @@ export default function OCOOrderForm({
             ))}
           </div>
           <div className="text-xs text-gray-400 mt-1">
-            {getOrderTypeLabel(order1Type, 1)}
+            {getOrderTypeLabel(order1Type)}
           </div>
         </div>
 
@@ -347,7 +347,7 @@ export default function OCOOrderForm({
             ))}
           </div>
           <div className="text-xs text-gray-400 mt-1">
-            {getOrderTypeLabel(order2Type, 2)}
+            {getOrderTypeLabel(order2Type)}
           </div>
         </div>
 

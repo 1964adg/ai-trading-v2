@@ -16,7 +16,7 @@ interface EnhancedOrderPanelProps {
   currentPrice: number;
   accountBalance?: number;
   onClose?: () => void;
-  onOrderSubmit?: (orderType: EnhancedOrderType, request: any) => Promise<void>;
+  onOrderSubmit?: (orderType: EnhancedOrderType, request: CreateOCOOrderRequest | CreateBracketOrderRequest | CreateIcebergOrderRequest | CreateAdvancedTrailingStopRequest) => Promise<void>;
 }
 
 interface OrderTypeConfig {
@@ -96,7 +96,6 @@ export default function EnhancedOrderPanel({
 }: EnhancedOrderPanelProps) {
   const [selectedType, setSelectedType] = useState<EnhancedOrderType | null>(null);
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
@@ -306,7 +305,6 @@ export default function EnhancedOrderPanel({
                 currentPrice={currentPrice}
                 accountBalance={accountBalance}
                 onSubmit={async (request: CreateOCOOrderRequest) => {
-                  setIsSubmitting(true);
                   setSubmitError(null);
                   setSubmitSuccess(false);
                   try {
@@ -320,8 +318,6 @@ export default function EnhancedOrderPanel({
                     }, 2000);
                   } catch (error) {
                     setSubmitError(error instanceof Error ? error.message : 'Failed to submit order');
-                  } finally {
-                    setIsSubmitting(false);
                   }
                 }}
                 onCancel={() => setSelectedType(null)}
@@ -335,7 +331,6 @@ export default function EnhancedOrderPanel({
                 currentPrice={currentPrice}
                 accountBalance={accountBalance}
                 onSubmit={async (request: CreateBracketOrderRequest) => {
-                  setIsSubmitting(true);
                   setSubmitError(null);
                   setSubmitSuccess(false);
                   try {
@@ -349,8 +344,6 @@ export default function EnhancedOrderPanel({
                     }, 2000);
                   } catch (error) {
                     setSubmitError(error instanceof Error ? error.message : 'Failed to submit order');
-                  } finally {
-                    setIsSubmitting(false);
                   }
                 }}
                 onCancel={() => setSelectedType(null)}
@@ -364,7 +357,6 @@ export default function EnhancedOrderPanel({
                 currentPrice={currentPrice}
                 accountBalance={accountBalance}
                 onSubmit={async (request: CreateIcebergOrderRequest) => {
-                  setIsSubmitting(true);
                   setSubmitError(null);
                   setSubmitSuccess(false);
                   try {
@@ -378,8 +370,6 @@ export default function EnhancedOrderPanel({
                     }, 2000);
                   } catch (error) {
                     setSubmitError(error instanceof Error ? error.message : 'Failed to submit order');
-                  } finally {
-                    setIsSubmitting(false);
                   }
                 }}
                 onCancel={() => setSelectedType(null)}
@@ -393,7 +383,6 @@ export default function EnhancedOrderPanel({
                 currentPrice={currentPrice}
                 accountBalance={accountBalance}
                 onSubmit={async (request: CreateAdvancedTrailingStopRequest) => {
-                  setIsSubmitting(true);
                   setSubmitError(null);
                   setSubmitSuccess(false);
                   try {
@@ -407,8 +396,6 @@ export default function EnhancedOrderPanel({
                     }, 2000);
                   } catch (error) {
                     setSubmitError(error instanceof Error ? error.message : 'Failed to submit order');
-                  } finally {
-                    setIsSubmitting(false);
                   }
                 }}
                 onCancel={() => setSelectedType(null)}
