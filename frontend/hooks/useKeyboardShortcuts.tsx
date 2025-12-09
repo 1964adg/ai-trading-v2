@@ -129,6 +129,20 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}): vo
         return;
       }
 
+      // Check if a modal is open using data attribute for more robust detection
+      // Modals should set data-modal-open="true" on their root element
+      const hasModal = document.querySelector('[data-modal-open="true"]') !== null ||
+                       // Fallback to CSS-based detection for existing modals without data attribute
+                       document.querySelector('[class*="fixed"][class*="inset-0"][class*="z-50"]') !== null;
+      
+      // Keys that should be reserved for modal management
+      const MODAL_KEYS = ['Escape', ' ']; // ESC and Space
+      
+      // If modal management key is pressed with modal open, let the modal handle it
+      if (hasModal && MODAL_KEYS.includes(event.key)) {
+        return; // Don't handle these keys when modal is open
+      }
+
       // Handle pending confirmation
       if (pendingConfirmation) {
         if (event.key === 'Enter') {

@@ -12,6 +12,20 @@ export default function RealPositionsPanel() {
   const { currentMode } = useTradingModeStore();
   const { positions, totalUnrealizedPnL, isLoading } = useRealPositionsStore();
 
+  // Get mode-appropriate label
+  const getModeLabel = (): string => {
+    switch (currentMode) {
+      case 'paper':
+        return 'Paper Positions';
+      case 'testnet':
+        return 'Testnet Positions';
+      case 'real':
+        return 'Real Positions';
+      default:
+        return 'Active Positions';
+    }
+  };
+
   // Format currency
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-US', {
@@ -48,7 +62,7 @@ export default function RealPositionsPanel() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <div className="text-sm font-medium text-white">Real Positions</div>
+          <div className="text-sm font-medium text-white">{getModeLabel()}</div>
           <div className="text-xs text-gray-400">
             {positions.length} / 5 Open
           </div>

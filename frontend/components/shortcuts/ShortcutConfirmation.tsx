@@ -25,7 +25,7 @@ export function ShortcutConfirmation() {
   };
   
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" data-modal-open="true">
       <div className="bg-gray-900 border border-yellow-600 rounded-lg shadow-2xl max-w-md w-full mx-4 animate-scale-in">
         {/* Header */}
         <div className="border-b border-yellow-600/30 p-4 bg-yellow-600/10">

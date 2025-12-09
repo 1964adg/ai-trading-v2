@@ -51,7 +51,7 @@ export function ShortcutHelp() {
   ];
   
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" data-modal-open="true">
       <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="border-b border-gray-700 p-4 flex items-center justify-between">
