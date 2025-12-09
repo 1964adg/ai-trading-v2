@@ -41,21 +41,31 @@ export const useRealPositionsStore = create<RealPositionsState>((set) => ({
 
   setPositions: (positions: RealPosition[]) => {
     set((state) => {
-      // Sort positions by ID for stable comparison
-      const sortedNew = [...positions].sort((a, b) => a.id.localeCompare(b.id));
-      const sortedOld = [...state.positions].sort((a, b) => a.id.localeCompare(b.id));
+      // Quick length check first
+      if (positions.length !== state.positions.length) {
+        const totalUnrealizedPnL = positions.reduce(
+          (sum, p) => sum + p.unrealizedPnL,
+          0
+        );
+        return {
+          positions,
+          totalUnrealizedPnL,
+          lastUpdate: Date.now(),
+          error: null,
+          isLoading: false,
+        };
+      }
 
-      // Check if positions actually changed
-      const hasChanged = 
-        sortedNew.length !== sortedOld.length ||
-        sortedNew.some((p, i) => {
-          const oldPos = sortedOld[i];
-          return !oldPos || 
-            p.id !== oldPos.id ||
-            p.unrealizedPnL !== oldPos.unrealizedPnL ||
-            p.markPrice !== oldPos.markPrice ||
-            p.quantity !== oldPos.quantity;
-        });
+      // Use Map for efficient comparison when lengths match
+      const oldMap = new Map(state.positions.map(p => [p.id, p]));
+      
+      const hasChanged = positions.some(p => {
+        const oldPos = oldMap.get(p.id);
+        return !oldPos || 
+          p.unrealizedPnL !== oldPos.unrealizedPnL ||
+          p.markPrice !== oldPos.markPrice ||
+          p.quantity !== oldPos.quantity;
+      });
 
       if (!hasChanged) {
         // Data hasn't changed, don't update state
