@@ -33,6 +33,9 @@ export interface RealPosition {
   marginType: 'ISOLATED' | 'CROSS';
   leverage: number;
   openTime: number;
+  stopLoss?: number;           // Optional stop loss price
+  takeProfit?: number;         // Optional take profit price
+  trailingStop?: number;       // Optional trailing stop percentage
 }
 
 // Order request for real trading

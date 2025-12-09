@@ -3,7 +3,7 @@
  * Provides real trading functionality and state management
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { realTradingAPI } from '@/lib/real-trading-api';
 import { useTradingModeStore } from '@/stores/tradingModeStore';
 import { useRealBalanceStore } from '@/stores/realBalanceStore';
@@ -17,6 +17,9 @@ interface UseRealTradingOptions {
 
 export function useRealTrading(options: UseRealTradingOptions = {}) {
   const { refreshInterval = 5000, enabled = true } = options;
+  
+  // Track if this is the first fetch to show initial loading state
+  const isFirstFetchRef = useRef(true);
 
   const { currentMode, hasCredentials } = useTradingModeStore();
   const {
@@ -35,7 +38,10 @@ export function useRealTrading(options: UseRealTradingOptions = {}) {
     if (!enabled) return;
 
     try {
-      setBalanceLoading(true);
+      // Only show loading state on initial fetch to prevent flashing
+      if (isFirstFetchRef.current) {
+        setBalanceLoading(true);
+      }
       const balances = await realTradingAPI.getAccountInfo();
       setBalances(balances);
     } catch (error) {
@@ -49,7 +55,11 @@ export function useRealTrading(options: UseRealTradingOptions = {}) {
     if (!enabled) return;
 
     try {
-      setPositionsLoading(true);
+      // Only show loading state on initial fetch (when positions array is empty)
+      // This prevents the loading flashing during periodic updates
+      if (isFirstFetchRef.current) {
+        setPositionsLoading(true);
+      }
       const positions = await realTradingAPI.getPositions();
       setPositions(positions);
     } catch (error) {
@@ -100,11 +110,14 @@ export function useRealTrading(options: UseRealTradingOptions = {}) {
   useEffect(() => {
     if (!enabled) return;
 
-    // Initial fetch
-    fetchBalance();
-    fetchPositions();
+    // Initial fetch (with loading state)
+    isFirstFetchRef.current = true;
+    Promise.all([fetchBalance(), fetchPositions()]).then(() => {
+      // After initial fetch completes, disable loading state for future updates
+      isFirstFetchRef.current = false;
+    });
 
-    // Setup interval
+    // Setup interval for periodic updates (without loading state)
     const interval = setInterval(() => {
       fetchBalance();
       fetchPositions();
