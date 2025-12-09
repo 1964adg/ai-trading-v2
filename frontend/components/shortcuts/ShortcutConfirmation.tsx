@@ -11,11 +11,6 @@ import { executeShortcutAction } from '@/lib/shortcut-execution';
 export function ShortcutConfirmation() {
   const { pendingConfirmation, setPendingConfirmation, shortcuts } = useShortcutStore();
   
-  if (!pendingConfirmation) return null;
-  
-  // Find shortcut config
-  const shortcut = shortcuts.find((s) => s.action === pendingConfirmation);
-  
   // Memoize handlers to avoid stale closures
   const handleConfirm = useCallback(async () => {
     if (pendingConfirmation) {
@@ -30,6 +25,8 @@ export function ShortcutConfirmation() {
 
   // Handle keyboard events directly in modal
   useEffect(() => {
+    if (!pendingConfirmation) return;
+    
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === ' ') {
         e.preventDefault();
@@ -44,7 +41,12 @@ export function ShortcutConfirmation() {
 
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [handleCancel, handleConfirm]);
+  }, [pendingConfirmation, handleCancel, handleConfirm]);
+  
+  if (!pendingConfirmation) return null;
+  
+  // Find shortcut config
+  const shortcut = shortcuts.find((s) => s.action === pendingConfirmation);
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" data-modal-open="true">

@@ -32,10 +32,10 @@ function formatKeyCombo(shortcut: ShortcutConfig): string {
 export function ShortcutHelp() {
   const { helpVisible, toggleHelp, shortcuts, preferences } = useShortcutStore();
   
-  if (!helpVisible) return null;
-
   // Handle keyboard events directly in modal
   useEffect(() => {
+    if (!helpVisible) return;
+    
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'F12' || e.key === ' ') {
         e.preventDefault();
@@ -46,7 +46,9 @@ export function ShortcutHelp() {
 
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [toggleHelp]);
+  }, [helpVisible, toggleHelp]);
+  
+  if (!helpVisible) return null;
   
   // Group shortcuts by category
   const groupedShortcuts = shortcuts.reduce((acc, shortcut) => {
