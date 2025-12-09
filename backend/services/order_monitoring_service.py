@@ -108,10 +108,20 @@ class OrderMonitoringService:
                     if current_price >= order.activation_price:
                         order.is_activated = True
                         order.peak_price = current_price
+                        # Set initial stop price on activation
+                        if order.trail_percent:
+                            order.current_stop_price = current_price * (1 - order.trail_percent / 100)
+                        elif order.trail_amount:
+                            order.current_stop_price = current_price - order.trail_amount
                 else:  # SELL
                     if current_price <= order.activation_price:
                         order.is_activated = True
                         order.peak_price = current_price
+                        # Set initial stop price on activation
+                        if order.trail_percent:
+                            order.current_stop_price = current_price * (1 + order.trail_percent / 100)
+                        elif order.trail_amount:
+                            order.current_stop_price = current_price + order.trail_amount
             
             # Update trailing stop if activated
             if order.is_activated:
