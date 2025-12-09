@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from api.market import router as market_router
 from api.paper_trading import router as paper_trading_router
+from api.advanced_orders import router as advanced_orders_router
 from config import settings
 import uvicorn
 from datetime import datetime
@@ -87,6 +88,7 @@ app.add_middleware(
 
 app.include_router(market_router, prefix="/api", tags=["market"])
 app.include_router(paper_trading_router, prefix="/api/paper", tags=["paper-trading"])
+app.include_router(advanced_orders_router, prefix="/api/paper", tags=["advanced-orders"])
 
 
 @app.get("/")
