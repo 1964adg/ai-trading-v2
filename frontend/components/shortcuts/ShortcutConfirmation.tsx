@@ -11,11 +11,6 @@ import { executeShortcutAction } from '@/lib/shortcut-execution';
 export function ShortcutConfirmation() {
   const { pendingConfirmation, setPendingConfirmation, shortcuts } = useShortcutStore();
   
-  if (!pendingConfirmation) return null;
-  
-  // Find shortcut config
-  const shortcut = shortcuts.find((s) => s.action === pendingConfirmation);
-  
   // Memoize handlers to avoid stale closures
   const handleConfirm = useCallback(async () => {
     if (pendingConfirmation) {
@@ -30,8 +25,10 @@ export function ShortcutConfirmation() {
 
   // Handle keyboard events directly in modal
   useEffect(() => {
+    if (!pendingConfirmation) return;
+    
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' || e.key === ' ') {
         e.preventDefault();
         e.stopPropagation();
         handleCancel();
@@ -44,7 +41,12 @@ export function ShortcutConfirmation() {
 
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [handleCancel, handleConfirm]);
+  }, [pendingConfirmation, handleCancel, handleConfirm]);
+  
+  if (!pendingConfirmation) return null;
+  
+  // Find shortcut config
+  const shortcut = shortcuts.find((s) => s.action === pendingConfirmation);
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" data-modal-open="true">
@@ -100,7 +102,9 @@ export function ShortcutConfirmation() {
           <p className="text-xs text-gray-500">
             Press <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded text-gray-300">Enter</kbd> to confirm
             {' or '}
-            <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded text-gray-300">Esc</kbd> to cancel
+            <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded text-gray-300">Esc</kbd>
+            {' / '}
+            <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded text-gray-300">Space</kbd> to cancel
           </p>
         </div>
       </div>

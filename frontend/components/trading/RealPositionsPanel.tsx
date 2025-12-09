@@ -9,11 +9,15 @@ import { memo, useMemo, useCallback, useState } from 'react';
 import { useRealPositionsStore } from '@/stores/realPositionsStore';
 import { useTradingModeStore } from '@/stores/tradingModeStore';
 import { realTradingAPI } from '@/lib/real-trading-api';
+import { ModifyPositionModal } from './ModifyPositionModal';
+import { TrailingStopModal } from './TrailingStopModal';
+import { RealPosition } from '@/types/trading';
 
 function RealPositionsPanelComponent() {
   const { currentMode } = useTradingModeStore();
-  const { positions, totalUnrealizedPnL, isLoading, removePosition } = useRealPositionsStore();
-  const [editingPosition, setEditingPosition] = useState<string | null>(null);
+  const { positions, totalUnrealizedPnL, isLoading, removePosition, updatePosition } = useRealPositionsStore();
+  const [editingPosition, setEditingPosition] = useState<RealPosition | null>(null);
+  const [trailingPosition, setTrailingPosition] = useState<RealPosition | null>(null);
   const [closingPosition, setClosingPosition] = useState<string | null>(null);
 
   // Get mode-appropriate label - memoized to prevent recalculation
@@ -82,21 +86,27 @@ function RealPositionsPanelComponent() {
     }
   }, [removePosition]);
 
-  // Handle modify position (placeholder for future implementation)
-  // TODO: Implement full modal for editing stop loss, take profit, etc.
-  const handleModifyPosition = useCallback((positionId: string, symbol: string) => {
-    setEditingPosition(positionId);
-    // TODO: Replace alert with proper modal dialog
-    alert(`Modifica posizione ${symbol} - Funzionalità in arrivo`);
-    setEditingPosition(null);
+  // Handle modify position
+  const handleModifyPosition = useCallback((position: RealPosition) => {
+    setEditingPosition(position);
   }, []);
 
-  // Handle toggle trailing stop (placeholder for future implementation)
-  // TODO: Implement trailing stop configuration modal
-  const handleToggleTrailing = useCallback((positionId: string, symbol: string) => {
-    // TODO: Replace alert with proper modal dialog
-    alert(`Toggle trailing stop per ${symbol} - Funzionalità in arrivo`);
+  // Handle save position modifications
+  const handleSaveModifications = useCallback((positionId: string, updates: Partial<RealPosition>) => {
+    updatePosition(positionId, updates);
+    setEditingPosition(null);
+  }, [updatePosition]);
+
+  // Handle toggle trailing stop
+  const handleToggleTrailing = useCallback((position: RealPosition) => {
+    setTrailingPosition(position);
   }, []);
+
+  // Handle save trailing stop configuration
+  const handleSaveTrailing = useCallback((positionId: string, enabled: boolean, percentage?: number) => {
+    updatePosition(positionId, { trailingStop: enabled ? percentage : undefined });
+    setTrailingPosition(null);
+  }, [updatePosition]);
 
   // Handle close all positions with sequential processing
   // TODO: Replace window.confirm with custom modal for consistency
@@ -254,9 +264,8 @@ function RealPositionsPanelComponent() {
                 {/* Action Buttons */}
                 <div className="flex gap-2">
                   <button 
-                    onClick={() => handleModifyPosition(position.id, position.symbol)}
-                    disabled={editingPosition === position.id}
-                    className="flex-1 px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => handleModifyPosition(position)}
+                    className="flex-1 px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 transition-colors"
                   >
                     Modifica
                   </button>
@@ -268,7 +277,7 @@ function RealPositionsPanelComponent() {
                     {closingPosition === position.id ? 'Chiusura...' : 'Chiudi'}
                   </button>
                   <button 
-                    onClick={() => handleToggleTrailing(position.id, position.symbol)}
+                    onClick={() => handleToggleTrailing(position)}
                     className="flex-1 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
                   >
                     Trailing
@@ -312,6 +321,24 @@ function RealPositionsPanelComponent() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Modify Position Modal */}
+      {editingPosition && (
+        <ModifyPositionModal
+          position={editingPosition}
+          onClose={() => setEditingPosition(null)}
+          onSave={(updates) => handleSaveModifications(editingPosition.id, updates)}
+        />
+      )}
+
+      {/* Trailing Stop Modal */}
+      {trailingPosition && (
+        <TrailingStopModal
+          position={trailingPosition}
+          onClose={() => setTrailingPosition(null)}
+          onToggle={(enabled, percentage) => handleSaveTrailing(trailingPosition.id, enabled, percentage)}
+        />
       )}
     </div>
   );
