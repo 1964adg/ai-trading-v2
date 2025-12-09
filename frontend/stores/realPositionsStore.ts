@@ -40,17 +40,36 @@ export const useRealPositionsStore = create<RealPositionsState>((set) => ({
   ...initialState,
 
   setPositions: (positions: RealPosition[]) => {
-    const totalUnrealizedPnL = positions.reduce(
-      (sum, p) => sum + p.unrealizedPnL,
-      0
-    );
+    set((state) => {
+      // Check if positions actually changed to avoid unnecessary re-renders
+      const hasChanged = 
+        positions.length !== state.positions.length ||
+        positions.some((p, i) => {
+          const oldPos = state.positions[i];
+          return !oldPos || 
+            p.id !== oldPos.id ||
+            p.unrealizedPnL !== oldPos.unrealizedPnL ||
+            p.markPrice !== oldPos.markPrice ||
+            p.quantity !== oldPos.quantity;
+        });
 
-    set({
-      positions,
-      totalUnrealizedPnL,
-      lastUpdate: Date.now(),
-      error: null,
-      isLoading: false,
+      if (!hasChanged) {
+        // Data hasn't changed, don't update state
+        return state;
+      }
+
+      const totalUnrealizedPnL = positions.reduce(
+        (sum, p) => sum + p.unrealizedPnL,
+        0
+      );
+
+      return {
+        positions,
+        totalUnrealizedPnL,
+        lastUpdate: Date.now(),
+        error: null,
+        isLoading: false,
+      };
     });
   },
 

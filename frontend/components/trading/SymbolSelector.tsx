@@ -44,16 +44,18 @@ function SymbolSelectorComponent({
     }
   }, [isOpen]);
 
-  // Handle escape key to close modal
+  // Handle escape key and spacebar to close modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if ((e.key === 'Escape' || e.key === ' ') && isOpen) {
+        e.preventDefault();
+        e.stopPropagation();
         onClose();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [isOpen, onClose]);
 
   // Handle click outside to close

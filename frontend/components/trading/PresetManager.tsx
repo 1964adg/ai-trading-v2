@@ -59,10 +59,12 @@ function PresetManagerComponent({
     }
   }, []);
 
-  // Handle escape key and click outside
+  // Handle escape key, spacebar, and click outside
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
         onClose();
       }
     };
@@ -73,11 +75,11 @@ function PresetManagerComponent({
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
     window.addEventListener('mousedown', handleClickOutside);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
       window.removeEventListener('mousedown', handleClickOutside);
     };
   }, [onClose]);

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useShortcutStore } from '@/stores/shortcutStore';
 import { executeShortcutAction } from '@/lib/shortcut-execution';
 
@@ -23,6 +24,24 @@ export function ShortcutConfirmation() {
   const handleCancel = () => {
     setPendingConfirmation(null);
   };
+
+  // Handle keyboard events directly in modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleCancel();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleConfirm();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [pendingConfirmation]);
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" data-modal-open="true">

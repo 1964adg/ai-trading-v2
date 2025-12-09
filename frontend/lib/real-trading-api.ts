@@ -300,6 +300,34 @@ export class RealTradingAPIClient {
   }
 
   /**
+   * Close an open position
+   */
+  async closePosition(symbol: string, positionId: string): Promise<void> {
+    try {
+      if (this.mode === 'paper') {
+        // Close paper trading position
+        await this.makeAuthenticatedRequest(
+          `/positions/${positionId}/close`,
+          {},
+          'POST'
+        );
+      } else {
+        // For real/testnet, place opposite order to close position
+        // This would need to fetch position details first and create opposite order
+        // For now, we'll use a simplified approach
+        await this.makeAuthenticatedRequest(
+          '/positions/close',
+          { symbol, positionId },
+          'POST'
+        );
+      }
+    } catch (error) {
+      console.error('Error closing position:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get open positions (for futures trading)
    */
   async getPositions(): Promise<RealPosition[]> {

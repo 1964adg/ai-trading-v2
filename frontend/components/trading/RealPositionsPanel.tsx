@@ -5,15 +5,19 @@
 
 'use client';
 
+import { memo, useMemo, useCallback, useState } from 'react';
 import { useRealPositionsStore } from '@/stores/realPositionsStore';
 import { useTradingModeStore } from '@/stores/tradingModeStore';
+import { realTradingAPI } from '@/lib/real-trading-api';
 
-export default function RealPositionsPanel() {
+function RealPositionsPanelComponent() {
   const { currentMode } = useTradingModeStore();
-  const { positions, totalUnrealizedPnL, isLoading } = useRealPositionsStore();
+  const { positions, totalUnrealizedPnL, isLoading, removePosition } = useRealPositionsStore();
+  const [editingPosition, setEditingPosition] = useState<string | null>(null);
+  const [closingPosition, setClosingPosition] = useState<string | null>(null);
 
-  // Get mode-appropriate label
-  const getModeLabel = (): string => {
+  // Get mode-appropriate label - memoized to prevent recalculation
+  const modeLabel = useMemo(() => {
     switch (currentMode) {
       case 'paper':
         return 'Paper Positions';
@@ -24,45 +28,108 @@ export default function RealPositionsPanel() {
       default:
         return 'Active Positions';
     }
-  };
+  }, [currentMode]);
 
-  // Format currency
-  const formatCurrency = (value: number): string => {
+  // Format currency - memoized formatter
+  const formatCurrency = useCallback((value: number): string => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
-  };
+  }, []);
 
   // Format percentage
-  const formatPercentage = (value: number, base: number): string => {
+  const formatPercentage = useCallback((value: number, base: number): string => {
     if (base === 0) return '0.00%';
     const percent = (value / base) * 100;
     const sign = percent > 0 ? '+' : '';
     return `${sign}${percent.toFixed(2)}%`;
-  };
+  }, []);
 
   // Get color for P&L
-  const getPnLColor = (value: number): string => {
+  const getPnLColor = useCallback((value: number): string => {
     if (value > 0) return 'text-bull';
     if (value < 0) return 'text-bear';
     return 'text-gray-400';
-  };
+  }, []);
 
   // Calculate position P&L percentage
-  const calculatePnLPercent = (position: typeof positions[0]): number => {
+  const calculatePnLPercent = useCallback((position: typeof positions[0]): number => {
     const pnlPercent = (position.unrealizedPnL / (position.entryPrice * position.quantity)) * 100;
     return pnlPercent;
-  };
+  }, []);
+
+  // Handle close position with confirmation
+  const handleClosePosition = useCallback(async (positionId: string, symbol: string) => {
+    const confirmed = window.confirm(`Chiudere la posizione ${symbol}?`);
+    if (!confirmed) return;
+
+    setClosingPosition(positionId);
+    try {
+      // Close position via API
+      await realTradingAPI.closePosition(symbol, positionId);
+      // Remove from local store
+      removePosition(positionId);
+    } catch (error) {
+      console.error('Error closing position:', error);
+      alert('Errore nella chiusura della posizione');
+    } finally {
+      setClosingPosition(null);
+    }
+  }, [removePosition]);
+
+  // Handle modify position (stub - opens modal/drawer in future)
+  const handleModifyPosition = useCallback((positionId: string, symbol: string) => {
+    setEditingPosition(positionId);
+    // TODO: Open modal for modifying stop loss, take profit, etc.
+    alert(`Modifica posizione ${symbol} - Funzionalità in arrivo`);
+    setEditingPosition(null);
+  }, []);
+
+  // Handle toggle trailing stop
+  const handleToggleTrailing = useCallback((positionId: string, symbol: string) => {
+    // TODO: Implement trailing stop toggle
+    alert(`Toggle trailing stop per ${symbol} - Funzionalità in arrivo`);
+  }, []);
+
+  // Handle close all positions
+  const handleCloseAll = useCallback(async () => {
+    const confirmed = window.confirm(`Chiudere tutte le ${positions.length} posizioni?`);
+    if (!confirmed) return;
+
+    try {
+      // Close all positions
+      await Promise.all(
+        positions.map(pos => realTradingAPI.closePosition(pos.symbol, pos.id))
+      );
+      // Clear all positions from store
+      positions.forEach(pos => removePosition(pos.id));
+    } catch (error) {
+      console.error('Error closing all positions:', error);
+      alert('Errore nella chiusura delle posizioni');
+    }
+  }, [positions, removePosition]);
+
+  // Handle emergency stop
+  const handleEmergencyStop = useCallback(async () => {
+    const confirmed = window.confirm('⚠️ ARRESTO EMERGENZA: Chiudere TUTTE le posizioni immediatamente?');
+    if (!confirmed) return;
+
+    try {
+      await handleCloseAll();
+    } catch (error) {
+      console.error('Emergency stop error:', error);
+    }
+  }, [handleCloseAll]);
 
   return (
     <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <div className="text-sm font-medium text-white">{getModeLabel()}</div>
+          <div className="text-sm font-medium text-white">{modeLabel}</div>
           <div className="text-xs text-gray-400">
             {positions.length} / 5 Open
           </div>
@@ -178,13 +245,24 @@ export default function RealPositionsPanel() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2">
-                  <button className="flex-1 px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 transition-colors">
+                  <button 
+                    onClick={() => handleModifyPosition(position.id, position.symbol)}
+                    disabled={editingPosition === position.id}
+                    className="flex-1 px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     Modifica
                   </button>
-                  <button className="flex-1 px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors">
-                    Chiudi
+                  <button 
+                    onClick={() => handleClosePosition(position.id, position.symbol)}
+                    disabled={closingPosition === position.id}
+                    className="flex-1 px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {closingPosition === position.id ? 'Chiusura...' : 'Chiudi'}
                   </button>
-                  <button className="flex-1 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors">
+                  <button 
+                    onClick={() => handleToggleTrailing(position.id, position.symbol)}
+                    className="flex-1 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                  >
                     Trailing
                   </button>
                 </div>
@@ -212,10 +290,16 @@ export default function RealPositionsPanel() {
 
           {/* Emergency Actions */}
           <div className="flex gap-2">
-            <button className="flex-1 px-3 py-2 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 transition-colors font-medium">
+            <button 
+              onClick={handleCloseAll}
+              className="flex-1 px-3 py-2 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 transition-colors font-medium"
+            >
               Chiudi Tutto
             </button>
-            <button className="flex-1 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors font-medium">
+            <button 
+              onClick={handleEmergencyStop}
+              className="flex-1 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
               🚨 Stop Emergenza
             </button>
           </div>
@@ -224,3 +308,9 @@ export default function RealPositionsPanel() {
     </div>
   );
 }
+
+// Export memoized component to prevent unnecessary re-renders
+const RealPositionsPanel = memo(RealPositionsPanelComponent);
+RealPositionsPanel.displayName = 'RealPositionsPanel';
+
+export default RealPositionsPanel;

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useShortcutStore } from '@/stores/shortcutStore';
 import { ShortcutConfig } from '@/types/shortcuts';
 
@@ -32,6 +33,20 @@ export function ShortcutHelp() {
   const { helpVisible, toggleHelp, shortcuts, preferences } = useShortcutStore();
   
   if (!helpVisible) return null;
+
+  // Handle keyboard events directly in modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'F12' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleHelp();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [toggleHelp]);
   
   // Group shortcuts by category
   const groupedShortcuts = shortcuts.reduce((acc, shortcut) => {
