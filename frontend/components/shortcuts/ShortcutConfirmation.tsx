@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useShortcutStore } from '@/stores/shortcutStore';
 import { executeShortcutAction } from '@/lib/shortcut-execution';
 
@@ -16,14 +16,17 @@ export function ShortcutConfirmation() {
   // Find shortcut config
   const shortcut = shortcuts.find((s) => s.action === pendingConfirmation);
   
-  const handleConfirm = async () => {
-    await executeShortcutAction(pendingConfirmation);
-    setPendingConfirmation(null);
-  };
+  // Memoize handlers to avoid stale closures
+  const handleConfirm = useCallback(async () => {
+    if (pendingConfirmation) {
+      await executeShortcutAction(pendingConfirmation);
+      setPendingConfirmation(null);
+    }
+  }, [pendingConfirmation, setPendingConfirmation]);
   
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setPendingConfirmation(null);
-  };
+  }, [setPendingConfirmation]);
 
   // Handle keyboard events directly in modal
   useEffect(() => {
@@ -41,7 +44,7 @@ export function ShortcutConfirmation() {
 
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [pendingConfirmation]);
+  }, [handleCancel, handleConfirm]);
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" data-modal-open="true">

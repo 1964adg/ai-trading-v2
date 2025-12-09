@@ -41,11 +41,15 @@ export const useRealPositionsStore = create<RealPositionsState>((set) => ({
 
   setPositions: (positions: RealPosition[]) => {
     set((state) => {
-      // Check if positions actually changed to avoid unnecessary re-renders
+      // Sort positions by ID for stable comparison
+      const sortedNew = [...positions].sort((a, b) => a.id.localeCompare(b.id));
+      const sortedOld = [...state.positions].sort((a, b) => a.id.localeCompare(b.id));
+
+      // Check if positions actually changed
       const hasChanged = 
-        positions.length !== state.positions.length ||
-        positions.some((p, i) => {
-          const oldPos = state.positions[i];
+        sortedNew.length !== sortedOld.length ||
+        sortedNew.some((p, i) => {
+          const oldPos = sortedOld[i];
           return !oldPos || 
             p.id !== oldPos.id ||
             p.unrealizedPnL !== oldPos.unrealizedPnL ||

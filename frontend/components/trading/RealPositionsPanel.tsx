@@ -62,6 +62,7 @@ function RealPositionsPanelComponent() {
   }, []);
 
   // Handle close position with confirmation
+  // TODO: Replace window.confirm with custom modal for consistency
   const handleClosePosition = useCallback(async (positionId: string, symbol: string) => {
     const confirmed = window.confirm(`Chiudere la posizione ${symbol}?`);
     if (!confirmed) return;
@@ -74,45 +75,52 @@ function RealPositionsPanelComponent() {
       removePosition(positionId);
     } catch (error) {
       console.error('Error closing position:', error);
+      // TODO: Replace alert with toast notification
       alert('Errore nella chiusura della posizione');
     } finally {
       setClosingPosition(null);
     }
   }, [removePosition]);
 
-  // Handle modify position (stub - opens modal/drawer in future)
+  // Handle modify position (placeholder for future implementation)
+  // TODO: Implement full modal for editing stop loss, take profit, etc.
   const handleModifyPosition = useCallback((positionId: string, symbol: string) => {
     setEditingPosition(positionId);
-    // TODO: Open modal for modifying stop loss, take profit, etc.
+    // TODO: Replace alert with proper modal dialog
     alert(`Modifica posizione ${symbol} - Funzionalità in arrivo`);
     setEditingPosition(null);
   }, []);
 
-  // Handle toggle trailing stop
+  // Handle toggle trailing stop (placeholder for future implementation)
+  // TODO: Implement trailing stop configuration modal
   const handleToggleTrailing = useCallback((positionId: string, symbol: string) => {
-    // TODO: Implement trailing stop toggle
+    // TODO: Replace alert with proper modal dialog
     alert(`Toggle trailing stop per ${symbol} - Funzionalità in arrivo`);
   }, []);
 
-  // Handle close all positions
+  // Handle close all positions with sequential processing
+  // TODO: Replace window.confirm with custom modal for consistency
   const handleCloseAll = useCallback(async () => {
     const confirmed = window.confirm(`Chiudere tutte le ${positions.length} posizioni?`);
     if (!confirmed) return;
 
     try {
-      // Close all positions
-      await Promise.all(
-        positions.map(pos => realTradingAPI.closePosition(pos.symbol, pos.id))
-      );
-      // Clear all positions from store
-      positions.forEach(pos => removePosition(pos.id));
+      // Close positions sequentially to avoid overwhelming the API
+      for (const pos of positions) {
+        await realTradingAPI.closePosition(pos.symbol, pos.id);
+        removePosition(pos.id);
+        // Small delay between requests to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     } catch (error) {
       console.error('Error closing all positions:', error);
+      // TODO: Replace alert with toast notification
       alert('Errore nella chiusura delle posizioni');
     }
   }, [positions, removePosition]);
 
   // Handle emergency stop
+  // TODO: Replace window.confirm with custom modal for consistency
   const handleEmergencyStop = useCallback(async () => {
     const confirmed = window.confirm('⚠️ ARRESTO EMERGENZA: Chiudere TUTTE le posizioni immediatamente?');
     if (!confirmed) return;

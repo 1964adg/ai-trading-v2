@@ -312,9 +312,9 @@ export class RealTradingAPIClient {
           'DELETE'
         );
       } else {
-        // For real/testnet, place opposite order to close position
-        // This would need to fetch position details first and create opposite order
-        // For now, we'll use a simplified approach
+        // For real/testnet mode, close position via dedicated endpoint
+        // NOTE: This endpoint may need to be implemented on the backend
+        // to place an opposite market order to close the position
         await this.makeAuthenticatedRequest(
           '/positions/close',
           { symbol, positionId },
