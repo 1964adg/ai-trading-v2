@@ -35,7 +35,16 @@ export function TrailingStopModal({ position, onClose, onToggle }: TrailingStopM
   }, [onClose]);
 
   const handleSave = useCallback(() => {
-    onToggle(enabled, enabled ? parseFloat(percentage) : undefined);
+    if (enabled) {
+      const parsedPercentage = parseFloat(percentage);
+      if (isNaN(parsedPercentage) || parsedPercentage <= 0 || parsedPercentage > 10) {
+        alert('Please enter a valid percentage between 0.1 and 10');
+        return;
+      }
+      onToggle(enabled, parsedPercentage);
+    } else {
+      onToggle(enabled, undefined);
+    }
     onClose();
   }, [enabled, percentage, onToggle, onClose]);
 
@@ -105,7 +114,7 @@ export function TrailingStopModal({ position, onClose, onToggle }: TrailingStopM
           {enabled && (
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-2">
-                Trailing Distance (%)
+                Trail Distance (%)
               </label>
               <input
                 type="number"
@@ -121,15 +130,28 @@ export function TrailingStopModal({ position, onClose, onToggle }: TrailingStopM
               </p>
               
               {/* Calculated trailing price */}
-              <div className="mt-3 p-3 bg-blue-900/20 border border-blue-800 rounded-lg">
-                <div className="text-xs text-blue-400 mb-1">Trailing Stop Price (estimate):</div>
-                <div className="text-white font-mono text-lg">
-                  ${position.side === 'LONG'
-                    ? (position.markPrice * (1 - parseFloat(percentage) / 100)).toFixed(2)
-                    : (position.markPrice * (1 + parseFloat(percentage) / 100)).toFixed(2)
-                  }
-                </div>
-              </div>
+              {(() => {
+                const parsedPercentage = parseFloat(percentage);
+                const isValidPercentage = !isNaN(parsedPercentage) && parsedPercentage > 0 && parsedPercentage <= 10;
+                
+                return (
+                  <div className="mt-3 p-3 bg-blue-900/20 border border-blue-800 rounded-lg">
+                    <div className="text-xs text-blue-400 mb-1">Trailing Stop Price (estimate):</div>
+                    <div className="text-white font-mono text-lg">
+                      {isValidPercentage ? (
+                        <>
+                          ${position.side === 'LONG'
+                            ? (position.markPrice * (1 - parsedPercentage / 100)).toFixed(2)
+                            : (position.markPrice * (1 + parsedPercentage / 100)).toFixed(2)
+                          }
+                        </>
+                      ) : (
+                        <span className="text-red-400 text-sm">Invalid percentage</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

@@ -35,12 +35,27 @@ export function ModifyPositionModal({ position, onClose, onSave }: ModifyPositio
   const handleSave = useCallback(() => {
     const updates: Partial<RealPosition> = {};
     
-    if (stopLoss) {
-      updates.stopLoss = parseFloat(stopLoss);
+    const parsedStopLoss = stopLoss ? parseFloat(stopLoss) : undefined;
+    const parsedTakeProfit = takeProfit ? parseFloat(takeProfit) : undefined;
+    
+    // Validate stop loss
+    if (stopLoss && (!parsedStopLoss || isNaN(parsedStopLoss) || parsedStopLoss <= 0)) {
+      alert('Please enter a valid stop loss price');
+      return;
     }
     
-    if (takeProfit) {
-      updates.takeProfit = parseFloat(takeProfit);
+    // Validate take profit
+    if (takeProfit && (!parsedTakeProfit || isNaN(parsedTakeProfit) || parsedTakeProfit <= 0)) {
+      alert('Please enter a valid take profit price');
+      return;
+    }
+    
+    if (parsedStopLoss) {
+      updates.stopLoss = parsedStopLoss;
+    }
+    
+    if (parsedTakeProfit) {
+      updates.takeProfit = parsedTakeProfit;
     }
     
     onSave(updates);
