@@ -40,17 +40,50 @@ export const useRealPositionsStore = create<RealPositionsState>((set) => ({
   ...initialState,
 
   setPositions: (positions: RealPosition[]) => {
-    const totalUnrealizedPnL = positions.reduce(
-      (sum, p) => sum + p.unrealizedPnL,
-      0
-    );
+    set((state) => {
+      // Quick length check first
+      if (positions.length !== state.positions.length) {
+        const totalUnrealizedPnL = positions.reduce(
+          (sum, p) => sum + p.unrealizedPnL,
+          0
+        );
+        return {
+          positions,
+          totalUnrealizedPnL,
+          lastUpdate: Date.now(),
+          error: null,
+          isLoading: false,
+        };
+      }
 
-    set({
-      positions,
-      totalUnrealizedPnL,
-      lastUpdate: Date.now(),
-      error: null,
-      isLoading: false,
+      // Use Map for efficient comparison when lengths match
+      const oldMap = new Map(state.positions.map(p => [p.id, p]));
+      
+      const hasChanged = positions.some(p => {
+        const oldPos = oldMap.get(p.id);
+        return !oldPos || 
+          p.unrealizedPnL !== oldPos.unrealizedPnL ||
+          p.markPrice !== oldPos.markPrice ||
+          p.quantity !== oldPos.quantity;
+      });
+
+      if (!hasChanged) {
+        // Data hasn't changed, don't update state
+        return state;
+      }
+
+      const totalUnrealizedPnL = positions.reduce(
+        (sum, p) => sum + p.unrealizedPnL,
+        0
+      );
+
+      return {
+        positions,
+        totalUnrealizedPnL,
+        lastUpdate: Date.now(),
+        error: null,
+        isLoading: false,
+      };
     });
   },
 

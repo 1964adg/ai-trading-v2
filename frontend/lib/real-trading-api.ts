@@ -300,6 +300,34 @@ export class RealTradingAPIClient {
   }
 
   /**
+   * Close an open position
+   */
+  async closePosition(symbol: string, positionId: string): Promise<void> {
+    try {
+      if (this.mode === 'paper') {
+        // Close paper trading position using DELETE endpoint
+        await this.makeAuthenticatedRequest(
+          `/position/${positionId}`,
+          {},
+          'DELETE'
+        );
+      } else {
+        // For real/testnet mode, close position via dedicated endpoint
+        // NOTE: This endpoint may need to be implemented on the backend
+        // to place an opposite market order to close the position
+        await this.makeAuthenticatedRequest(
+          '/positions/close',
+          { symbol, positionId },
+          'POST'
+        );
+      }
+    } catch (error) {
+      console.error('Error closing position:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get open positions (for futures trading)
    */
   async getPositions(): Promise<RealPosition[]> {
