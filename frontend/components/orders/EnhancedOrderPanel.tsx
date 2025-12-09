@@ -5,12 +5,18 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { EnhancedOrderType } from '@/types/enhanced-orders';
+import { EnhancedOrderType, CreateOCOOrderRequest, CreateBracketOrderRequest, CreateIcebergOrderRequest, CreateAdvancedTrailingStopRequest } from '@/types/enhanced-orders';
+import OCOOrderForm from './OCOOrderForm';
+import BracketOrderBuilder from './BracketOrderBuilder';
+import IcebergOrderForm from './IcebergOrderForm';
+import TrailingStopForm from './TrailingStopForm';
 
 interface EnhancedOrderPanelProps {
   symbol: string;
   currentPrice: number;
+  accountBalance?: number;
   onClose?: () => void;
+  onOrderSubmit?: (orderType: EnhancedOrderType, request: any) => Promise<void>;
 }
 
 interface OrderTypeConfig {
@@ -84,10 +90,15 @@ const ORDER_TYPES: OrderTypeConfig[] = [
 export default function EnhancedOrderPanel({
   symbol,
   currentPrice,
+  accountBalance = 10000,
   onClose,
+  onOrderSubmit,
 }: EnhancedOrderPanelProps) {
   const [selectedType, setSelectedType] = useState<EnhancedOrderType | null>(null);
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const selectedConfig = useMemo(
     () => ORDER_TYPES.find((t) => t.type === selectedType),
@@ -269,12 +280,150 @@ export default function EnhancedOrderPanel({
 
           {/* Order Configuration Form */}
           <div className="bg-gray-800/50 rounded-lg p-4">
-            <div className="text-center text-gray-400 py-8">
-              <p>Order configuration form coming soon...</p>
-              <p className="text-sm mt-2">
-                Type: {selectedType} | Side: {side}
-              </p>
-            </div>
+            {/* Success Message */}
+            {submitSuccess && (
+              <div className="mb-4 bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                <div className="text-sm text-green-400">
+                  ✓ Order submitted successfully!
+                </div>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {submitError && (
+              <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                <div className="text-sm text-red-400">
+                  ✗ Error: {submitError}
+                </div>
+              </div>
+            )}
+
+            {/* Render appropriate form based on selected type */}
+            {selectedType === 'OCO' && (
+              <OCOOrderForm
+                symbol={symbol}
+                side={side}
+                currentPrice={currentPrice}
+                accountBalance={accountBalance}
+                onSubmit={async (request: CreateOCOOrderRequest) => {
+                  setIsSubmitting(true);
+                  setSubmitError(null);
+                  setSubmitSuccess(false);
+                  try {
+                    if (onOrderSubmit) {
+                      await onOrderSubmit('OCO', request);
+                    }
+                    setSubmitSuccess(true);
+                    setTimeout(() => {
+                      setSelectedType(null);
+                      setSubmitSuccess(false);
+                    }, 2000);
+                  } catch (error) {
+                    setSubmitError(error instanceof Error ? error.message : 'Failed to submit order');
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                onCancel={() => setSelectedType(null)}
+              />
+            )}
+
+            {selectedType === 'BRACKET' && (
+              <BracketOrderBuilder
+                symbol={symbol}
+                side={side}
+                currentPrice={currentPrice}
+                accountBalance={accountBalance}
+                onSubmit={async (request: CreateBracketOrderRequest) => {
+                  setIsSubmitting(true);
+                  setSubmitError(null);
+                  setSubmitSuccess(false);
+                  try {
+                    if (onOrderSubmit) {
+                      await onOrderSubmit('BRACKET', request);
+                    }
+                    setSubmitSuccess(true);
+                    setTimeout(() => {
+                      setSelectedType(null);
+                      setSubmitSuccess(false);
+                    }, 2000);
+                  } catch (error) {
+                    setSubmitError(error instanceof Error ? error.message : 'Failed to submit order');
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                onCancel={() => setSelectedType(null)}
+              />
+            )}
+
+            {selectedType === 'ICEBERG' && (
+              <IcebergOrderForm
+                symbol={symbol}
+                side={side}
+                currentPrice={currentPrice}
+                accountBalance={accountBalance}
+                onSubmit={async (request: CreateIcebergOrderRequest) => {
+                  setIsSubmitting(true);
+                  setSubmitError(null);
+                  setSubmitSuccess(false);
+                  try {
+                    if (onOrderSubmit) {
+                      await onOrderSubmit('ICEBERG', request);
+                    }
+                    setSubmitSuccess(true);
+                    setTimeout(() => {
+                      setSelectedType(null);
+                      setSubmitSuccess(false);
+                    }, 2000);
+                  } catch (error) {
+                    setSubmitError(error instanceof Error ? error.message : 'Failed to submit order');
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                onCancel={() => setSelectedType(null)}
+              />
+            )}
+
+            {selectedType === 'TRAILING_STOP' && (
+              <TrailingStopForm
+                symbol={symbol}
+                side={side}
+                currentPrice={currentPrice}
+                accountBalance={accountBalance}
+                onSubmit={async (request: CreateAdvancedTrailingStopRequest) => {
+                  setIsSubmitting(true);
+                  setSubmitError(null);
+                  setSubmitSuccess(false);
+                  try {
+                    if (onOrderSubmit) {
+                      await onOrderSubmit('TRAILING_STOP', request);
+                    }
+                    setSubmitSuccess(true);
+                    setTimeout(() => {
+                      setSelectedType(null);
+                      setSubmitSuccess(false);
+                    }, 2000);
+                  } catch (error) {
+                    setSubmitError(error instanceof Error ? error.message : 'Failed to submit order');
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                onCancel={() => setSelectedType(null)}
+              />
+            )}
+
+            {/* Placeholder for other order types */}
+            {(selectedType === 'TWAP' || selectedType === 'FOK' || selectedType === 'IOC') && (
+              <div className="text-center text-gray-400 py-8">
+                <p>Order configuration form coming soon...</p>
+                <p className="text-sm mt-2">
+                  Type: {selectedType} | Side: {side}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
