@@ -305,11 +305,11 @@ export class RealTradingAPIClient {
   async closePosition(symbol: string, positionId: string): Promise<void> {
     try {
       if (this.mode === 'paper') {
-        // Close paper trading position
+        // Close paper trading position using DELETE endpoint
         await this.makeAuthenticatedRequest(
-          `/positions/${positionId}/close`,
+          `/position/${positionId}`,
           {},
-          'POST'
+          'DELETE'
         );
       } else {
         // For real/testnet, place opposite order to close position
