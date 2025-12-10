@@ -68,7 +68,7 @@ const getDefaultWindows = (): Record<string, WindowConfig> => ({
   multiPositionManager: {
     id: 'multiPositionManager',
     title: 'Position Manager',
-    position: { x: 440, y: 20 },
+    position: { x: 900, y: 20 },
     size: { width: 450, height: 400 },
     isMinimized: false,
     isMaximized: false,
@@ -79,7 +79,7 @@ const getDefaultWindows = (): Record<string, WindowConfig> => ({
   sessionStats: {
     id: 'sessionStats',
     title: 'Session Statistics',
-    position: { x: 20, y: 540 },
+    position: { x: 440, y: 440 },
     size: { width: 400, height: 280 },
     isMinimized: false,
     isMaximized: false,
