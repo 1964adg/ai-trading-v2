@@ -5,6 +5,7 @@ from services.websocket_manager import websocket_manager
 from services.realtime_service import realtime_service
 from services.order_monitoring_service import order_monitoring_service
 from services.binance_service import binance_service
+from datetime import datetime
 import json
 
 router = APIRouter()
@@ -77,7 +78,7 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                     await websocket_manager.send_to_client(websocket, {
                         "type": "POSITION_UPDATE",
                         "positions": positions,
-                        "timestamp": int(__import__('datetime').datetime.now().timestamp() * 1000)
+                        "timestamp": int(datetime.now().timestamp() * 1000)
                     })
                 
                 elif action == "get_portfolio":
@@ -87,7 +88,7 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                     await websocket_manager.send_to_client(websocket, {
                         "type": "PORTFOLIO_UPDATE",
                         "portfolio": portfolio,
-                        "timestamp": int(__import__('datetime').datetime.now().timestamp() * 1000)
+                        "timestamp": int(datetime.now().timestamp() * 1000)
                     })
                 
                 else:

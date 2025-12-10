@@ -104,7 +104,8 @@ class RealTimeDataService:
         import websockets
         import json
         
-        # Create SSL context
+        # Create unverified SSL context (fix for Windows certificate issues)
+        # Note: In production with valid certificates, remove these lines for secure defaults
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE

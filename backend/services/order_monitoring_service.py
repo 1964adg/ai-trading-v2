@@ -38,6 +38,14 @@ class OrderMonitoringService:
             except Exception as e:
                 print(f"[Order Monitoring] Error broadcasting update: {e}")
     
+    def _schedule_broadcast(self, order_type: str, order_data: dict):
+        """Schedule a broadcast without blocking. Used for synchronous contexts."""
+        if self._websocket_manager:
+            task = asyncio.create_task(self._broadcast_order_update(order_type, order_data))
+            # Add exception handler to prevent silent failures
+            task.add_done_callback(lambda t: None if t.exception() is None else 
+                                   print(f"[Order Monitoring] Broadcast failed: {t.exception()}"))
+    
     def update_market_price(self, symbol: str, price: float):
         """Update market price for a symbol."""
         self.monitored_prices[symbol] = price
@@ -67,13 +75,12 @@ class OrderMonitoringService:
                 order.updated_at = datetime.now().isoformat()
                 
                 # Broadcast update
-                if self._websocket_manager:
-                    asyncio.create_task(self._broadcast_order_update("OCO", {
-                        "id": order.id,
-                        "symbol": order.symbol,
-                        "status": order.status,
-                        "filled_leg": order.filled_leg
-                    }))
+                self._schedule_broadcast("OCO", {
+                    "id": order.id,
+                    "symbol": order.symbol,
+                    "status": order.status,
+                    "filled_leg": order.filled_leg
+                })
                     
             elif leg2_triggered:
                 order.order2.status = OrderStatus.FILLED
@@ -84,13 +91,12 @@ class OrderMonitoringService:
                 order.updated_at = datetime.now().isoformat()
                 
                 # Broadcast update
-                if self._websocket_manager:
-                    asyncio.create_task(self._broadcast_order_update("OCO", {
-                        "id": order.id,
-                        "symbol": order.symbol,
-                        "status": order.status,
-                        "filled_leg": order.filled_leg
-                    }))
+                self._schedule_broadcast("OCO", {
+                    "id": order.id,
+                    "symbol": order.symbol,
+                    "status": order.status,
+                    "filled_leg": order.filled_leg
+                })
     
     def _monitor_bracket_orders(self, symbol: str, current_price: float):
         """Monitor bracket orders and manage entry/exit coordination."""
@@ -112,13 +118,12 @@ class OrderMonitoringService:
                     order.updated_at = datetime.now().isoformat()
                     
                     # Broadcast update
-                    if self._websocket_manager:
-                        asyncio.create_task(self._broadcast_order_update("BRACKET", {
-                            "id": order.id,
-                            "symbol": order.symbol,
-                            "status": order.status,
-                            "entry_filled": order.entry_filled
-                        }))
+                    self._schedule_broadcast("BRACKET", {
+                        "id": order.id,
+                        "symbol": order.symbol,
+                        "status": order.status,
+                        "entry_filled": order.entry_filled
+                    })
             
             # If entry filled, check exit triggers
             elif order.entry_filled and not order.exit_filled:
@@ -133,13 +138,12 @@ class OrderMonitoringService:
                     order.updated_at = datetime.now().isoformat()
                     
                     # Broadcast update
-                    if self._websocket_manager:
-                        asyncio.create_task(self._broadcast_order_update("BRACKET", {
-                            "id": order.id,
-                            "symbol": order.symbol,
-                            "status": order.status,
-                            "exit_type": "stop_loss"
-                        }))
+                    self._schedule_broadcast("BRACKET", {
+                        "id": order.id,
+                        "symbol": order.symbol,
+                        "status": order.status,
+                        "exit_type": "stop_loss"
+                    })
                     continue
                 
                 # Check take profit
@@ -153,13 +157,12 @@ class OrderMonitoringService:
                     order.updated_at = datetime.now().isoformat()
                     
                     # Broadcast update
-                    if self._websocket_manager:
-                        asyncio.create_task(self._broadcast_order_update("BRACKET", {
-                            "id": order.id,
-                            "symbol": order.symbol,
-                            "status": order.status,
-                            "exit_type": "take_profit"
-                        }))
+                    self._schedule_broadcast("BRACKET", {
+                        "id": order.id,
+                        "symbol": order.symbol,
+                        "status": order.status,
+                        "exit_type": "take_profit"
+                    })
     
     def _monitor_trailing_stops(self, symbol: str, current_price: float):
         """Monitor and update trailing stop orders."""
@@ -211,13 +214,13 @@ class OrderMonitoringService:
                             order.current_stop_price = current_price + order.trail_amount
                 
                 # Broadcast if stop price changed
-                if old_stop_price != order.current_stop_price and self._websocket_manager:
-                    asyncio.create_task(self._broadcast_order_update("TRAILING_STOP", {
+                if old_stop_price != order.current_stop_price:
+                    self._schedule_broadcast("TRAILING_STOP", {
                         "id": order.id,
                         "symbol": order.symbol,
                         "current_stop_price": order.current_stop_price,
                         "peak_price": order.peak_price
-                    }))
+                    })
                 
                 # Check if stop triggered
                 stop_triggered = False
@@ -231,13 +234,12 @@ class OrderMonitoringService:
                     order.updated_at = datetime.now().isoformat()
                     
                     # Broadcast trigger
-                    if self._websocket_manager:
-                        asyncio.create_task(self._broadcast_order_update("TRAILING_STOP", {
-                            "id": order.id,
-                            "symbol": order.symbol,
-                            "status": order.status,
-                            "triggered": True
-                        }))
+                    self._schedule_broadcast("TRAILING_STOP", {
+                        "id": order.id,
+                        "symbol": order.symbol,
+                        "status": order.status,
+                        "triggered": True
+                    })
     
     def _monitor_iceberg_orders(self, symbol: str, current_price: float):
         """Monitor iceberg orders for slice execution."""
