@@ -302,7 +302,9 @@ class PricePredictor(BaseMLModel):
 class PricePredictionEnsemble:
     """Ensemble model for multi-horizon price prediction"""
     
-    def __init__(self, horizons: List[int] = [1, 5, 15, 60]):
+    def __init__(self, horizons: List[int] = None):
+        if horizons is None:
+            horizons = [1, 5, 15, 60]
         self.horizons = horizons
         self.models = {}
         self.scalers = {}
@@ -353,7 +355,9 @@ class PricePredictionEnsemble:
             X_scaled = self.scalers[horizon].transform(X)
             preds = {}
             for model_name, model in self.models[horizon].items():
-                preds[model_name] = model.predict(X_scaled)[-1]
+                pred_array = model.predict(X_scaled)
+                # Handle both single and multiple predictions
+                preds[model_name] = float(pred_array[-1] if len(pred_array) > 0 else 0.0)
             
             weights = {'xgboost': 0.4, 'lightgbm': 0.4, 'random_forest': 0.2}
             ensemble_pred = sum(preds[name] * weights[name] for name in preds)

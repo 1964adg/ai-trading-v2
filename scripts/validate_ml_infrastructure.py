@@ -299,10 +299,11 @@ def test_ml_service():
         # Mock BinanceService to avoid network calls
         from unittest.mock import MagicMock
         
-        # Create mock module
+        # Create mock modules
         mock_binance = MagicMock()
+        mock_services = MagicMock()
         system_module.modules['services.binance_service'] = mock_binance
-        system_module.modules['services'] = MagicMock()
+        system_module.modules['services'] = mock_services
         
         from app.ml.inference.predictor import MLPredictor
         
