@@ -3,6 +3,7 @@
 
 from datetime import datetime
 from typing import Dict, Optional
+import asyncio
 from services.advanced_orders_service import (
     advanced_orders_service,
     OrderStatus,
@@ -18,6 +19,32 @@ class OrderMonitoringService:
     
     def __init__(self):
         self.monitored_prices: Dict[str, float] = {}
+        self._websocket_manager = None  # Will be set later to avoid circular import
+    
+    def set_websocket_manager(self, manager):
+        """Set the websocket manager for broadcasting updates."""
+        self._websocket_manager = manager
+    
+    async def _broadcast_order_update(self, order_type: str, order_data: dict):
+        """Broadcast order update via WebSocket if available."""
+        if self._websocket_manager:
+            try:
+                await self._websocket_manager.broadcast_to_all({
+                    "type": "ORDER_UPDATE",
+                    "orderType": order_type,
+                    "order": order_data,
+                    "timestamp": int(datetime.now().timestamp() * 1000)
+                })
+            except Exception as e:
+                print(f"[Order Monitoring] Error broadcasting update: {e}")
+    
+    def _schedule_broadcast(self, order_type: str, order_data: dict):
+        """Schedule a broadcast without blocking. Used for synchronous contexts."""
+        if self._websocket_manager:
+            task = asyncio.create_task(self._broadcast_order_update(order_type, order_data))
+            # Add exception handler to prevent silent failures
+            task.add_done_callback(lambda t: None if t.exception() is None else 
+                                   print(f"[Order Monitoring] Broadcast failed: {t.exception()}"))
     
     def update_market_price(self, symbol: str, price: float):
         """Update market price for a symbol."""
@@ -46,6 +73,15 @@ class OrderMonitoringService:
                 order.filled_leg = 1
                 order.status = OrderStatus.FILLED
                 order.updated_at = datetime.now().isoformat()
+                
+                # Broadcast update
+                self._schedule_broadcast("OCO", {
+                    "id": order.id,
+                    "symbol": order.symbol,
+                    "status": order.status,
+                    "filled_leg": order.filled_leg
+                })
+                    
             elif leg2_triggered:
                 order.order2.status = OrderStatus.FILLED
                 order.order2.executed_at = datetime.now().isoformat()
@@ -53,6 +89,14 @@ class OrderMonitoringService:
                 order.filled_leg = 2
                 order.status = OrderStatus.FILLED
                 order.updated_at = datetime.now().isoformat()
+                
+                # Broadcast update
+                self._schedule_broadcast("OCO", {
+                    "id": order.id,
+                    "symbol": order.symbol,
+                    "status": order.status,
+                    "filled_leg": order.filled_leg
+                })
     
     def _monitor_bracket_orders(self, symbol: str, current_price: float):
         """Monitor bracket orders and manage entry/exit coordination."""
@@ -72,6 +116,14 @@ class OrderMonitoringService:
                     order.take_profit_order.status = OrderStatus.ACTIVE
                     order.status = OrderStatus.ACTIVE
                     order.updated_at = datetime.now().isoformat()
+                    
+                    # Broadcast update
+                    self._schedule_broadcast("BRACKET", {
+                        "id": order.id,
+                        "symbol": order.symbol,
+                        "status": order.status,
+                        "entry_filled": order.entry_filled
+                    })
             
             # If entry filled, check exit triggers
             elif order.entry_filled and not order.exit_filled:
@@ -84,6 +136,14 @@ class OrderMonitoringService:
                     order.take_profit_order.status = OrderStatus.CANCELLED
                     order.status = OrderStatus.FILLED
                     order.updated_at = datetime.now().isoformat()
+                    
+                    # Broadcast update
+                    self._schedule_broadcast("BRACKET", {
+                        "id": order.id,
+                        "symbol": order.symbol,
+                        "status": order.status,
+                        "exit_type": "stop_loss"
+                    })
                     continue
                 
                 # Check take profit
@@ -95,12 +155,22 @@ class OrderMonitoringService:
                     order.stop_loss_order.status = OrderStatus.CANCELLED
                     order.status = OrderStatus.FILLED
                     order.updated_at = datetime.now().isoformat()
+                    
+                    # Broadcast update
+                    self._schedule_broadcast("BRACKET", {
+                        "id": order.id,
+                        "symbol": order.symbol,
+                        "status": order.status,
+                        "exit_type": "take_profit"
+                    })
     
     def _monitor_trailing_stops(self, symbol: str, current_price: float):
         """Monitor and update trailing stop orders."""
         for order in advanced_orders_service.trailing_stop_orders.values():
             if order.symbol != symbol or order.status != OrderStatus.ACTIVE:
                 continue
+            
+            old_stop_price = order.current_stop_price
             
             # Check activation
             if not order.is_activated and order.activation_price:
@@ -143,6 +213,15 @@ class OrderMonitoringService:
                         elif order.trail_amount:
                             order.current_stop_price = current_price + order.trail_amount
                 
+                # Broadcast if stop price changed
+                if old_stop_price != order.current_stop_price:
+                    self._schedule_broadcast("TRAILING_STOP", {
+                        "id": order.id,
+                        "symbol": order.symbol,
+                        "current_stop_price": order.current_stop_price,
+                        "peak_price": order.peak_price
+                    })
+                
                 # Check if stop triggered
                 stop_triggered = False
                 if order.side == "BUY":
@@ -153,6 +232,14 @@ class OrderMonitoringService:
                 if stop_triggered:
                     order.status = OrderStatus.FILLED
                     order.updated_at = datetime.now().isoformat()
+                    
+                    # Broadcast trigger
+                    self._schedule_broadcast("TRAILING_STOP", {
+                        "id": order.id,
+                        "symbol": order.symbol,
+                        "status": order.status,
+                        "triggered": True
+                    })
     
     def _monitor_iceberg_orders(self, symbol: str, current_price: float):
         """Monitor iceberg orders for slice execution."""

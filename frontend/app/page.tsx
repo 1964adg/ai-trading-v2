@@ -13,7 +13,7 @@ import useSWR from 'swr';
 import TradingChart from '@/components/TradingChart';
 import TimeframeSelector from '@/components/TimeframeSelector';
 import PriceHeader from '@/components/PriceHeader';
-import LiveIndicator from '@/components/LiveIndicator';
+import RealtimeStatus from '@/components/RealtimeStatus';
 import PnLTracker from '@/components/trading/PnLTracker';
 import SymbolSelector from '@/components/trading/SymbolSelector';
 import QuickAccessPanel from '@/components/trading/QuickAccessPanel';
@@ -28,6 +28,7 @@ import VWAPControls from '@/components/indicators/VWAPControls';
 import VolumeProfileControls from '@/components/indicators/VolumeProfileControls';
 import OrderFlowPanel from '@/components/indicators/OrderFlowPanel';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useRealtimeWebSocket } from '@/hooks/useRealtimeWebSocket';
 import { useOrderbook } from '@/hooks/useOrderbook';
 import { useSymbolTicker } from '@/hooks/useSymbolData';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -158,6 +159,49 @@ export default function Dashboard() {
 
   // Trading config store for SL/TP/Trailing
   const { stopLoss, trailingStop } = useTradingConfigStore();
+
+  // Real-time WebSocket for positions, portfolio, and market updates
+  const handleMarketUpdate = useCallback((data: { symbol: string; price: number }) => {
+    if (data.symbol === symbol) {
+      updatePrice(data.price);
+    }
+  }, [symbol, updatePrice]);
+
+  const handlePositionUpdate = useCallback((data: { positions?: unknown[] }) => {
+    // Position updates are automatically broadcast
+    console.log('[Dashboard] Position update received:', data.positions?.length);
+  }, []);
+
+  const handlePortfolioUpdate = useCallback((data: { portfolio?: unknown }) => {
+    console.log('[Dashboard] Portfolio update received:', data.portfolio);
+  }, []);
+
+  const handleOrderUpdate = useCallback((data: { orderType?: string }) => {
+    console.log('[Dashboard] Order update received:', data);
+    // Could show notification toast here
+  }, []);
+
+  const { 
+    isConnected: isRealtimeConnected, 
+    subscribeTicker,
+    unsubscribeTicker 
+  } = useRealtimeWebSocket({
+    enabled: true,
+    onMarketUpdate: handleMarketUpdate,
+    onPositionUpdate: handlePositionUpdate,
+    onPortfolioUpdate: handlePortfolioUpdate,
+    onOrderUpdate: handleOrderUpdate,
+  });
+
+  // Subscribe to ticker when symbol changes
+  useEffect(() => {
+    if (isRealtimeConnected) {
+      subscribeTicker(symbol);
+      return () => {
+        unsubscribeTicker(symbol);
+      };
+    }
+  }, [symbol, isRealtimeConnected, subscribeTicker, unsubscribeTicker]);
 
   // Keyboard shortcut: Ctrl+K to open symbol selector
   useEffect(() => {
@@ -457,7 +501,11 @@ export default function Dashboard() {
             priceChangePercent={priceChangePercent24h}
             onSymbolClick={() => setIsSymbolSelectorOpen(true)}
           />
-          <LiveIndicator isConnected={isConnected} lastUpdate={lastUpdate} />
+          <RealtimeStatus 
+            isKlinesConnected={isConnected} 
+            isRealtimeConnected={isRealtimeConnected}
+            lastUpdate={lastUpdate}
+          />
         </div>
         
         {/* Real Trading Controls - NEW */}
