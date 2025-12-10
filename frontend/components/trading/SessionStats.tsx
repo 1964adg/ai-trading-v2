@@ -27,7 +27,6 @@ function SessionStatsComponent({ compact = false }: SessionStatsProps) {
   const winRateFormatted = useFormattedValue(sessionStats.winRate, 'percentage', { decimals: 0 });
   
   const isPnLPositive = sessionStats.totalPnL >= 0;
-  const isDayPnLPositive = dayPnL >= 0;
 
   if (compact) {
     return (
