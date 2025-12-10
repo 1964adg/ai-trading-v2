@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { formatCurrency, formatPercentage } from '@/lib/formatters';
+import { useFormattedValue, useFormattedPnL } from '@/hooks/useFormattedValue';
 
 interface PnLTrackerProps {
   unrealizedPnL: number;
@@ -20,6 +20,12 @@ function PnLTrackerComponent({
   tradesCount = 0,
 }: PnLTrackerProps) {
   const isPositive = totalPnL >= 0;
+  
+  // Format values with Italian formatting
+  const totalPnLFormatted = useFormattedPnL(totalPnL);
+  const unrealizedPnLFormatted = useFormattedPnL(unrealizedPnL);
+  const realizedPnLFormatted = useFormattedPnL(realizedPnL);
+  const winRateFormatted = useFormattedValue(winRate, 'percentage');
 
   return (
     <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
@@ -38,12 +44,9 @@ function PnLTrackerComponent({
       >
         <div className="text-xs text-gray-400 mb-1">Total P&L</div>
         <div
-          className={`text-3xl font-bold font-mono ${
-            isPositive ? 'text-bull' : 'text-bear'
-          }`}
+          className={`text-3xl font-bold font-mono ${totalPnLFormatted.colorClass}`}
         >
-          {isPositive ? '+' : ''}
-          {formatCurrency(totalPnL)}
+          {totalPnLFormatted.sign}{totalPnLFormatted.formatted}
         </div>
       </motion.div>
 
@@ -52,23 +55,17 @@ function PnLTrackerComponent({
         <div className="bg-gray-800 rounded-lg p-3">
           <div className="text-xs text-gray-400 mb-1">Unrealized</div>
           <div
-            className={`text-lg font-bold font-mono ${
-              unrealizedPnL >= 0 ? 'text-bull' : 'text-bear'
-            }`}
+            className={`text-lg font-bold font-mono ${unrealizedPnLFormatted.colorClass}`}
           >
-            {unrealizedPnL >= 0 ? '+' : ''}
-            {formatCurrency(unrealizedPnL)}
+            {unrealizedPnLFormatted.sign}{unrealizedPnLFormatted.formatted}
           </div>
         </div>
         <div className="bg-gray-800 rounded-lg p-3">
           <div className="text-xs text-gray-400 mb-1">Realized</div>
           <div
-            className={`text-lg font-bold font-mono ${
-              realizedPnL >= 0 ? 'text-bull' : 'text-bear'
-            }`}
+            className={`text-lg font-bold font-mono ${realizedPnLFormatted.colorClass}`}
           >
-            {realizedPnL >= 0 ? '+' : ''}
-            {formatCurrency(realizedPnL)}
+            {realizedPnLFormatted.sign}{realizedPnLFormatted.formatted}
           </div>
         </div>
       </div>
@@ -78,7 +75,7 @@ function PnLTrackerComponent({
         <div className="bg-gray-800 rounded-lg p-3">
           <div className="text-xs text-gray-400 mb-1">Win Rate</div>
           <div className="text-lg font-bold text-white font-mono">
-            {formatPercentage(winRate).replace('+', '')}
+            {winRateFormatted}
           </div>
         </div>
         <div className="bg-gray-800 rounded-lg p-3">

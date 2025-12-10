@@ -7,6 +7,7 @@
 
 import { useRealBalanceStore } from '@/stores/realBalanceStore';
 import { useTradingModeStore } from '@/stores/tradingModeStore';
+import { useFormattedValue, useFormattedPnL } from '@/hooks/useFormattedValue';
 
 export default function RealBalancePanel() {
   const { currentMode, getModeInfo } = useTradingModeStore();
@@ -21,31 +22,23 @@ export default function RealBalancePanel() {
   } = useRealBalanceStore();
 
   const modeInfo = getModeInfo();
-
-  // Format currency
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
-  // Format percentage
-  const formatPercentage = (value: number, base: number): string => {
-    if (base === 0) return '0.00%';
-    const percent = (value / base) * 100;
-    const sign = percent > 0 ? '+' : '';
-    return `${sign}${percent.toFixed(2)}%`;
-  };
-
-  // Get color for P&L
-  const getPnLColor = (value: number): string => {
-    if (value > 0) return 'text-bull';
-    if (value < 0) return 'text-bear';
-    return 'text-gray-400';
-  };
+  
+  // Format values with Italian formatting
+  const totalBalanceFormatted = useFormattedValue(totalBalance, 'currency');
+  const availableBalanceFormatted = useFormattedValue(availableBalance, 'currency');
+  const lockedBalanceFormatted = useFormattedValue(lockedBalance, 'currency');
+  const dailyPnLFormatted = useFormattedPnL(dailyPnL);
+  const totalPnLFormatted = useFormattedPnL(totalPnL);
+  
+  // Format percentages
+  const dailyPnLPercent = useFormattedValue(
+    totalBalance > 0 ? (dailyPnL / totalBalance) * 100 : 0,
+    'percentage'
+  );
+  const totalPnLPercent = useFormattedValue(
+    (totalBalance - totalPnL) > 0 ? (totalPnL / (totalBalance - totalPnL)) * 100 : 0,
+    'percentage'
+  );
 
   return (
     <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
@@ -91,7 +84,7 @@ export default function RealBalancePanel() {
             <div className="flex justify-between items-baseline">
               <span className="text-xs text-gray-400">Totale:</span>
               <span className="text-lg font-bold text-white font-mono">
-                {formatCurrency(totalBalance)}
+                {totalBalanceFormatted}
               </span>
             </div>
 
@@ -99,7 +92,7 @@ export default function RealBalancePanel() {
             <div className="flex justify-between items-baseline">
               <span className="text-xs text-gray-400">Disponibile:</span>
               <span className="text-sm font-medium text-gray-300 font-mono">
-                {formatCurrency(availableBalance)}
+                {availableBalanceFormatted}
               </span>
             </div>
 
@@ -108,7 +101,7 @@ export default function RealBalancePanel() {
               <div className="flex justify-between items-baseline">
                 <span className="text-xs text-gray-400">Bloccato:</span>
                 <span className="text-sm font-medium text-yellow-400 font-mono">
-                  {formatCurrency(lockedBalance)}
+                  {lockedBalanceFormatted}
                 </span>
               </div>
             )}
@@ -120,14 +113,14 @@ export default function RealBalancePanel() {
             <div className="flex justify-between items-baseline">
               <span className="text-xs text-gray-400">Oggi:</span>
               <div className="text-right">
-                <span className={`text-sm font-bold font-mono ${getPnLColor(dailyPnL)}`}>
-                  {dailyPnL > 0 ? '+' : ''}{formatCurrency(dailyPnL)}
+                <span className={`text-sm font-bold font-mono ${dailyPnLFormatted.colorClass}`}>
+                  {dailyPnLFormatted.sign}{dailyPnLFormatted.formatted}
                 </span>
-                <span className={`text-xs ml-1 ${getPnLColor(dailyPnL)}`}>
+                <span className={`text-xs ml-1 ${dailyPnLFormatted.colorClass}`}>
                   {dailyPnL > 0 ? '🟢' : dailyPnL < 0 ? '🔴' : '⚪'}
                 </span>
-                <div className={`text-xs ${getPnLColor(dailyPnL)}`}>
-                  ({formatPercentage(dailyPnL, totalBalance)})
+                <div className={`text-xs ${dailyPnLFormatted.colorClass}`}>
+                  ({dailyPnLPercent})
                 </div>
               </div>
             </div>
@@ -136,14 +129,14 @@ export default function RealBalancePanel() {
             <div className="flex justify-between items-baseline">
               <span className="text-xs text-gray-400">Totale:</span>
               <div className="text-right">
-                <span className={`text-sm font-bold font-mono ${getPnLColor(totalPnL)}`}>
-                  {totalPnL > 0 ? '+' : ''}{formatCurrency(totalPnL)}
+                <span className={`text-sm font-bold font-mono ${totalPnLFormatted.colorClass}`}>
+                  {totalPnLFormatted.sign}{totalPnLFormatted.formatted}
                 </span>
-                <span className={`text-xs ml-1 ${getPnLColor(totalPnL)}`}>
+                <span className={`text-xs ml-1 ${totalPnLFormatted.colorClass}`}>
                   {totalPnL > 0 ? '🟢' : totalPnL < 0 ? '🔴' : '⚪'}
                 </span>
-                <div className={`text-xs ${getPnLColor(totalPnL)}`}>
-                  ({formatPercentage(totalPnL, totalBalance - totalPnL)})
+                <div className={`text-xs ${totalPnLFormatted.colorClass}`}>
+                  ({totalPnLPercent})
                 </div>
               </div>
             </div>
