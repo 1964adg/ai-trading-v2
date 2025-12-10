@@ -7,7 +7,7 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, PanInfo } from 'framer-motion';
-import { WindowConfig } from '@/types/window';
+import { WindowConfig, WindowPosition, WindowSize } from '@/types/window';
 
 interface DraggableWindowProps {
   config: WindowConfig;
@@ -37,6 +37,8 @@ export default function DraggableWindow({
   const [startPosition, setStartPosition] = useState(config.position);
   const [startMousePos, setStartMousePos] = useState({ x: 0, y: 0 });
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
 
   // Update viewport size on mount and resize
   useEffect(() => {
@@ -52,13 +54,29 @@ export default function DraggableWindow({
     return () => window.removeEventListener('resize', updateViewport);
   }, []);
 
-  // Handle drag
+  // Handle drag start - calculate initial offset between cursor and window
+  const handleDragStart = useCallback((event: MouseEvent | TouchEvent | PointerEvent) => {
+    const rect = windowRef.current?.getBoundingClientRect();
+    if (rect) {
+      const clientX = 'clientX' in event ? event.clientX : event.touches?.[0]?.clientX || 0;
+      const clientY = 'clientY' in event ? event.clientY : event.touches?.[0]?.clientY || 0;
+      
+      setDragOffset({
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+      });
+      setIsDragging(true);
+    }
+  }, []);
+
+  // Handle drag - use offset to maintain cursor position relative to window
   const handleDrag = useCallback((event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (viewportSize.width === 0 || viewportSize.height === 0) return;
     
+    // Calculate new position based on cursor position and offset
     const newPosition = {
-      x: config.position.x + info.delta.x,
-      y: config.position.y + info.delta.y,
+      x: info.point.x - dragOffset.x,
+      y: info.point.y - dragOffset.y,
     };
     
     // Keep window within viewport
@@ -71,11 +89,17 @@ export default function DraggableWindow({
         y: Math.max(0, Math.min(newPosition.y, maxY)),
       },
     });
-  }, [config.position, config.size, viewportSize, onConfigChange]);
+  }, [dragOffset, config.size, viewportSize, onConfigChange]);
 
-  // Handle resize start
+  // Handle drag end
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Handle resize start - improved isolation
   const handleResizeStart = useCallback((handle: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     setIsResizing(true);
     setResizeHandle(handle);
     setStartSize(config.size);
@@ -84,9 +108,12 @@ export default function DraggableWindow({
     onFocus();
   }, [config.size, config.position, onFocus]);
 
-  // Handle resize move
+  // Handle resize move - improved event isolation
   const handleResizeMove = useCallback((e: MouseEvent) => {
     if (!isResizing || !resizeHandle) return;
+
+    e.preventDefault();
+    e.stopPropagation();
 
     const deltaX = e.clientX - startMousePos.x;
     const deltaY = e.clientY - startMousePos.y;
@@ -148,10 +175,10 @@ export default function DraggableWindow({
     setResizeHandle(null);
   }, []);
 
-  // Attach resize event listeners
+  // Attach resize event listeners with proper event handling
   useEffect(() => {
     if (isResizing) {
-      window.addEventListener('mousemove', handleResizeMove);
+      window.addEventListener('mousemove', handleResizeMove, { passive: false });
       window.addEventListener('mouseup', handleResizeEnd);
       return () => {
         window.removeEventListener('mousemove', handleResizeMove);
@@ -165,30 +192,63 @@ export default function DraggableWindow({
     onConfigChange({ isMinimized: !config.isMinimized });
   }, [config.isMinimized, onConfigChange]);
 
-  // Handle maximize
+  // Handle maximize - with proper viewport constraints
   const handleMaximize = useCallback(() => {
-    onConfigChange({ isMaximized: !config.isMaximized });
-  }, [config.isMaximized, onConfigChange]);
+    if (config.isMaximized) {
+      // Restore to previous position within viewport
+      const ensureWithinViewport = (pos: WindowPosition, size: WindowSize) => {
+        const viewport = {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        };
+        return {
+          x: Math.max(0, Math.min(pos.x, viewport.width - size.width)),
+          y: Math.max(0, Math.min(pos.y, viewport.height - size.height)),
+        };
+      };
+      
+      onConfigChange({ 
+        isMaximized: false,
+        position: ensureWithinViewport(config.position, config.size),
+      });
+    } else {
+      // Store current state and maximize within viewport
+      const titleBarHeight = showControls ? 40 : 0;
+      
+      onConfigChange({
+        isMaximized: true,
+        position: { x: 0, y: 0 },
+        size: { 
+          width: window.innerWidth, 
+          height: window.innerHeight - titleBarHeight 
+        },
+      });
+    }
+  }, [config, onConfigChange, showControls]);
 
   // Calculate window style based on state
   const windowStyle = config.isMaximized
     ? {
+        position: 'fixed' as const,
         left: 0,
         top: 0,
         width: '100vw',
         height: '100vh',
+        zIndex: 9999,
       }
     : {
+        position: 'absolute' as const,
         left: config.position.x,
         top: config.position.y,
         width: config.size.width,
         height: config.size.height,
+        zIndex: config.zIndex,
       };
 
   if (config.isMinimized) {
     return (
       <motion.div
-        className={`fixed bg-gray-900 border border-gray-700 rounded-lg shadow-xl cursor-pointer ${className}`}
+        className={`absolute bg-gray-900 border border-gray-700 rounded-lg shadow-xl cursor-pointer ${className}`}
         style={{
           left: config.position.x,
           top: config.position.y,
@@ -212,10 +272,12 @@ export default function DraggableWindow({
   return (
     <motion.div
       ref={windowRef}
-      className={`fixed bg-gray-900 border border-gray-700 rounded-lg shadow-2xl overflow-hidden ${className}`}
+      className={`bg-gray-900 border border-gray-700 rounded-lg shadow-2xl overflow-hidden ${className} ${
+        isDragging ? 'border-blue-400' : ''
+      } ${isResizing ? 'border-purple-400' : ''}`}
       style={{
         ...windowStyle,
-        zIndex: config.zIndex,
+        position: windowStyle.position,
       }}
       drag={enableDrag && !config.isMaximized}
       dragMomentum={false}
@@ -226,10 +288,17 @@ export default function DraggableWindow({
         right: viewportSize.width - config.size.width,
         bottom: viewportSize.height - config.size.height,
       } : undefined}
+      onDragStart={handleDragStart}
       onDrag={handleDrag}
+      onDragEnd={handleDragEnd}
       onClick={onFocus}
       whileHover={{ boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}
     >
+      {/* Drag/Resize Visual Feedback */}
+      {(isDragging || isResizing) && (
+        <div className="absolute inset-0 border-2 border-current pointer-events-none opacity-50 rounded-lg" />
+      )}
+
       {/* Title Bar */}
       {showControls && (
         <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700 cursor-move">

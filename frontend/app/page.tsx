@@ -496,7 +496,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-black p-4">
+    <div className="relative min-h-screen bg-black p-4">
       {/* Symbol Selector Modal */}
       <SymbolSelector
         isOpen={isSymbolSelectorOpen}
@@ -504,6 +504,70 @@ export default function Dashboard() {
         onSymbolSelect={handleSymbolChange}
         currentSymbol={symbol}
       />
+
+      {/* Draggable Windows Container - Absolute positioned, scrolls with content */}
+      <div className="absolute inset-0 pointer-events-none" style={{ minHeight: '100vh' }}>
+        {/* Session Stats - Draggable */}
+        {!windows.sessionStats.isMinimized && (
+          <div className="pointer-events-auto">
+            <DraggableWindow
+              config={windows.sessionStats}
+              onConfigChange={(updates) => updateWindow('sessionStats', updates)}
+              onFocus={() => focusWindow('sessionStats')}
+            >
+              <SessionStats compact={false} />
+            </DraggableWindow>
+          </div>
+        )}
+
+        {/* Real Positions Panel - Draggable */}
+        {!windows.realPositions.isMinimized && (
+          <div className="pointer-events-auto">
+            <DraggableWindow
+              config={windows.realPositions}
+              onConfigChange={(updates) => updateWindow('realPositions', updates)}
+              onFocus={() => focusWindow('realPositions')}
+            >
+              <RealPositionsPanel />
+            </DraggableWindow>
+          </div>
+        )}
+
+        {/* Multi-Position Manager - Draggable */}
+        {!windows.multiPositionManager.isMinimized && (
+          <div className="pointer-events-auto">
+            <DraggableWindow
+              config={windows.multiPositionManager}
+              onConfigChange={(updates) => updateWindow('multiPositionManager', updates)}
+              onFocus={() => focusWindow('multiPositionManager')}
+            >
+              <MultiPositionManager
+                currentPrices={currentPrices}
+                compact={false}
+              />
+            </DraggableWindow>
+          </div>
+        )}
+
+        {/* P&L Tracker - Draggable */}
+        {!windows.pnlTracker.isMinimized && (
+          <div className="pointer-events-auto">
+            <DraggableWindow
+              config={windows.pnlTracker}
+              onConfigChange={(updates) => updateWindow('pnlTracker', updates)}
+              onFocus={() => focusWindow('pnlTracker')}
+            >
+              <PnLTracker
+                unrealizedPnL={totalPnL}
+                realizedPnL={totalRealizedPnL}
+                totalPnL={totalPnL + totalRealizedPnL}
+                winRate={sessionStats.winRate}
+                tradesCount={sessionStats.totalTrades}
+              />
+            </DraggableWindow>
+          </div>
+        )}
+      </div>
 
       {/* Header */}
       <div className="max-w-full mx-auto mb-4">
@@ -707,15 +771,6 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Session Stats - Draggable */}
-          <DraggableWindow
-            config={windows.sessionStats}
-            onConfigChange={(updates) => updateWindow('sessionStats', updates)}
-            onFocus={() => focusWindow('sessionStats')}
-          >
-            <SessionStats compact={false} />
-          </DraggableWindow>
-
           {/* Stats Footer */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
@@ -780,42 +835,9 @@ export default function Dashboard() {
           />
           
           {/* Real Trading Components - Show for all modes */}
-          <DraggableWindow
-            config={windows.realPositions}
-            onConfigChange={(updates) => updateWindow('realPositions', updates)}
-            onFocus={() => focusWindow('realPositions')}
-          >
-            <RealPositionsPanel />
-          </DraggableWindow>
           {currentMode !== 'paper' && (
             <RiskControlsPanel />
           )}
-          
-          {/* Multi-Position Manager */}
-          <DraggableWindow
-            config={windows.multiPositionManager}
-            onConfigChange={(updates) => updateWindow('multiPositionManager', updates)}
-            onFocus={() => focusWindow('multiPositionManager')}
-          >
-            <MultiPositionManager
-              currentPrices={currentPrices}
-              compact={false}
-            />
-          </DraggableWindow>
-
-          <DraggableWindow
-            config={windows.pnlTracker}
-            onConfigChange={(updates) => updateWindow('pnlTracker', updates)}
-            onFocus={() => focusWindow('pnlTracker')}
-          >
-            <PnLTracker
-              unrealizedPnL={totalPnL}
-              realizedPnL={totalRealizedPnL}
-              totalPnL={totalPnL + totalRealizedPnL}
-              winRate={sessionStats.winRate}
-              tradesCount={sessionStats.totalTrades}
-            />
-          </DraggableWindow>
         </div>
       </div>
 
