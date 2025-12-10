@@ -6,6 +6,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { config } from '@/src/config/env';
 
 interface PatternData {
   symbol: string;
@@ -40,7 +41,7 @@ export default function PatternConfidence({
       try {
         setLoading(true);
         const response = await fetch(
-          `http://localhost:8000/api/ml/patterns/${symbol}?timeframe=${timeframe}`
+          `${config.apiUrl}/api/ml/patterns/${symbol}?timeframe=${timeframe}`
         );
         
         if (!response.ok) {

@@ -6,6 +6,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { config } from '@/src/config/env';
 
 interface MLStatus {
   status: string;
@@ -26,7 +27,7 @@ export default function MLInsights() {
     const fetchStatus = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:8000/api/ml/status');
+        const response = await fetch(`${config.apiUrl}/api/ml/status`);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

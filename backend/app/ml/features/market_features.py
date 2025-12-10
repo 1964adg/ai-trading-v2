@@ -78,10 +78,9 @@ class MarketFeatureExtractor:
             volatility = returns.rolling(window=window).std()
             df[f'volatility_{window}'] = volatility
             
-            # Volatility percentile
-            df[f'volatility_percentile_{window}'] = volatility.rolling(window=100).apply(
-                lambda x: pd.Series(x).rank(pct=True).iloc[-1] if len(x) > 0 else 0.5
-            )
+            # Volatility percentile - optimized using rank directly
+            rolling_vol = volatility.rolling(window=100)
+            df[f'volatility_percentile_{window}'] = rolling_vol.rank(pct=True)
         
         # Volatility regime (low/medium/high)
         vol_20 = returns.rolling(window=20).std()

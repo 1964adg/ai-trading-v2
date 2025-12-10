@@ -6,6 +6,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { config } from '@/src/config/env';
 
 interface Pattern {
   detected: { [key: string]: number };
@@ -63,7 +64,7 @@ export default function AIPredictionPanel({
       try {
         setLoading(true);
         const response = await fetch(
-          `http://localhost:8000/api/ml/insights/${symbol}?timeframe=${timeframe}`
+          `${config.apiUrl}/api/ml/insights/${symbol}?timeframe=${timeframe}`
         );
         
         if (!response.ok) {

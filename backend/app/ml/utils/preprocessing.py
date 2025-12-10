@@ -46,9 +46,9 @@ class DataPreprocessor:
         # Handle NaN values
         if fill_method:
             if fill_method == 'forward':
-                df = df.fillna(method='ffill')
+                df = df.ffill()
             elif fill_method == 'backward':
-                df = df.fillna(method='bfill')
+                df = df.bfill()
             elif fill_method == 'mean':
                 df = df.fillna(df.mean())
             elif fill_method == 'zero':
