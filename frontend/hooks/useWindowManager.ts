@@ -65,6 +65,28 @@ const getDefaultWindows = (): Record<string, WindowConfig> => ({
     minWidth: 300,
     minHeight: 400,
   },
+  multiPositionManager: {
+    id: 'multiPositionManager',
+    title: 'Position Manager',
+    position: { x: 440, y: 20 },
+    size: { width: 450, height: 400 },
+    isMinimized: false,
+    isMaximized: false,
+    zIndex: 1,
+    minWidth: 400,
+    minHeight: 300,
+  },
+  sessionStats: {
+    id: 'sessionStats',
+    title: 'Session Statistics',
+    position: { x: 20, y: 540 },
+    size: { width: 400, height: 280 },
+    isMinimized: false,
+    isMaximized: false,
+    zIndex: 1,
+    minWidth: 350,
+    minHeight: 250,
+  },
 });
 
 export function useWindowManager() {
