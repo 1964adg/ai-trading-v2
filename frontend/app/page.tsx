@@ -13,7 +13,6 @@ import useSWR from 'swr';
 import TradingChart from '@/components/TradingChart';
 import TimeframeSelector from '@/components/TimeframeSelector';
 import PriceHeader from '@/components/PriceHeader';
-import LiveIndicator from '@/components/LiveIndicator';
 import RealtimeStatus from '@/components/RealtimeStatus';
 import PnLTracker from '@/components/trading/PnLTracker';
 import SymbolSelector from '@/components/trading/SymbolSelector';
@@ -162,22 +161,22 @@ export default function Dashboard() {
   const { stopLoss, trailingStop } = useTradingConfigStore();
 
   // Real-time WebSocket for positions, portfolio, and market updates
-  const handleMarketUpdate = useCallback((data: any) => {
+  const handleMarketUpdate = useCallback((data: { symbol: string; price: number }) => {
     if (data.symbol === symbol) {
-      updatePrice(symbol, data.price);
+      updatePrice(data.price);
     }
   }, [symbol, updatePrice]);
 
-  const handlePositionUpdate = useCallback((data: any) => {
+  const handlePositionUpdate = useCallback((data: { positions?: unknown[] }) => {
     // Position updates are automatically broadcast
     console.log('[Dashboard] Position update received:', data.positions?.length);
   }, []);
 
-  const handlePortfolioUpdate = useCallback((data: any) => {
+  const handlePortfolioUpdate = useCallback((data: { portfolio?: unknown }) => {
     console.log('[Dashboard] Portfolio update received:', data.portfolio);
   }, []);
 
-  const handleOrderUpdate = useCallback((data: any) => {
+  const handleOrderUpdate = useCallback((data: { orderType?: string }) => {
     console.log('[Dashboard] Order update received:', data);
     // Could show notification toast here
   }, []);
