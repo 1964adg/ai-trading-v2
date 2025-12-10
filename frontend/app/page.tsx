@@ -697,23 +697,24 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Risk/Reward and Session Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Risk/Reward Display */}
+          <div className="grid grid-cols-1 gap-4">
             <RiskRewardDisplay
               entryPrice={currentPrice}
               positionSize={positionSizing.size}
               side="long"
               compact={false}
             />
-
-            <DraggableWindow
-              config={windows.sessionStats}
-              onConfigChange={(updates) => updateWindow('sessionStats', updates)}
-              onFocus={() => focusWindow('sessionStats')}
-            >
-              <SessionStats compact={false} />
-            </DraggableWindow>
           </div>
+
+          {/* Session Stats - Draggable */}
+          <DraggableWindow
+            config={windows.sessionStats}
+            onConfigChange={(updates) => updateWindow('sessionStats', updates)}
+            onFocus={() => focusWindow('sessionStats')}
+          >
+            <SessionStats compact={false} />
+          </DraggableWindow>
 
           {/* Stats Footer */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
