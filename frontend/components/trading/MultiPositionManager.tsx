@@ -3,7 +3,7 @@
 import { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useTradingStore, Position } from '@/stores/tradingStore';
-import { formatCurrency, formatNumber } from '@/lib/formatters';
+import { ItalianFormatter } from '@/lib/italianFormatter';
 
 interface MultiPositionManagerProps {
   currentPrices: Record<string, number>;
@@ -66,7 +66,7 @@ function MultiPositionManagerComponent({ currentPrices, compact = false }: Multi
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-semibold text-white">Positions ({openPositions.length})</h3>
           <div className={`text-sm font-bold font-mono ${totalPnL >= 0 ? 'text-bull' : 'text-bear'}`}>
-            {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
+            {totalPnL >= 0 ? '+' : ''}{ItalianFormatter.formatCurrency(totalPnL)}
           </div>
         </div>
         <div className="space-y-2">
@@ -85,7 +85,7 @@ function MultiPositionManagerComponent({ currentPrices, compact = false }: Multi
                   <span className="text-gray-400">{position.symbol}</span>
                 </div>
                 <span className={`font-mono ${pnl >= 0 ? 'text-bull' : 'text-bear'}`}>
-                  {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
+                  {pnl >= 0 ? '+' : ''}{ItalianFormatter.formatCurrency(pnl)}
                 </span>
               </div>
             );
@@ -129,7 +129,7 @@ function MultiPositionManagerComponent({ currentPrices, compact = false }: Multi
                   <span className="text-xs text-gray-500 uppercase">{position.side}</span>
                 </div>
                 <div className={`text-lg font-bold font-mono ${pnl >= 0 ? 'text-bull' : 'text-bear'}`}>
-                  {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
+                  {pnl >= 0 ? '+' : ''}{ItalianFormatter.formatCurrency(pnl)}
                 </div>
               </div>
 
@@ -137,20 +137,20 @@ function MultiPositionManagerComponent({ currentPrices, compact = false }: Multi
               <div className="grid grid-cols-2 gap-2 text-xs mb-3">
                 <div>
                   <div className="text-gray-500">Entry</div>
-                  <div className="text-white font-mono">${formatNumber(position.entryPrice, 2)}</div>
+                  <div className="text-white font-mono">${ItalianFormatter.formatCryptoPrice(position.entryPrice)}</div>
                 </div>
                 <div>
                   <div className="text-gray-500">Current</div>
-                  <div className="text-white font-mono">${formatNumber(currentPrice, 2)}</div>
+                  <div className="text-white font-mono">${ItalianFormatter.formatCryptoPrice(currentPrice)}</div>
                 </div>
                 <div>
                   <div className="text-gray-500">Size</div>
-                  <div className="text-white font-mono">{formatNumber(position.quantity, 4)}</div>
+                  <div className="text-white font-mono">{ItalianFormatter.formatQuantity(position.quantity)}</div>
                 </div>
                 <div>
                   <div className="text-gray-500">P&L %</div>
                   <div className={`font-mono ${pnlPercent >= 0 ? 'text-bull' : 'text-bear'}`}>
-                    {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%
+                    {ItalianFormatter.formatPercentage(pnlPercent)}
                   </div>
                 </div>
               </div>
@@ -161,19 +161,19 @@ function MultiPositionManagerComponent({ currentPrices, compact = false }: Multi
                   {position.stopLoss && (
                     <div className="flex-1 p-1.5 bg-bear/10 rounded">
                       <div className="text-gray-500">SL</div>
-                      <div className="text-bear font-mono">${formatNumber(position.stopLoss, 2)}</div>
+                      <div className="text-bear font-mono">${ItalianFormatter.formatCryptoPrice(position.stopLoss)}</div>
                     </div>
                   )}
                   {position.takeProfit && (
                     <div className="flex-1 p-1.5 bg-bull/10 rounded">
                       <div className="text-gray-500">TP</div>
-                      <div className="text-bull font-mono">${formatNumber(position.takeProfit, 2)}</div>
+                      <div className="text-bull font-mono">${ItalianFormatter.formatCryptoPrice(position.takeProfit)}</div>
                     </div>
                   )}
                   {position.trailingStop?.enabled && (
                     <div className="flex-1 p-1.5 bg-yellow-900/20 rounded">
                       <div className="text-gray-500">Trail</div>
-                      <div className="text-yellow-400 font-mono">{position.trailingStop.percentage}%</div>
+                      <div className="text-yellow-400 font-mono">{ItalianFormatter.formatPercentage(position.trailingStop.percentage, 0)}</div>
                     </div>
                   )}
                 </div>
@@ -211,7 +211,7 @@ function MultiPositionManagerComponent({ currentPrices, compact = false }: Multi
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm text-gray-400">Total P&L</div>
           <div className={`text-xl font-bold font-mono ${totalPnL >= 0 ? 'text-bull' : 'text-bear'}`}>
-            {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
+            {totalPnL >= 0 ? '+' : ''}{ItalianFormatter.formatCurrency(totalPnL)}
           </div>
         </div>
 

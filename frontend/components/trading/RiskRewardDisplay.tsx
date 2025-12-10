@@ -4,7 +4,7 @@ import { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useTradingConfigStore } from '@/stores/tradingConfigStore';
 import { useRiskReward } from '@/hooks/useRiskReward';
-import { formatCurrency, formatNumber } from '@/lib/formatters';
+import { ItalianFormatter } from '@/lib/italianFormatter';
 
 interface RiskRewardDisplayProps {
   entryPrice: number;
@@ -74,17 +74,17 @@ function RiskRewardDisplayComponent({
         <div className="flex items-center justify-between mb-2">
           <label className="text-xs text-gray-400">R:R Analysis</label>
           <div className="text-sm font-bold text-purple-400">
-            1:{formatNumber(riskReward.ratio, 2)}
+            1:{ItalianFormatter.formatNumber(riskReward.ratio)}
           </div>
         </div>
         <div className="space-y-1 text-xs">
           <div className="flex justify-between">
             <span className="text-gray-500">Risk:</span>
-            <span className="text-bear font-mono">{formatCurrency(riskReward.riskAmount)}</span>
+            <span className="text-bear font-mono">{ItalianFormatter.formatCurrency(riskReward.riskAmount)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Reward:</span>
-            <span className="text-bull font-mono">{formatCurrency(riskReward.rewardAmount)}</span>
+            <span className="text-bull font-mono">{ItalianFormatter.formatCurrency(riskReward.rewardAmount)}</span>
           </div>
         </div>
       </div>
@@ -107,21 +107,21 @@ function RiskRewardDisplayComponent({
         <div className="flex items-center justify-between p-2 bg-gray-800 rounded">
           <div className="text-xs text-gray-400">Entry Price</div>
           <div className="text-sm font-bold text-white font-mono">
-            ${formatNumber(entryPrice, 2)}
+            ${ItalianFormatter.formatCryptoPrice(entryPrice)}
           </div>
         </div>
 
         <div className="flex items-center justify-between p-2 bg-bear/10 rounded">
           <div className="text-xs text-gray-400">Stop Loss 🔴</div>
           <div className="text-sm font-bold text-bear font-mono">
-            ${formatNumber(stopLossPrice, 2)}
+            ${ItalianFormatter.formatCryptoPrice(stopLossPrice)}
           </div>
         </div>
 
         <div className="flex items-center justify-between p-2 bg-bull/10 rounded">
           <div className="text-xs text-gray-400">Take Profit 🟢</div>
           <div className="text-sm font-bold text-bull font-mono">
-            ${formatNumber(takeProfitPrice, 2)}
+            ${ItalianFormatter.formatCryptoPrice(takeProfitPrice)}
           </div>
         </div>
       </div>
@@ -131,20 +131,20 @@ function RiskRewardDisplayComponent({
         <div className="p-3 bg-bear/10 rounded-lg border border-bear/30">
           <div className="text-xs text-gray-400 mb-1">Risk</div>
           <div className="text-lg font-bold text-bear font-mono">
-            {formatCurrency(riskReward.riskAmount)}
+            {ItalianFormatter.formatCurrency(riskReward.riskAmount)}
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            {riskReward.riskPercent.toFixed(2)}%
+            {ItalianFormatter.formatPercentage(riskReward.riskPercent)}
           </div>
         </div>
 
         <div className="p-3 bg-bull/10 rounded-lg border border-bull/30">
           <div className="text-xs text-gray-400 mb-1">Reward</div>
           <div className="text-lg font-bold text-bull font-mono">
-            {formatCurrency(riskReward.rewardAmount)}
+            {ItalianFormatter.formatCurrency(riskReward.rewardAmount)}
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            {riskReward.rewardPercent.toFixed(2)}%
+            {ItalianFormatter.formatPercentage(riskReward.rewardPercent)}
           </div>
         </div>
       </div>
@@ -160,7 +160,7 @@ function RiskRewardDisplayComponent({
         <div className="text-center">
           <div className="text-xs text-gray-400 mb-2">Risk:Reward Ratio</div>
           <div className={`text-3xl font-bold font-mono ${ratioColor}`}>
-            1:{formatNumber(riskReward.ratio, 2)}
+            1:{ItalianFormatter.formatNumber(riskReward.ratio)}
           </div>
           <div className="text-xs text-gray-500 mt-2">
             {ratioQuality === 'excellent' && '🎯 Excellent ratio!'}
@@ -175,7 +175,7 @@ function RiskRewardDisplayComponent({
         <div className="flex items-center justify-between">
           <div className="text-xs text-gray-400">Win Rate Needed</div>
           <div className="text-lg font-bold text-white font-mono">
-            {riskReward.probabilityNeeded.toFixed(1)}%
+            {ItalianFormatter.formatPercentage(riskReward.probabilityNeeded, 1)}
           </div>
         </div>
         <div className="text-xs text-gray-500 mt-1 text-center">
