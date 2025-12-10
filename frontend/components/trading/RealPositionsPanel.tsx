@@ -12,6 +12,8 @@ import { realTradingAPI } from '@/lib/real-trading-api';
 import { ModifyPositionModal } from './ModifyPositionModal';
 import { TrailingStopModal } from './TrailingStopModal';
 import { RealPosition } from '@/types/trading';
+import { useFormattedPnL } from '@/hooks/useFormattedValue';
+import { ItalianFormatter } from '@/lib/italianFormatter';
 
 function RealPositionsPanelComponent() {
   const { currentMode } = useTradingModeStore();
@@ -33,31 +35,9 @@ function RealPositionsPanelComponent() {
         return 'Active Positions';
     }
   }, [currentMode]);
-
-  // Format currency - memoized formatter
-  const formatCurrency = useCallback((value: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  }, []);
-
-  // Format percentage
-  const formatPercentage = useCallback((value: number, base: number): string => {
-    if (base === 0) return '0.00%';
-    const percent = (value / base) * 100;
-    const sign = percent > 0 ? '+' : '';
-    return `${sign}${percent.toFixed(2)}%`;
-  }, []);
-
-  // Get color for P&L
-  const getPnLColor = useCallback((value: number): string => {
-    if (value > 0) return 'text-bull';
-    if (value < 0) return 'text-bear';
-    return 'text-gray-400';
-  }, []);
+  
+  // Format total unrealized P&L with Italian formatting
+  const totalUnrealizedPnLFormatted = useFormattedPnL(totalUnrealizedPnL);
 
   // Calculate position P&L percentage
   const calculatePnLPercent = useCallback((position: typeof positions[0]): number => {
@@ -156,8 +136,8 @@ function RealPositionsPanelComponent() {
         {/* Total Unrealized P&L */}
         <div className="text-right">
           <div className="text-xs text-gray-400">Unrealized P&L</div>
-          <div className={`text-lg font-bold font-mono ${getPnLColor(totalUnrealizedPnL)}`}>
-            {totalUnrealizedPnL > 0 ? '+' : ''}{formatCurrency(totalUnrealizedPnL)}
+          <div className={`text-lg font-bold font-mono ${totalUnrealizedPnLFormatted.colorClass}`}>
+            {totalUnrealizedPnLFormatted.sign}{totalUnrealizedPnLFormatted.formatted}
           </div>
         </div>
       </div>
@@ -187,6 +167,15 @@ function RealPositionsPanelComponent() {
         <div className="space-y-3">
           {positions.map((position) => {
             const pnlPercent = calculatePnLPercent(position);
+            
+            // Format position values with Italian formatting
+            const quantityFormatted = ItalianFormatter.formatQuantity(position.quantity);
+            const entryPriceFormatted = ItalianFormatter.formatCurrency(position.entryPrice);
+            const markPriceFormatted = ItalianFormatter.formatCurrency(position.markPrice);
+            const unrealizedPnLFormatted = ItalianFormatter.formatPnL(position.unrealizedPnL);
+            const pnLPercentFormatted = ItalianFormatter.formatPercentage(
+              (position.unrealizedPnL / (position.entryPrice * position.quantity)) * 100
+            );
             
             return (
               <div
@@ -219,33 +208,33 @@ function RealPositionsPanelComponent() {
                   <div>
                     <div className="text-gray-500">Quantity</div>
                     <div className="text-white font-mono">
-                      {position.quantity.toFixed(4)}
+                      {quantityFormatted}
                     </div>
                   </div>
                   <div>
                     <div className="text-gray-500">Entry</div>
                     <div className="text-white font-mono">
-                      {formatCurrency(position.entryPrice)}
+                      {entryPriceFormatted}
                     </div>
                   </div>
                   <div>
                     <div className="text-gray-500">Mark</div>
                     <div className="text-white font-mono">
-                      {formatCurrency(position.markPrice)}
+                      {markPriceFormatted}
                     </div>
                   </div>
                   <div>
                     <div className="text-gray-500">P&L</div>
-                    <div className={`font-mono font-bold ${getPnLColor(position.unrealizedPnL)}`}>
-                      {position.unrealizedPnL > 0 ? '+' : ''}{formatCurrency(position.unrealizedPnL)}
+                    <div className={`font-mono font-bold ${unrealizedPnLFormatted.colorClass}`}>
+                      {unrealizedPnLFormatted.sign}{unrealizedPnLFormatted.formatted}
                     </div>
                   </div>
                 </div>
 
                 {/* P&L Percentage Bar */}
                 <div className="mb-2">
-                  <div className={`text-xs font-medium text-center mb-1 ${getPnLColor(position.unrealizedPnL)}`}>
-                    {formatPercentage(position.unrealizedPnL, position.entryPrice * position.quantity)}
+                  <div className={`text-xs font-medium text-center mb-1 ${unrealizedPnLFormatted.colorClass}`}>
+                    {pnLPercentFormatted}
                     {' '}
                     {position.unrealizedPnL > 0 ? '🟢' : position.unrealizedPnL < 0 ? '🔴' : '⚪'}
                   </div>

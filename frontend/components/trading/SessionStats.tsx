@@ -2,7 +2,8 @@
 
 import { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { formatCurrency, formatNumber } from '@/lib/formatters';
+import { useFormattedValue, useFormattedPnL } from '@/hooks/useFormattedValue';
+import { ItalianFormatter } from '@/lib/italianFormatter';
 import { usePositionStore } from '@/stores/positionStore';
 
 interface SessionStatsProps {
@@ -20,8 +21,12 @@ function SessionStatsComponent({ compact = false }: SessionStatsProps) {
     return `${hours}h ${minutes}m`;
   }, [sessionStats.sessionStartTime]);
 
+  // Format values with Italian formatting
+  const sessionPnLFormatted = useFormattedPnL(sessionStats.totalPnL);
+  const dayPnLFormatted = useFormattedPnL(dayPnL);
+  const winRateFormatted = useFormattedValue(sessionStats.winRate, 'percentage', { decimals: 0 });
+  
   const isPnLPositive = sessionStats.totalPnL >= 0;
-  const isDayPnLPositive = dayPnL >= 0;
 
   if (compact) {
     return (
@@ -29,17 +34,14 @@ function SessionStatsComponent({ compact = false }: SessionStatsProps) {
         <div className="flex items-center justify-between">
           <div className="text-xs text-gray-400">Session P&L</div>
           <div
-            className={`text-lg font-bold font-mono ${
-              isPnLPositive ? 'text-bull' : 'text-bear'
-            }`}
+            className={`text-lg font-bold font-mono ${sessionPnLFormatted.colorClass}`}
           >
-            {isPnLPositive ? '+' : ''}
-            {formatCurrency(sessionStats.totalPnL)}
+            {sessionPnLFormatted.sign}{sessionPnLFormatted.formatted}
           </div>
         </div>
         <div className="flex items-center justify-between mt-1">
           <div className="text-xs text-gray-500">
-            Win Rate: {sessionStats.winRate.toFixed(0)}%
+            Win Rate: {winRateFormatted}
           </div>
           <div className="text-xs text-gray-500">
             {sessionStats.winningTrades}/{sessionStats.totalTrades} trades
@@ -74,12 +76,9 @@ function SessionStatsComponent({ compact = false }: SessionStatsProps) {
       >
         <div className="text-xs text-gray-400 mb-1">Session P&L</div>
         <div
-          className={`text-2xl font-bold font-mono ${
-            isPnLPositive ? 'text-bull' : 'text-bear'
-          }`}
+          className={`text-2xl font-bold font-mono ${sessionPnLFormatted.colorClass}`}
         >
-          {isPnLPositive ? '+' : ''}
-          {formatCurrency(sessionStats.totalPnL)}
+          {sessionPnLFormatted.sign}{sessionPnLFormatted.formatted}
         </div>
       </motion.div>
 
@@ -109,7 +108,7 @@ function SessionStatsComponent({ compact = false }: SessionStatsProps) {
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
               <div className="text-lg font-bold text-white">
-                {sessionStats.winRate.toFixed(0)}%
+                {winRateFormatted}
               </div>
               <div className="text-xs text-gray-400">Win Rate</div>
             </div>
@@ -136,25 +135,25 @@ function SessionStatsComponent({ compact = false }: SessionStatsProps) {
         <div className="bg-gray-800 rounded-lg p-2 text-center">
           <div className="text-xs text-gray-400">Best Trade</div>
           <div className="text-lg font-bold text-bull font-mono">
-            +{formatNumber(sessionStats.bestTrade, 2)}
+            +{ItalianFormatter.formatNumber(sessionStats.bestTrade)}
           </div>
         </div>
         <div className="bg-gray-800 rounded-lg p-2 text-center">
           <div className="text-xs text-gray-400">Worst Trade</div>
           <div className="text-lg font-bold text-bear font-mono">
-            {formatNumber(sessionStats.worstTrade, 2)}
+            {ItalianFormatter.formatNumber(sessionStats.worstTrade)}
           </div>
         </div>
         <div className="bg-gray-800 rounded-lg p-2 text-center">
           <div className="text-xs text-gray-400">Avg Trade</div>
           <div className={`text-lg font-bold font-mono ${sessionStats.avgTrade >= 0 ? 'text-bull' : 'text-bear'}`}>
-            {sessionStats.avgTrade >= 0 ? '+' : ''}{formatNumber(sessionStats.avgTrade, 2)}
+            {sessionStats.avgTrade >= 0 ? '+' : ''}{ItalianFormatter.formatNumber(sessionStats.avgTrade)}
           </div>
         </div>
         <div className="bg-gray-800 rounded-lg p-2 text-center">
           <div className="text-xs text-gray-400">Profit Factor</div>
           <div className={`text-lg font-bold font-mono ${sessionStats.profitFactor >= 2 ? 'text-bull' : sessionStats.profitFactor >= 1 ? 'text-blue-400' : 'text-bear'}`}>
-            {sessionStats.profitFactor === Infinity ? '∞' : formatNumber(sessionStats.profitFactor, 2)}
+            {sessionStats.profitFactor === Infinity ? '∞' : ItalianFormatter.formatNumber(sessionStats.profitFactor)}
           </div>
         </div>
       </div>
@@ -179,12 +178,9 @@ function SessionStatsComponent({ compact = false }: SessionStatsProps) {
         <div className="flex items-center justify-between mb-2">
           <div className="text-xs text-gray-400">Day P&L</div>
           <div
-            className={`font-bold font-mono ${
-              isDayPnLPositive ? 'text-bull' : 'text-bear'
-            }`}
+            className={`font-bold font-mono ${dayPnLFormatted.colorClass}`}
           >
-            {isDayPnLPositive ? '+' : ''}
-            {formatCurrency(dayPnL)}
+            {dayPnLFormatted.sign}{dayPnLFormatted.formatted}
           </div>
         </div>
         <div className="flex items-center justify-between">
