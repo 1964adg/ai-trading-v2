@@ -41,6 +41,9 @@ export default function DraggableWindow({
   const [isDragging, setIsDragging] = useState(false);
   const resizeAnimationFrameRef = useRef<number | null>(null);
 
+  // Constants
+  const TITLE_BAR_HEIGHT = 40;
+
   // Update viewport size on mount and resize
   useEffect(() => {
     const updateViewport = () => {
@@ -242,13 +245,9 @@ export default function DraggableWindow({
     if (config.isMaximized) {
       // Restore to previous position within viewport
       const ensureWithinViewport = (pos: WindowPosition, size: WindowSize) => {
-        const viewport = {
-          width: window.innerWidth,
-          height: window.innerHeight,
-        };
         return {
-          x: Math.max(0, Math.min(pos.x, viewport.width - size.width)),
-          y: Math.max(0, Math.min(pos.y, viewport.height - size.height)),
+          x: Math.max(0, Math.min(pos.x, viewportSize.width - size.width)),
+          y: Math.max(0, Math.min(pos.y, viewportSize.height - size.height)),
         };
       };
       
@@ -258,18 +257,18 @@ export default function DraggableWindow({
       });
     } else {
       // Store current state and maximize within viewport
-      const titleBarHeight = showControls ? 40 : 0;
+      const titleBarHeight = showControls ? TITLE_BAR_HEIGHT : 0;
       
       onConfigChange({
         isMaximized: true,
         position: { x: 0, y: 0 },
         size: { 
-          width: window.innerWidth, 
-          height: window.innerHeight - titleBarHeight 
+          width: viewportSize.width, 
+          height: viewportSize.height - titleBarHeight 
         },
       });
     }
-  }, [config, onConfigChange, showControls]);
+  }, [config, onConfigChange, showControls, viewportSize, TITLE_BAR_HEIGHT]);
 
   // Calculate window style based on state
   const windowStyle = config.isMaximized
@@ -317,13 +316,13 @@ export default function DraggableWindow({
   return (
     <motion.div
       ref={windowRef}
-      className={`bg-gray-900 border border-gray-700 rounded-lg shadow-2xl overflow-hidden ${className} ${
-        isDragging ? 'border-blue-400' : ''
-      } ${isResizing ? 'border-purple-400' : ''}`}
-      style={{
-        ...windowStyle,
-        position: windowStyle.position,
-      }}
+      className={[
+        'bg-gray-900 border border-gray-700 rounded-lg shadow-2xl overflow-hidden',
+        className,
+        isDragging && 'border-blue-400',
+        isResizing && 'border-purple-400',
+      ].filter(Boolean).join(' ')}
+      style={windowStyle}
       drag={enableDrag && !config.isMaximized}
       dragMomentum={false}
       dragElastic={0}
