@@ -6,6 +6,7 @@ from api.market import router as market_router
 from api.paper_trading import router as paper_trading_router
 from api.advanced_orders import router as advanced_orders_router
 from api.websocket import router as websocket_router
+from api.ml import router as ml_router
 from config import settings
 from services.realtime_service import realtime_service
 from services.websocket_manager import websocket_manager
@@ -122,6 +123,7 @@ app.include_router(market_router, prefix="/api", tags=["market"])
 app.include_router(paper_trading_router, prefix="/api/paper", tags=["paper-trading"])
 app.include_router(advanced_orders_router, prefix="/api/paper", tags=["advanced-orders"])
 app.include_router(websocket_router, prefix="/api", tags=["websocket"])
+app.include_router(ml_router, prefix="/api", tags=["ml"])
 
 
 @app.get("/")
