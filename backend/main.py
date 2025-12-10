@@ -8,6 +8,7 @@ from api.advanced_orders import router as advanced_orders_router
 from api.websocket import router as websocket_router
 from config import settings
 from services.realtime_service import realtime_service
+from services.websocket_manager import websocket_manager
 import uvicorn
 from datetime import datetime
 import sys
