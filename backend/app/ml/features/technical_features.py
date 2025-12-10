@@ -21,6 +21,24 @@ class TechnicalFeatureExtractor:
         """
         self.windows = windows or [5, 10, 20, 50, 100, 200]
         self.lag_periods = lag_periods or [1, 2, 3, 5, 10]
+        self.feature_columns = []
+    
+    def extract_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Extract all technical features from OHLCV data.
+        Alias for extract() method for compatibility.
+        
+        Args:
+            df: DataFrame with columns ['open', 'high', 'low', 'close', 'volume']
+        
+        Returns:
+            DataFrame with all extracted features
+        """
+        result = self.extract(df)
+        # Update feature_columns property
+        original_cols = ['open', 'high', 'low', 'close', 'volume', 'timestamp']
+        self.feature_columns = [col for col in result.columns if col not in original_cols]
+        return result
     
     def extract(self, df: pd.DataFrame) -> pd.DataFrame:
         """

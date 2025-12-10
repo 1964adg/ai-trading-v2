@@ -6,7 +6,7 @@ import os
 
 
 class MLConfig(BaseSettings):
-    """ML-specific configuration settings."""
+    """Machine Learning Configuration"""
     
     # Model Storage Paths
     MODEL_STORAGE_PATH: str = os.path.join(
@@ -35,12 +35,15 @@ class MLConfig(BaseSettings):
     MIN_CONFIDENCE_THRESHOLD: float = 0.5
     
     # Feature Engineering Configuration
+    FEATURE_LOOKBACK_PERIODS: List[int] = [5, 10, 20, 50, 100, 200]
     FEATURE_WINDOWS: List[int] = [5, 10, 20, 50, 100, 200]
     LAG_FEATURES: List[int] = [1, 2, 3, 5, 10]
     
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        env_prefix = "ML_"
+        extra = "ignore"
 
 
 ml_config = MLConfig()

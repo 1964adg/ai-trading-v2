@@ -1,14 +1,20 @@
 """Ensemble model for price prediction."""
 
 import numpy as np
+import pandas as pd
 from typing import Dict, List, Any, Optional
 import logging
 from pathlib import Path
 import joblib
 
-from sklearn.ensemble import RandomForestRegressor
-from xgboost import XGBRegressor
-from lightgbm import LGBMRegressor
+try:
+    from xgboost import XGBRegressor
+    from lightgbm import LGBMRegressor
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.preprocessing import StandardScaler
+    MODELS_AVAILABLE = True
+except ImportError:
+    MODELS_AVAILABLE = False
 
 from app.ml.models.base_model import BaseMLModel
 
@@ -291,3 +297,95 @@ class PricePredictor(BaseMLModel):
                 }
         
         return importance
+
+
+class PricePredictionEnsemble:
+    """Ensemble model for multi-horizon price prediction"""
+    
+    def __init__(self, horizons: List[int] = [1, 5, 15, 60]):
+        self.horizons = horizons
+        self.models = {}
+        self.scalers = {}
+        self.feature_importance = {}
+        
+        if not MODELS_AVAILABLE:
+            return
+        
+        for horizon in horizons:
+            self.models[horizon] = {
+                'xgboost': XGBRegressor(n_estimators=200, max_depth=7, learning_rate=0.05, random_state=42, n_jobs=-1),
+                'lightgbm': LGBMRegressor(n_estimators=200, max_depth=7, learning_rate=0.05, random_state=42, verbose=-1, n_jobs=-1),
+                'random_forest': RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42, n_jobs=-1)
+            }
+            self.scalers[horizon] = StandardScaler()
+    
+    def train(self, X: pd.DataFrame, y_dict: Dict[int, pd.Series]):
+        """Train ensemble for all horizons"""
+        if not MODELS_AVAILABLE:
+            raise RuntimeError("ML libraries not available")
+        
+        for horizon in self.horizons:
+            y = y_dict[horizon]
+            valid_idx = ~(X.isna().any(axis=1) | y.isna())
+            X_clean = X[valid_idx]
+            y_clean = y[valid_idx]
+            
+            if len(X_clean) == 0:
+                continue
+            
+            X_scaled = self.scalers[horizon].fit_transform(X_clean)
+            
+            for model_name, model in self.models[horizon].items():
+                model.fit(X_scaled, y_clean)
+                if hasattr(model, 'feature_importances_'):
+                    self.feature_importance[f"{horizon}_{model_name}"] = dict(zip(X.columns, model.feature_importances_))
+    
+    def predict(self, X: pd.DataFrame) -> Dict[int, Dict[str, float]]:
+        """Predict for all horizons"""
+        if not MODELS_AVAILABLE:
+            return {}
+        
+        predictions = {}
+        for horizon in self.horizons:
+            if horizon not in self.models:
+                continue
+            
+            X_scaled = self.scalers[horizon].transform(X)
+            preds = {}
+            for model_name, model in self.models[horizon].items():
+                preds[model_name] = model.predict(X_scaled)[-1]
+            
+            weights = {'xgboost': 0.4, 'lightgbm': 0.4, 'random_forest': 0.2}
+            ensemble_pred = sum(preds[name] * weights[name] for name in preds)
+            pred_std = np.std(list(preds.values()))
+            confidence = 1 / (1 + pred_std)
+            
+            predictions[horizon] = {
+                'prediction': float(ensemble_pred),
+                'xgboost': float(preds['xgboost']),
+                'lightgbm': float(preds['lightgbm']),
+                'random_forest': float(preds['random_forest']),
+                'confidence': float(confidence),
+                'std': float(pred_std),
+                'trained': True
+            }
+        
+        return predictions
+    
+    def save(self, path: str):
+        """Save models"""
+        if not MODELS_AVAILABLE:
+            raise RuntimeError("ML libraries not available")
+        joblib.dump({'models': self.models, 'scalers': self.scalers, 'horizons': self.horizons, 'feature_importance': self.feature_importance}, path)
+    
+    @classmethod
+    def load(cls, path: str):
+        """Load models"""
+        if not MODELS_AVAILABLE:
+            raise RuntimeError("ML libraries not available")
+        data = joblib.load(path)
+        ensemble = cls(horizons=data['horizons'])
+        ensemble.models = data['models']
+        ensemble.scalers = data['scalers']
+        ensemble.feature_importance = data.get('feature_importance', {})
+        return ensemble
