@@ -132,9 +132,9 @@ GET /api/ml/status
 # Machine Learning
 scikit-learn==1.4.0
 xgboost==2.0.3
-lightgbm==4.1.0
-torch==2.1.0
-torchvision==0.16.0
+lightgbm==4.6.0  # Patched - fixes RCE vulnerability
+torch==2.6.0  # Patched - fixes heap overflow, use-after-free, and RCE vulnerabilities
+torchvision==0.21.0
 ta==0.11.0
 pandas-ta==0.3.14b
 joblib==1.3.2
