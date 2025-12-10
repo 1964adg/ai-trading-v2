@@ -113,18 +113,30 @@ export function useWindowManager() {
 
   // Move window to new position
   const moveWindow = useCallback((id: string, position: WindowPosition) => {
-    let finalPosition = position;
-    
-    // Apply grid snap if enabled
-    if (state.gridSnap) {
-      finalPosition = {
-        x: Math.round(position.x / state.gridSize) * state.gridSize,
-        y: Math.round(position.y / state.gridSize) * state.gridSize,
+    setState((prev) => {
+      let finalPosition = position;
+      
+      // Apply grid snap if enabled (read from current state)
+      if (prev.gridSnap) {
+        finalPosition = {
+          x: Math.round(position.x / prev.gridSize) * prev.gridSize,
+          y: Math.round(position.y / prev.gridSize) * prev.gridSize,
+        };
+      }
+      
+      const updatedWindows = {
+        ...prev.windows,
+        [id]: {
+          ...prev.windows[id],
+          position: finalPosition,
+        },
       };
-    }
-    
-    updateWindow(id, { position: finalPosition });
-  }, [state.gridSnap, state.gridSize, updateWindow]);
+      
+      const newState = { ...prev, windows: updatedWindows };
+      saveLayout(newState);
+      return newState;
+    });
+  }, [saveLayout]);
 
   // Resize window
   const resizeWindow = useCallback((id: string, size: WindowSize) => {

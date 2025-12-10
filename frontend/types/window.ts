@@ -3,6 +3,8 @@
  * Defines interfaces for draggable/resizable window system
  */
 
+import { ReactNode } from 'react';
+
 export interface WindowPosition {
   x: number;
   y: number;
@@ -30,7 +32,7 @@ export interface WindowConfig {
 export interface DraggableWindowProps {
   config: WindowConfig;
   onConfigChange: (config: Partial<WindowConfig>) => void;
-  children: React.ReactNode;
+  children: ReactNode;
   enableDrag?: boolean;
   enableResize?: boolean;
   showControls?: boolean;

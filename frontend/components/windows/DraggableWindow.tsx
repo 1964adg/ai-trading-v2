@@ -35,17 +35,35 @@ export default function DraggableWindow({
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [startSize, setStartSize] = useState(config.size);
   const [startPosition, setStartPosition] = useState(config.position);
+  const [startMousePos, setStartMousePos] = useState({ x: 0, y: 0 });
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+
+  // Update viewport size on mount and resize
+  useEffect(() => {
+    const updateViewport = () => {
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+    
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
 
   // Handle drag
   const handleDrag = useCallback((event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (viewportSize.width === 0 || viewportSize.height === 0) return;
+    
     const newPosition = {
       x: config.position.x + info.delta.x,
       y: config.position.y + info.delta.y,
     };
     
     // Keep window within viewport
-    const maxX = window.innerWidth - config.size.width;
-    const maxY = window.innerHeight - config.size.height;
+    const maxX = viewportSize.width - config.size.width;
+    const maxY = viewportSize.height - config.size.height;
     
     onConfigChange({
       position: {
@@ -53,7 +71,7 @@ export default function DraggableWindow({
         y: Math.max(0, Math.min(newPosition.y, maxY)),
       },
     });
-  }, [config.position, config.size, onConfigChange]);
+  }, [config.position, config.size, viewportSize, onConfigChange]);
 
   // Handle resize start
   const handleResizeStart = useCallback((handle: string, e: React.MouseEvent) => {
@@ -62,6 +80,7 @@ export default function DraggableWindow({
     setResizeHandle(handle);
     setStartSize(config.size);
     setStartPosition(config.position);
+    setStartMousePos({ x: e.clientX, y: e.clientY });
     onFocus();
   }, [config.size, config.position, onFocus]);
 
@@ -69,8 +88,8 @@ export default function DraggableWindow({
   const handleResizeMove = useCallback((e: MouseEvent) => {
     if (!isResizing || !resizeHandle) return;
 
-    const deltaX = e.clientX - (startPosition.x + startSize.width);
-    const deltaY = e.clientY - (startPosition.y + startSize.height);
+    const deltaX = e.clientX - startMousePos.x;
+    const deltaY = e.clientY - startMousePos.y;
 
     const newSize = { ...startSize };
     const newPosition = { ...startPosition };
@@ -121,7 +140,7 @@ export default function DraggableWindow({
     }
 
     onConfigChange({ size: newSize, position: newPosition });
-  }, [isResizing, resizeHandle, startSize, startPosition, config, onConfigChange]);
+  }, [isResizing, resizeHandle, startSize, startPosition, startMousePos, config, onConfigChange]);
 
   // Handle resize end
   const handleResizeEnd = useCallback(() => {
@@ -201,12 +220,12 @@ export default function DraggableWindow({
       drag={enableDrag && !config.isMaximized}
       dragMomentum={false}
       dragElastic={0}
-      dragConstraints={{
+      dragConstraints={viewportSize.width > 0 ? {
         left: 0,
         top: 0,
-        right: window.innerWidth - config.size.width,
-        bottom: window.innerHeight - config.size.height,
-      }}
+        right: viewportSize.width - config.size.width,
+        bottom: viewportSize.height - config.size.height,
+      } : undefined}
       onDrag={handleDrag}
       onClick={onFocus}
       whileHover={{ boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}
