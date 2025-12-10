@@ -24,6 +24,9 @@ import TrailingStopPanel from '@/components/trading/TrailingStopPanel';
 import PositionSizeCalculator from '@/components/trading/PositionSizeCalculator';
 import RiskRewardDisplay from '@/components/trading/RiskRewardDisplay';
 import MultiPositionManager from '@/components/trading/MultiPositionManager';
+import { useWindowManager } from '@/hooks/useWindowManager';
+import DraggableWindow from '@/components/windows/DraggableWindow';
+import WindowControlPanel from '@/components/windows/WindowControlPanel';
 import VWAPControls from '@/components/indicators/VWAPControls';
 import VolumeProfileControls from '@/components/indicators/VolumeProfileControls';
 import OrderFlowPanel from '@/components/indicators/OrderFlowPanel';
@@ -70,6 +73,16 @@ export default function Dashboard() {
   // Real Trading Integration
   const { currentMode } = useTradingModeStore();
   useRealTrading({ enabled: true, refreshInterval: 5000 });
+
+  // Window Manager for draggable windows
+  const { 
+    windows, 
+    updateWindow, 
+    focusWindow,
+    toggleMinimize,
+    toggleMaximize,
+    resetLayout 
+  } = useWindowManager();
 
   // Use Zustand store for trading state
   const {
@@ -684,17 +697,24 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Risk/Reward and Session Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Risk/Reward Display */}
+          <div className="grid grid-cols-1 gap-4">
             <RiskRewardDisplay
               entryPrice={currentPrice}
               positionSize={positionSizing.size}
               side="long"
               compact={false}
             />
-
-            <SessionStats compact={false} />
           </div>
+
+          {/* Session Stats - Draggable */}
+          <DraggableWindow
+            config={windows.sessionStats}
+            onConfigChange={(updates) => updateWindow('sessionStats', updates)}
+            onFocus={() => focusWindow('sessionStats')}
+          >
+            <SessionStats compact={false} />
+          </DraggableWindow>
 
           {/* Stats Footer */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -760,26 +780,52 @@ export default function Dashboard() {
           />
           
           {/* Real Trading Components - Show for all modes */}
-          <RealPositionsPanel />
+          <DraggableWindow
+            config={windows.realPositions}
+            onConfigChange={(updates) => updateWindow('realPositions', updates)}
+            onFocus={() => focusWindow('realPositions')}
+          >
+            <RealPositionsPanel />
+          </DraggableWindow>
           {currentMode !== 'paper' && (
             <RiskControlsPanel />
           )}
           
           {/* Multi-Position Manager */}
-          <MultiPositionManager
-            currentPrices={currentPrices}
-            compact={false}
-          />
+          <DraggableWindow
+            config={windows.multiPositionManager}
+            onConfigChange={(updates) => updateWindow('multiPositionManager', updates)}
+            onFocus={() => focusWindow('multiPositionManager')}
+          >
+            <MultiPositionManager
+              currentPrices={currentPrices}
+              compact={false}
+            />
+          </DraggableWindow>
 
-          <PnLTracker
-            unrealizedPnL={totalPnL}
-            realizedPnL={totalRealizedPnL}
-            totalPnL={totalPnL + totalRealizedPnL}
-            winRate={sessionStats.winRate}
-            tradesCount={sessionStats.totalTrades}
-          />
+          <DraggableWindow
+            config={windows.pnlTracker}
+            onConfigChange={(updates) => updateWindow('pnlTracker', updates)}
+            onFocus={() => focusWindow('pnlTracker')}
+          >
+            <PnLTracker
+              unrealizedPnL={totalPnL}
+              realizedPnL={totalRealizedPnL}
+              totalPnL={totalPnL + totalRealizedPnL}
+              winRate={sessionStats.winRate}
+              tradesCount={sessionStats.totalTrades}
+            />
+          </DraggableWindow>
         </div>
       </div>
+
+      {/* Window Control Panel */}
+      <WindowControlPanel 
+        windows={windows}
+        onMinimize={toggleMinimize}
+        onMaximize={toggleMaximize}
+        onReset={resetLayout}
+      />
     </div>
   );
 }
