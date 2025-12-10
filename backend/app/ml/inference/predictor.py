@@ -6,8 +6,21 @@ from typing import Dict, Optional, List
 import logging
 from pathlib import Path
 
-from app.ml.models.pattern_cnn import PatternCNN
-from app.ml.models.price_predictor import PricePredictor
+# Try to import ML models, but allow graceful degradation
+try:
+    from app.ml.models.pattern_cnn import PatternCNN
+    PATTERN_CNN_AVAILABLE = True
+except ImportError:
+    PatternCNN = None
+    PATTERN_CNN_AVAILABLE = False
+    
+try:
+    from app.ml.models.price_predictor import PricePredictor
+    PRICE_PREDICTOR_AVAILABLE = True
+except ImportError:
+    PricePredictor = None
+    PRICE_PREDICTOR_AVAILABLE = False
+
 from app.ml.features.technical_features import TechnicalFeatureExtractor
 from app.ml.features.pattern_features import PatternFeatureExtractor
 from app.ml.features.market_features import MarketFeatureExtractor
@@ -47,26 +60,34 @@ class MLPredictor:
             model_path = Path(ml_config.MODEL_STORAGE_PATH)
             
             # Load Pattern CNN
-            pattern_cnn_path = model_path / "pattern_cnn.pth"
-            if pattern_cnn_path.exists():
-                self.pattern_cnn = PatternCNN(
-                    sequence_length=ml_config.PATTERN_SEQUENCE_LENGTH,
-                    num_patterns=ml_config.PATTERN_NUM_CLASSES
-                )
-                self.pattern_cnn.load(str(pattern_cnn_path))
-                logger.info("Pattern CNN loaded successfully")
+            if PATTERN_CNN_AVAILABLE:
+                pattern_cnn_path = model_path / "pattern_cnn.pth"
+                if pattern_cnn_path.exists():
+                    self.pattern_cnn = PatternCNN(
+                        sequence_length=ml_config.PATTERN_SEQUENCE_LENGTH,
+                        num_patterns=ml_config.PATTERN_NUM_CLASSES
+                    )
+                    self.pattern_cnn.load(str(pattern_cnn_path))
+                    logger.info("Pattern CNN loaded successfully")
+                else:
+                    logger.warning(f"Pattern CNN not found at {pattern_cnn_path}")
+                    self.pattern_cnn = None
             else:
-                logger.warning(f"Pattern CNN not found at {pattern_cnn_path}")
+                logger.warning("Pattern CNN not available (PyTorch not installed)")
                 self.pattern_cnn = None
             
             # Load Price Predictor
-            price_predictor_path = model_path / "price_predictor"
-            if price_predictor_path.exists():
-                self.price_predictor = PricePredictor(horizons=ml_config.PREDICTION_HORIZONS)
-                self.price_predictor.load(str(price_predictor_path))
-                logger.info("Price Predictor loaded successfully")
+            if PRICE_PREDICTOR_AVAILABLE:
+                price_predictor_path = model_path / "price_predictor"
+                if price_predictor_path.exists():
+                    self.price_predictor = PricePredictor(horizons=ml_config.PREDICTION_HORIZONS)
+                    self.price_predictor.load(str(price_predictor_path))
+                    logger.info("Price Predictor loaded successfully")
+                else:
+                    logger.warning(f"Price Predictor not found at {price_predictor_path}")
+                    self.price_predictor = None
             else:
-                logger.warning(f"Price Predictor not found at {price_predictor_path}")
+                logger.warning("Price Predictor not available (XGBoost/LightGBM not installed)")
                 self.price_predictor = None
             
             self.models_loaded = (self.pattern_cnn is not None or self.price_predictor is not None)
