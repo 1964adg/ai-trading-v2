@@ -39,6 +39,7 @@ export default function DraggableWindow({
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const resizeAnimationFrameRef = useRef<number | null>(null);
 
   // Update viewport size on mount and resize
   useEffect(() => {
@@ -69,6 +70,29 @@ export default function DraggableWindow({
     }
   }, []);
 
+  // Apply edge snapping for better window organization
+  const applySnapping = useCallback((position: WindowPosition, size: WindowSize) => {
+    const SNAP_DISTANCE = 20;
+    const viewport = viewportSize;
+    const snappedPosition = { ...position };
+    
+    // Snap to screen edges
+    if (Math.abs(position.x) < SNAP_DISTANCE) {
+      snappedPosition.x = 0;
+    }
+    if (Math.abs(position.y) < SNAP_DISTANCE) {
+      snappedPosition.y = 0;
+    }
+    if (Math.abs(position.x + size.width - viewport.width) < SNAP_DISTANCE) {
+      snappedPosition.x = viewport.width - size.width;
+    }
+    if (Math.abs(position.y + size.height - viewport.height) < SNAP_DISTANCE) {
+      snappedPosition.y = viewport.height - size.height;
+    }
+    
+    return snappedPosition;
+  }, [viewportSize]);
+
   // Handle drag - use offset to maintain cursor position relative to window
   const handleDrag = useCallback((event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (viewportSize.width === 0 || viewportSize.height === 0) return;
@@ -83,18 +107,26 @@ export default function DraggableWindow({
     const maxX = viewportSize.width - config.size.width;
     const maxY = viewportSize.height - config.size.height;
     
+    const constrainedPosition = {
+      x: Math.max(0, Math.min(newPosition.x, maxX)),
+      y: Math.max(0, Math.min(newPosition.y, maxY)),
+    };
+    
     onConfigChange({
-      position: {
-        x: Math.max(0, Math.min(newPosition.x, maxX)),
-        y: Math.max(0, Math.min(newPosition.y, maxY)),
-      },
+      position: constrainedPosition,
     });
   }, [dragOffset, config.size, viewportSize, onConfigChange]);
 
-  // Handle drag end
+  // Handle drag end - apply snapping when user releases
   const handleDragEnd = useCallback(() => {
     setIsDragging(false);
-  }, []);
+    
+    // Apply edge snapping on drag end
+    const snappedPosition = applySnapping(config.position, config.size);
+    if (snappedPosition.x !== config.position.x || snappedPosition.y !== config.position.y) {
+      onConfigChange({ position: snappedPosition });
+    }
+  }, [config.position, config.size, applySnapping, onConfigChange]);
 
   // Handle resize start - improved isolation
   const handleResizeStart = useCallback((handle: string, e: React.MouseEvent) => {
@@ -108,69 +140,82 @@ export default function DraggableWindow({
     onFocus();
   }, [config.size, config.position, onFocus]);
 
-  // Handle resize move - improved event isolation
+  // Handle resize move - improved event isolation with RAF optimization
   const handleResizeMove = useCallback((e: MouseEvent) => {
     if (!isResizing || !resizeHandle) return;
 
     e.preventDefault();
     e.stopPropagation();
 
-    const deltaX = e.clientX - startMousePos.x;
-    const deltaY = e.clientY - startMousePos.y;
-
-    const newSize = { ...startSize };
-    const newPosition = { ...startPosition };
-
-    switch (resizeHandle) {
-      case 'se': // Bottom-right
-        newSize.width = Math.max(config.minWidth || 200, startSize.width + deltaX);
-        newSize.height = Math.max(config.minHeight || 200, startSize.height + deltaY);
-        break;
-      case 'sw': // Bottom-left
-        newSize.width = Math.max(config.minWidth || 200, startSize.width - deltaX);
-        newSize.height = Math.max(config.minHeight || 200, startSize.height + deltaY);
-        newPosition.x = startPosition.x + (startSize.width - newSize.width);
-        break;
-      case 'ne': // Top-right
-        newSize.width = Math.max(config.minWidth || 200, startSize.width + deltaX);
-        newSize.height = Math.max(config.minHeight || 200, startSize.height - deltaY);
-        newPosition.y = startPosition.y + (startSize.height - newSize.height);
-        break;
-      case 'nw': // Top-left
-        newSize.width = Math.max(config.minWidth || 200, startSize.width - deltaX);
-        newSize.height = Math.max(config.minHeight || 200, startSize.height - deltaY);
-        newPosition.x = startPosition.x + (startSize.width - newSize.width);
-        newPosition.y = startPosition.y + (startSize.height - newSize.height);
-        break;
-      case 'e': // Right
-        newSize.width = Math.max(config.minWidth || 200, startSize.width + deltaX);
-        break;
-      case 'w': // Left
-        newSize.width = Math.max(config.minWidth || 200, startSize.width - deltaX);
-        newPosition.x = startPosition.x + (startSize.width - newSize.width);
-        break;
-      case 'n': // Top
-        newSize.height = Math.max(config.minHeight || 200, startSize.height - deltaY);
-        newPosition.y = startPosition.y + (startSize.height - newSize.height);
-        break;
-      case 's': // Bottom
-        newSize.height = Math.max(config.minHeight || 200, startSize.height + deltaY);
-        break;
+    // Cancel any pending animation frame
+    if (resizeAnimationFrameRef.current) {
+      cancelAnimationFrame(resizeAnimationFrameRef.current);
     }
 
-    // Apply max constraints
-    if (config.maxWidth) {
-      newSize.width = Math.min(newSize.width, config.maxWidth);
-    }
-    if (config.maxHeight) {
-      newSize.height = Math.min(newSize.height, config.maxHeight);
-    }
+    // Use requestAnimationFrame for smooth 60fps updates
+    resizeAnimationFrameRef.current = requestAnimationFrame(() => {
+      const deltaX = e.clientX - startMousePos.x;
+      const deltaY = e.clientY - startMousePos.y;
 
-    onConfigChange({ size: newSize, position: newPosition });
+      const newSize = { ...startSize };
+      const newPosition = { ...startPosition };
+
+      switch (resizeHandle) {
+        case 'se': // Bottom-right
+          newSize.width = Math.max(config.minWidth || 200, startSize.width + deltaX);
+          newSize.height = Math.max(config.minHeight || 200, startSize.height + deltaY);
+          break;
+        case 'sw': // Bottom-left
+          newSize.width = Math.max(config.minWidth || 200, startSize.width - deltaX);
+          newSize.height = Math.max(config.minHeight || 200, startSize.height + deltaY);
+          newPosition.x = startPosition.x + (startSize.width - newSize.width);
+          break;
+        case 'ne': // Top-right
+          newSize.width = Math.max(config.minWidth || 200, startSize.width + deltaX);
+          newSize.height = Math.max(config.minHeight || 200, startSize.height - deltaY);
+          newPosition.y = startPosition.y + (startSize.height - newSize.height);
+          break;
+        case 'nw': // Top-left
+          newSize.width = Math.max(config.minWidth || 200, startSize.width - deltaX);
+          newSize.height = Math.max(config.minHeight || 200, startSize.height - deltaY);
+          newPosition.x = startPosition.x + (startSize.width - newSize.width);
+          newPosition.y = startPosition.y + (startSize.height - newSize.height);
+          break;
+        case 'e': // Right
+          newSize.width = Math.max(config.minWidth || 200, startSize.width + deltaX);
+          break;
+        case 'w': // Left
+          newSize.width = Math.max(config.minWidth || 200, startSize.width - deltaX);
+          newPosition.x = startPosition.x + (startSize.width - newSize.width);
+          break;
+        case 'n': // Top
+          newSize.height = Math.max(config.minHeight || 200, startSize.height - deltaY);
+          newPosition.y = startPosition.y + (startSize.height - newSize.height);
+          break;
+        case 's': // Bottom
+          newSize.height = Math.max(config.minHeight || 200, startSize.height + deltaY);
+          break;
+      }
+
+      // Apply max constraints
+      if (config.maxWidth) {
+        newSize.width = Math.min(newSize.width, config.maxWidth);
+      }
+      if (config.maxHeight) {
+        newSize.height = Math.min(newSize.height, config.maxHeight);
+      }
+
+      onConfigChange({ size: newSize, position: newPosition });
+    });
   }, [isResizing, resizeHandle, startSize, startPosition, startMousePos, config, onConfigChange]);
 
   // Handle resize end
   const handleResizeEnd = useCallback(() => {
+    // Cancel any pending animation frame
+    if (resizeAnimationFrameRef.current) {
+      cancelAnimationFrame(resizeAnimationFrameRef.current);
+      resizeAnimationFrameRef.current = null;
+    }
     setIsResizing(false);
     setResizeHandle(null);
   }, []);
