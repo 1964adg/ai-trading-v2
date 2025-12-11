@@ -15,6 +15,7 @@ import uvicorn
 from datetime import datetime
 import sys
 import os
+from app.routers.scout import router as scout_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -126,6 +127,7 @@ app.include_router(advanced_orders_router, prefix="/api/paper", tags=["advanced-
 app.include_router(websocket_router, prefix="/api", tags=["websocket"])
 app.include_router(ml_router, prefix="/api", tags=["ml"])
 app.include_router(ml_training_router)
+app.include_router(scout_router)
 
 @app.get("/")
 async def root():
