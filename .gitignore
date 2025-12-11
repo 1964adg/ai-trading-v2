@@ -234,3 +234,8 @@ infrastructure/nginx/ssl/*.crt
 *.sql.gz
 *.dump
 backup.sql
+
+# ML Models and Training Data
+infrastructure/ml/model_storage/*.pkl
+infrastructure/ml/training_data/*.parquet
+backend/infrastructure/
