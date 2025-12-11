@@ -54,7 +54,7 @@ class TrainingPipeline:
         print(f"🔧 FEATURE EXTRACTION")
         print(f"{'='*60}")
         
-        df = self.tech_extractor.extract(df.copy())
+        df = self.tech_extractor.extract_features(df.copy())
         print(f"  ✅ Technical features: {len(self.tech_extractor.feature_columns)}")
         
         df = self.pattern_extractor.extract(df)

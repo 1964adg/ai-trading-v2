@@ -132,10 +132,11 @@ def test_no_spacing_errors():
         print("✅ Import statement spacing fixed")
         
         # Check that old method names are replaced
-        assert 'tech_extractor.extract_features' not in content, "Old tech_extractor.extract_features still exists"
+        # TechnicalFeatureExtractor has both extract() and extract_features(), we use extract_features()
+        # to keep feature_columns updated
         assert 'pattern_extractor.extract_candlestick_features' not in content, "Old extract_candlestick_features still exists"
         assert 'market_extractor.extract_features' not in content, "Old market_extractor.extract_features still exists"
-        print("✅ Feature extractor method calls updated to use extract()")
+        print("✅ Feature extractor method calls updated correctly")
         
         # Check for double spaces in specific patterns that were fixed
         assert '. extract_features' not in content, "Spacing error before extract_features"
