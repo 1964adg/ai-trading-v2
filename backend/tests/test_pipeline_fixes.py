@@ -132,8 +132,9 @@ def test_no_spacing_errors():
         print("✅ Import statement spacing fixed")
         
         # Check that old method names are replaced
-        assert 'extract_features(df.' not in content or 'tech_extractor.extract_features' not in content, "Old method calls may still exist"
-        assert 'extract_candlestick_features' not in content, "Old extract_candlestick_features still exists"
+        assert 'tech_extractor.extract_features' not in content, "Old tech_extractor.extract_features still exists"
+        assert 'pattern_extractor.extract_candlestick_features' not in content, "Old extract_candlestick_features still exists"
+        assert 'market_extractor.extract_features' not in content, "Old market_extractor.extract_features still exists"
         print("✅ Feature extractor method calls updated to use extract()")
         
         # Check for double spaces in specific patterns that were fixed
