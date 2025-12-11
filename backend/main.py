@@ -7,7 +7,7 @@ from api.paper_trading import router as paper_trading_router
 from api.advanced_orders import router as advanced_orders_router
 from api.websocket import router as websocket_router
 from api.ml import router as ml_router
-rom app.routers.ml_training import router as ml_training_router
+from app.routers.ml_training import router as ml_training_router
 from config import settings
 from services.realtime_service import realtime_service
 from services.websocket_manager import websocket_manager
