@@ -13,7 +13,7 @@ from app.ml.features.technical_features import TechnicalFeatureExtractor
 from app.ml.features.pattern_features import PatternFeatureExtractor
 from app.ml.features.market_features import MarketFeatureExtractor
 from app.ml.models.price_predictor import PricePredictionEnsemble
-from app.ml. config import ml_config
+from app.ml.config import ml_config
 
 
 class TrainingPipeline:
@@ -48,19 +48,19 @@ class TrainingPipeline:
         
         return df
     
-    def extract_features(self, df:  pd.DataFrame) -> pd.DataFrame:
+    def extract_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Extract all features"""
         print(f"\n{'='*60}")
         print(f"🔧 FEATURE EXTRACTION")
         print(f"{'='*60}")
         
-        df = self.tech_extractor. extract_features(df. copy())
-        print(f"  ✅ Technical features:  {len(self.tech_extractor.feature_columns)}")
+        df = self.tech_extractor.extract(df.copy())
+        print(f"  ✅ Technical features: {len(self.tech_extractor.feature_columns)}")
         
-        df = self.pattern_extractor.extract_candlestick_features(df)
+        df = self.pattern_extractor.extract(df)
         print(f"  ✅ Pattern features added")
         
-        df = self. market_extractor.extract_features(df)
+        df = self.market_extractor.extract(df)
         print(f"  ✅ Market features added")
         
         return df
@@ -85,7 +85,7 @@ class TrainingPipeline:
         print(f"🤖 TRAINING PRICE PREDICTOR")
         print(f"{'='*60}")
         
-        df_features = self.extract_features(df. copy())
+        df_features = self.extract_features(df.copy())
         targets = self.create_targets(df_features)
         
         feature_cols = [col for col in df_features.columns 
@@ -94,7 +94,7 @@ class TrainingPipeline:
         X = df_features[feature_cols]
         
         split_idx = int(len(X) * ml_config.TRAIN_TEST_SPLIT)
-        X_train = X. iloc[:split_idx]
+        X_train = X.iloc[:split_idx]
         y_train = {h: targets[h].iloc[:split_idx] for h in targets}
         X_test = X.iloc[split_idx:]
         y_test = {h: targets[h].iloc[split_idx:] for h in targets}
@@ -114,7 +114,7 @@ class TrainingPipeline:
         
         try:
             model.save(str(model_path))
-            print(f"  💾 Saved to {model_path. name}")
+            print(f"  💾 Saved to {model_path.name}")
         except Exception as e:
             print(f"  ⚠️ Could not save model: {e}")
         
@@ -129,8 +129,8 @@ class TrainingPipeline:
     def _evaluate_price_model(
         self,
         model: PricePredictionEnsemble,
-        X_test: pd. DataFrame,
-        y_test:  Dict[int, pd.Series]
+        X_test: pd.DataFrame,
+        y_test: Dict[int, pd.Series]
     ) -> Dict: 
         """Evaluate model performance"""
         try:
@@ -150,7 +150,7 @@ class TrainingPipeline:
                     pred_dict = model.predict(X_test.iloc[i:i+1])
                     if horizon in pred_dict:
                         preds.append(pred_dict[horizon]['prediction'])
-                        actuals. append(y_test[horizon]. iloc[i])
+                        actuals.append(y_test[horizon].iloc[i])
                 except: 
                     continue
             
@@ -170,6 +170,6 @@ class TrainingPipeline:
                         "r2": float(r2)
                     }
                     
-                    print(f"  📈 {horizon}m - RMSE: {rmse:. 4f}, MAE: {mae:.4f}, R²: {r2:.4f}")
+                    print(f"  📈 {horizon}m - RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}")
         
         return metrics
