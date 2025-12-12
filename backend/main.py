@@ -8,6 +8,7 @@ from api.advanced_orders import router as advanced_orders_router
 from api.websocket import router as websocket_router
 from api.ml import router as ml_router
 from app.routers.ml_training import router as ml_training_router
+from app.routers.scout import router as scout_router
 from config import settings
 from services.realtime_service import realtime_service
 from services.websocket_manager import websocket_manager
@@ -19,7 +20,7 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan event handler - displays startup info and manages services"""
-    is_reloading = any('watchfiles' in arg. lower() for arg in sys.argv) or \
+    is_reloading = any('watchfiles' in arg.lower() for arg in sys.argv) or \
                    os.environ.get('RUN_MAIN') == 'true'
     
     banner = """
@@ -79,7 +80,7 @@ EXAMPLES:
 ============================================================
     """
     print(banner.format(
-        timestamp=datetime. now().strftime('%Y-%m-%d %H:%M:%S'),
+        timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         port=settings.PORT,
         cors=', '.join(settings.CORS_ORIGINS),
         reload='ENABLED'
@@ -126,6 +127,7 @@ app.include_router(advanced_orders_router, prefix="/api/paper", tags=["advanced-
 app.include_router(websocket_router, prefix="/api", tags=["websocket"])
 app.include_router(ml_router, prefix="/api", tags=["ml"])
 app.include_router(ml_training_router)
+app.include_router(scout_router)
 
 @app.get("/")
 async def root():
