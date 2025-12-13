@@ -14,6 +14,7 @@ from app.scout.models import (
     Opportunity, OpportunityScore, TechnicalIndicators,
     Signal, TopMover, MarketOverview, ScoutStatus
 )
+from app.scout.ml_predictor import ml_predictor
 
 logger = logging.getLogger(__name__)
 
@@ -175,13 +176,13 @@ class CryptoScoutService:
             ema_12=float(ema_12.iloc[-1]) if not pd.isna(ema_12.iloc[-1]) else None,
             ema_26=float(ema_26.iloc[-1]) if not pd.isna(ema_26.iloc[-1]) else None
         )
-    
-    def _calculate_score(self, df:  pd.DataFrame, indicators: TechnicalIndicators) -> OpportunityScore:
-        """Calculate composite score"""
+
+    def _calculate_score(self, df: pd.DataFrame, indicators: TechnicalIndicators) -> OpportunityScore:
+        """Calculate composite score with ML integration"""
         
         # Technical score (0-100)
         tech_score = 50.0
-        if indicators.rsi:
+        if indicators.rsi: 
             if indicators.rsi < 30:
                 tech_score += 25  # Oversold
             elif indicators.rsi > 70:
@@ -235,12 +236,21 @@ class CryptoScoutService:
         else:
             volatility_score = 30.0
         
-        # Weighted total
+        # ML SCORE - NEW! 
+        try:
+            predictions = ml_predictor.predict_price_movement(df, "symbol", ["5m", "15m", "60m"])
+            ml_score = ml_predictor.calculate_ml_score(predictions)
+        except Exception as e:
+            logger.warning(f"ML prediction failed: {e}")
+            ml_score = 50.0  # Neutral if ML fails
+        
+        # Weighted total (ML added!)
         total_score = (
-            tech_score * 0.35 +
-            volume_score * 0.25 +
-            momentum_score * 0.25 +
-            volatility_score * 0.15
+            ml_score * 0.30 +           # ML predictions 30%
+            tech_score * 0.25 +         # Technical 25% (was 35%)
+            volume_score * 0.20 +       # Volume 20%
+            momentum_score * 0.15 +     # Momentum 15%
+            volatility_score * 0.10     # Volatility 10%
         )
         
         return OpportunityScore(
