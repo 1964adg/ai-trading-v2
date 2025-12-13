@@ -8,6 +8,8 @@ from app.scout.scout_service import scout_service
 from app.scout.models import (
     Opportunity, MarketOverview, ScoutStatus
 )
+from app.scout.alert_manager import alert_manager
+from app.scout.models import AlertConfig, AlertHistory
 
 router = APIRouter(prefix="/api/scout", tags=["scout"])
 
@@ -69,3 +71,82 @@ async def get_top_movers(
 async def get_market_overview():
     """Get overall market statistics"""
     return await scout_service.get_market_overview()
+
+
+
+# ============================================
+# ALERT ENDPOINTS
+# ============================================
+
+@router.get("/alerts/config", response_model=AlertConfig)
+async def get_alert_config():
+    """Get current alert configuration"""
+    return alert_manager.get_config()
+
+
+@router.post("/alerts/config")
+async def update_alert_config(config: AlertConfig):
+    """Update alert configuration"""
+    alert_manager.configure(config)
+    return {"message": "Alert configuration updated", "config": config}
+
+
+@router.get("/alerts/history", response_model=AlertHistory)
+async def get_alert_history(
+    limit: int = 50,
+    unacknowledged_only: bool = False
+):
+    """Get alert history"""
+    return alert_manager.get_history(limit=limit, unacknowledged_only=unacknowledged_only)
+
+
+@router.post("/alerts/{alert_id}/acknowledge")
+async def acknowledge_alert(alert_id:  str):
+    """Mark alert as acknowledged"""
+    success = alert_manager.acknowledge_alert(alert_id)
+    if success:
+        return {"message":  "Alert acknowledged", "alert_id": alert_id}
+    else:
+        return {"message": "Alert not found", "alert_id":  alert_id}
+
+
+@router.post("/alerts/clear")
+async def clear_alert_history():
+    """Clear all alerts"""
+    alert_manager.clear_history()
+    return {"message": "Alert history cleared"}
+
+
+@router.post("/alerts/test")
+async def test_alert():
+    """Trigger a test alert"""
+    from app.scout.models import Opportunity, OpportunityScore, TechnicalIndicators, Signal
+    from datetime import datetime
+    
+    # Create fake opportunity for testing
+    test_opp = Opportunity(
+        symbol="TESTUSDT",
+        price=100.0,
+        change_1h=1.5,
+        change_24h=5.5,
+        volume_24h=1000000,
+        volume_change=35.0,
+        score=OpportunityScore(
+            total=75.0,
+            technical=70.0,
+            volume=80.0,
+            momentum=75.0,
+            volatility=70.0
+        ),
+        signal=Signal.STRONG_BUY,
+        indicators=TechnicalIndicators(),
+        reason="Test alert",
+        timestamp=datetime.utcnow()
+    )
+    
+    alerts = alert_manager.check_opportunity(test_opp)
+    return {
+        "message": "Test alert triggered",
+        "alerts_count": len([a for a in alerts if a]),
+        "alerts": [a.dict() for a in alerts if a]
+    }
