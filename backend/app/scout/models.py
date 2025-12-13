@@ -81,3 +81,51 @@ class ScoutStatus(BaseModel):
     last_scan: Optional[datetime] = None
     symbols_monitored: int
     opportunities_found: int
+
+
+
+class AlertType(str, Enum):
+    """Alert types"""
+    HIGH_SCORE = "HIGH_SCORE"
+    VOLUME_SPIKE = "VOLUME_SPIKE"
+    PRICE_BREAKOUT = "PRICE_BREAKOUT"
+    STRONG_BUY_SIGNAL = "STRONG_BUY_SIGNAL"
+
+
+class AlertConfig(BaseModel):
+    """Alert configuration"""
+    enabled: bool = True
+    min_score_threshold: float = Field(default=70, ge=0, le=100)
+    volume_spike_threshold: float = Field(default=30, ge=0)  # %
+    price_change_threshold: float = Field(default=5, ge=0)   # %
+    check_interval: int = Field(default=60, ge=10)  # seconds
+    notification_channels: List[str] = Field(default=["console"])  # console, webhook, email
+
+
+class Alert(BaseModel):
+    """Alert notification"""
+    id: str
+    alert_type: AlertType
+    symbol: str
+    message: str
+    score: Optional[float] = None
+    price: Optional[float] = None
+    volume_change: Optional[float] = None
+    opportunity:  Optional[Opportunity] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    acknowledged: bool = False
+
+
+class AlertHistory(BaseModel):
+    """Alert history response"""
+    total_alerts: int
+    unacknowledged_count: int
+    alerts: List[Alert]
+
+
+class WebSocketMessage(BaseModel):
+    """WebSocket message format"""
+    type: str  # "opportunity", "market_overview", "alert", "status"
+    data: dict
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
