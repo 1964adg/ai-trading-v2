@@ -38,17 +38,21 @@ function QuickAccessPanelComponent({
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get scout store functions
-  const { quickAccessSymbols, getOpportunityBySymbol } = useScoutStore();
+  const { 
+    quickAccessSymbols: scoutSymbols, 
+    getOpportunityBySymbol,
+    removeFromQuickAccess: removeFromScout,
+  } = useScoutStore();
 
   // Use scout store symbols if available, otherwise fall back to local storage
-  const symbols = quickAccessSymbols.length > 0 ? quickAccessSymbols : quickSymbols;
+  const symbols = scoutSymbols.length > 0 ? scoutSymbols : quickSymbols;
 
   // Update local storage when scout store changes
   useEffect(() => {
-    if (quickAccessSymbols.length > 0) {
-      setQuickSymbols(quickAccessSymbols);
+    if (scoutSymbols.length > 0) {
+      setQuickSymbols(scoutSymbols);
     }
-  }, [quickAccessSymbols, setQuickSymbols]);
+  }, [scoutSymbols, setQuickSymbols]);
 
   // Handle symbol button click
   const handleSymbolClick = useCallback(
@@ -97,8 +101,15 @@ function QuickAccessPanelComponent({
   const handlePresetUpdate = useCallback(
     (newSymbols: string[]) => {
       setQuickSymbols(newSymbols);
+      
+      // Sync with scout store - remove symbols that are no longer in the list
+      scoutSymbols.forEach(symbol => {
+        if (!newSymbols.includes(symbol)) {
+          removeFromScout(symbol);
+        }
+      });
     },
-    [setQuickSymbols]
+    [setQuickSymbols, scoutSymbols, removeFromScout]
   );
 
   // Get opportunity for hovered symbol

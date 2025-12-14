@@ -11,7 +11,7 @@ interface PresetManagerProps {
   onClose: () => void;
 }
 
-const MAX_QUICK_SYMBOLS = 6;
+const MAX_QUICK_SYMBOLS = 15;
 
 function PresetManagerComponent({
   quickSymbols,
