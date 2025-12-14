@@ -1,11 +1,26 @@
 """PyTorch CNN for pattern recognition."""
 
-import torch
-import torch.nn as nn
 import numpy as np
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, Optional, TYPE_CHECKING
 import logging
 from pathlib import Path
+
+# Optional PyTorch import for advanced ML features
+TORCH_AVAILABLE = False
+torch = None
+nn = None
+
+try:
+    import torch
+    import torch.nn as nn
+    TORCH_AVAILABLE = True
+except ImportError:
+    # PyTorch not available - CNN pattern recognition disabled
+    pass
+
+# Type checking imports (not used at runtime)
+if TYPE_CHECKING and TORCH_AVAILABLE:
+    import torch as torch_types
 
 from app.ml.models.base_model import BaseMLModel
 from app.ml.utils.preprocessing import normalize_ohlcv
@@ -13,7 +28,7 @@ from app.ml.utils.preprocessing import normalize_ohlcv
 logger = logging.getLogger(__name__)
 
 
-class PatternCNN(BaseMLModel, nn.Module):
+class PatternCNN(BaseMLModel, nn.Module if TORCH_AVAILABLE else object):
     """
     Convolutional Neural Network for candlestick pattern recognition.
     
@@ -24,6 +39,11 @@ class PatternCNN(BaseMLModel, nn.Module):
     - three_white_soldiers, three_black_crows
     - harami, piercing_line, dark_cloud_cover
     - tweezer_top, tweezer_bottom, marubozu
+    
+    Note: Requires PyTorch to be installed. Conditional inheritance ensures
+    the class can be imported without PyTorch, but will raise ImportError
+    when instantiated. This allows the module to be loaded without crashing
+    the entire application when PyTorch is not available.
     """
     
     PATTERN_NAMES = [
@@ -43,6 +63,12 @@ class PatternCNN(BaseMLModel, nn.Module):
             sequence_length: Length of input OHLCV sequences
             num_patterns: Number of patterns to detect
         """
+        if not TORCH_AVAILABLE:
+            raise ImportError(
+                "PyTorch is required for PatternCNN. "
+                "Install with: pip install torch"
+            )
+        
         BaseMLModel.__init__(self, model_name="PatternCNN")
         nn.Module.__init__(self)
         
@@ -87,15 +113,17 @@ class PatternCNN(BaseMLModel, nn.Module):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.to(self.device)
     
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: "Any") -> "Any":
         """
         Forward pass through the network.
         
         Args:
             x: Input tensor of shape (batch, sequence_length, 5)
+                Type: torch.Tensor when PyTorch is available
         
         Returns:
             Output tensor of shape (batch, num_patterns) with pattern probabilities
+            Type: torch.Tensor when PyTorch is available
         """
         # Transpose to (batch, channels, sequence)
         x = x.transpose(1, 2)
