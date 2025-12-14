@@ -1,5 +1,10 @@
 """PyTorch CNN for pattern recognition."""
 
+import numpy as np
+from typing import Dict, Tuple, Any, Optional, TYPE_CHECKING
+import logging
+from pathlib import Path
+
 # Optional PyTorch import for advanced ML features
 TORCH_AVAILABLE = False
 torch = None
@@ -13,10 +18,9 @@ except ImportError:
     # PyTorch not available - CNN pattern recognition disabled
     pass
 
-import numpy as np
-from typing import Dict, Tuple, Any, Optional
-import logging
-from pathlib import Path
+# Type checking imports (not used at runtime)
+if TYPE_CHECKING and TORCH_AVAILABLE:
+    import torch as torch_types
 
 from app.ml.models.base_model import BaseMLModel
 from app.ml.utils.preprocessing import normalize_ohlcv
@@ -106,7 +110,7 @@ class PatternCNN(BaseMLModel, nn.Module if TORCH_AVAILABLE else object):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.to(self.device)
     
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Any) -> Any:
         """
         Forward pass through the network.
         
