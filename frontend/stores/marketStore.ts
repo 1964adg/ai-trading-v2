@@ -57,10 +57,6 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   ...initialState,
 
   setSymbol: (symbol: string) => {
-    // Broadcast symbol change to other windows
-    if (typeof window !== 'undefined') {
-      syncManager.broadcast(SyncEvent.SYMBOL_CHANGE, symbol);
-    }
     set({
       symbol,
       currentPrice: 0,
@@ -71,6 +67,10 @@ export const useMarketStore = create<MarketState>((set, get) => ({
       asks: [],
       lastUpdateTime: 0,
     });
+    // Broadcast symbol change to other windows after state update
+    if (typeof window !== 'undefined') {
+      syncManager.broadcast(SyncEvent.SYMBOL_CHANGE, symbol);
+    }
   },
 
   updatePrice: (price: number) => {

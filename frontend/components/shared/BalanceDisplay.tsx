@@ -17,8 +17,13 @@ export default function BalanceDisplay() {
   // Listen for balance updates from other windows
   useEffect(() => {
     const unsubscribe = syncManager.on(SyncEvent.BALANCE_UPDATE, (data: unknown) => {
-      const balanceData = data as { available: number };
-      setDisplayBalance(balanceData.available);
+      // Validate balance update structure
+      if (typeof data === 'object' && data !== null && 'available' in data) {
+        const obj = data as Record<string, unknown>;
+        if (typeof obj.available === 'number') {
+          setDisplayBalance(obj.available);
+        }
+      }
     });
 
     return unsubscribe;

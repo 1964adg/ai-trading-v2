@@ -219,8 +219,7 @@ export default function Dashboard() {
   const handleSymbolChange = useCallback((newSymbol: string) => {
     setSymbol(newSymbol);
     setGlobalSymbol(newSymbol);
-    // Broadcast to other windows
-    syncManager.broadcast(SyncEvent.SYMBOL_CHANGE, newSymbol);
+    // MarketStore will handle broadcasting
     // Clear chart data to trigger fresh load
     setChartData([]);
     viewportRangeRef.current = null;

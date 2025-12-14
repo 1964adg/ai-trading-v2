@@ -4,6 +4,9 @@
  * using the Broadcast Channel API
  */
 
+// Channel name constant to avoid typos
+const SYNC_CHANNEL_NAME = 'trading-sync';
+
 export enum SyncEvent {
   SYMBOL_CHANGE = 'SYMBOL_CHANGE',
   POSITION_UPDATE = 'POSITION_UPDATE',
@@ -11,6 +14,24 @@ export enum SyncEvent {
   ALERT_TRIGGERED = 'ALERT_TRIGGERED',
   BALANCE_UPDATE = 'BALANCE_UPDATE',
   NOTIFICATION = 'NOTIFICATION',
+}
+
+// Type guards for runtime validation
+export function isValidNotification(data: unknown): data is { id: string; type: string; message: string; timestamp: number } {
+  if (typeof data !== 'object' || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  return (
+    typeof obj.id === 'string' &&
+    typeof obj.type === 'string' &&
+    typeof obj.message === 'string' &&
+    typeof obj.timestamp === 'number'
+  );
+}
+
+export function isValidBalanceUpdate(data: unknown): data is { available: number } {
+  if (typeof data !== 'object' || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  return typeof obj.available === 'number';
 }
 
 interface SyncMessage {
@@ -25,7 +46,7 @@ class SyncManager {
   
   constructor() {
     if (typeof window !== 'undefined') {
-      this.channel = new BroadcastChannel('trading-sync');
+      this.channel = new BroadcastChannel(SYNC_CHANNEL_NAME);
       this.channel.onmessage = this.handleMessage.bind(this);
       
       // Cleanup on window close

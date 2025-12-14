@@ -44,10 +44,21 @@ const popOutConfigs: Record<string, PopOutConfig> = {
 /**
  * Pop-Out Buttons Component
  * Provides buttons to open pages in separate windows
+ * Only allows internal paths for security
  */
+
+// Whitelist of allowed paths
+const ALLOWED_PATHS = ['/scout', '/analysis', '/orders', '/portfolio'];
+
 export default function PopOutButtons() {
   const openPopOut = (config: PopOutConfig) => {
     try {
+      // Validate URL is in whitelist
+      if (!ALLOWED_PATHS.includes(config.url)) {
+        toast.error('Invalid page URL');
+        return;
+      }
+
       const left = (window.screen.width - config.width) / 2;
       const top = (window.screen.height - config.height) / 2;
       

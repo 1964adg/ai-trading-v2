@@ -17,6 +17,7 @@ export default function SymbolSelectorGlobal() {
   useEffect(() => {
     const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (data: unknown) => {
       const newSymbol = data as string;
+      // Only update if different to prevent loops
       if (newSymbol !== symbol) {
         setSymbol(newSymbol);
       }
@@ -27,8 +28,7 @@ export default function SymbolSelectorGlobal() {
 
   const handleSymbolChange = (newSymbol: string) => {
     setSymbol(newSymbol);
-    // Broadcast to other windows
-    syncManager.broadcast(SyncEvent.SYMBOL_CHANGE, newSymbol);
+    // Don't broadcast - marketStore will handle it
     setIsOpen(false);
   };
 
