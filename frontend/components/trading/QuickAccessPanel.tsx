@@ -41,7 +41,6 @@ function QuickAccessPanelComponent({
   const { 
     quickAccessSymbols: scoutSymbols, 
     getOpportunityBySymbol,
-    removeFromQuickAccess: removeFromScout,
   } = useScoutStore();
 
   // Use scout store symbols if available, otherwise fall back to local storage
