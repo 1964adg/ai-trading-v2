@@ -41,7 +41,6 @@ function QuickAccessPanelComponent({
   const { 
     quickAccessSymbols: scoutSymbols, 
     getOpportunityBySymbol,
-    removeFromQuickAccess: removeFromScout,
   } = useScoutStore();
 
   // Use scout store symbols if available, otherwise fall back to local storage
@@ -103,21 +102,6 @@ function QuickAccessPanelComponent({
   const closePresetManager = useCallback(() => {
     setShowPresetManager(false);
   }, []);
-
-  // Update quick symbols from preset manager
-  const handlePresetUpdate = useCallback(
-    (newSymbols: string[]) => {
-      setQuickSymbols(newSymbols);
-      
-      // Sync with scout store - remove symbols that are no longer in the list
-      scoutSymbols.forEach(symbol => {
-        if (!newSymbols.includes(symbol)) {
-          removeFromScout(symbol);
-        }
-      });
-    },
-    [setQuickSymbols, scoutSymbols, removeFromScout]
-  );
 
   // Get opportunity for hovered symbol
   const hoveredOpportunity = hoveredSymbol ? getOpportunityBySymbol(hoveredSymbol) : null;
@@ -192,8 +176,6 @@ function QuickAccessPanelComponent({
       {/* Preset Manager Modal */}
       {showPresetManager && (
         <PresetManager
-          quickSymbols={symbols}
-          onUpdate={handlePresetUpdate}
           onClose={closePresetManager}
         />
       )}

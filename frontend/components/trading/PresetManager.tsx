@@ -4,21 +4,21 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { fetchSymbolsWithTickers } from '@/lib/binance-api';
 import { SymbolData } from '@/types/binance';
 import { DEFAULT_QUICK_SYMBOLS } from './QuickAccessPanel';
+import { useScoutStore } from '@/stores/scoutStore';
+import { toast } from 'sonner';
 
 interface PresetManagerProps {
-  quickSymbols: string[];
-  onUpdate: (symbols: string[]) => void;
   onClose: () => void;
 }
 
 const MAX_QUICK_SYMBOLS = 15;
 
 function PresetManagerComponent({
-  quickSymbols,
-  onUpdate,
   onClose,
 }: PresetManagerProps) {
-  const [selectedSymbols, setSelectedSymbols] = useState<string[]>(quickSymbols);
+  // Get store functions and state
+  const { quickAccessSymbols, addToQuickAccess, removeFromQuickAccess } = useScoutStore();
+  
   const [availableSymbols, setAvailableSymbols] = useState<SymbolData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -94,49 +94,52 @@ function PresetManagerComponent({
     );
   });
 
-  // Add symbol to selected
+  // Add symbol to quick access with toast notifications
   const addSymbol = useCallback((symbol: string) => {
-    if (selectedSymbols.length >= MAX_QUICK_SYMBOLS) return;
-    if (selectedSymbols.includes(symbol)) return;
+    // Check limit
+    if (quickAccessSymbols.length >= MAX_QUICK_SYMBOLS) {
+      toast.error('Quick Access limit reached (max 15 symbols)');
+      return;
+    }
     
-    setSelectedSymbols((prev) => [...prev, symbol]);
-  }, [selectedSymbols]);
+    // Check if already exists
+    if (quickAccessSymbols.includes(symbol)) {
+      toast.info(`${symbol} already in Quick Access`);
+      return;
+    }
+    
+    // Add to store
+    const success = addToQuickAccess(symbol);
+    if (success) {
+      toast.success(`${symbol} added to Quick Access ✓`);
+    }
+  }, [quickAccessSymbols, addToQuickAccess]);
 
-  // Remove symbol from selected
-  const removeSymbol = useCallback((index: number) => {
-    setSelectedSymbols((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+  // Remove symbol from quick access with toast notification
+  const removeSymbol = useCallback((symbol: string) => {
+    removeFromQuickAccess(symbol);
+    toast.success(`${symbol} removed from Quick Access`);
+  }, [removeFromQuickAccess]);
 
-  // Move symbol up in list
-  const moveUp = useCallback((index: number) => {
-    if (index === 0) return;
-    setSelectedSymbols((prev) => {
-      const newList = [...prev];
-      [newList[index - 1], newList[index]] = [newList[index], newList[index - 1]];
-      return newList;
-    });
-  }, []);
-
-  // Move symbol down in list
-  const moveDown = useCallback((index: number) => {
-    setSelectedSymbols((prev) => {
-      if (index >= prev.length - 1) return prev;
-      const newList = [...prev];
-      [newList[index], newList[index + 1]] = [newList[index + 1], newList[index]];
-      return newList;
-    });
-  }, []);
-
-  // Reset to default
+  // Reset to default symbols
   const resetToDefault = useCallback(() => {
-    setSelectedSymbols([...DEFAULT_QUICK_SYMBOLS]);
-  }, []);
+    // Clear all existing symbols
+    quickAccessSymbols.forEach(symbol => {
+      removeFromQuickAccess(symbol);
+    });
+    
+    // Add default symbols
+    DEFAULT_QUICK_SYMBOLS.forEach(symbol => {
+      addToQuickAccess(symbol);
+    });
+    
+    toast.success('Reset to default symbols');
+  }, [quickAccessSymbols, removeFromQuickAccess, addToQuickAccess]);
 
-  // Save changes
-  const handleSave = useCallback(() => {
-    onUpdate(selectedSymbols);
+  // Close modal - no need to save, store auto-persists
+  const handleModalClose = useCallback(() => {
     onClose();
-  }, [selectedSymbols, onUpdate, onClose]);
+  }, [onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" data-modal-open="true">
@@ -151,7 +154,7 @@ function PresetManagerComponent({
               Configure Quick Access Buttons
             </h3>
             <button
-              onClick={onClose}
+              onClick={handleModalClose}
               className="text-gray-400 hover:text-white transition-colors text-xl"
             >
               ✕
@@ -167,18 +170,18 @@ function PresetManagerComponent({
           {/* Selected Symbols */}
           <div className="flex flex-col">
             <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-              <span>Selected</span>
+              <span>Current Symbols</span>
               <span className="text-gray-500">
-                ({selectedSymbols.length}/{MAX_QUICK_SYMBOLS})
+                ({quickAccessSymbols.length}/{MAX_QUICK_SYMBOLS})
               </span>
             </h4>
             <div className="flex-1 overflow-y-auto bg-gray-800/50 rounded-lg p-2 space-y-1">
-              {selectedSymbols.length === 0 ? (
+              {quickAccessSymbols.length === 0 ? (
                 <div className="text-gray-500 text-sm text-center py-4">
                   No symbols selected
                 </div>
               ) : (
-                selectedSymbols.map((symbol, index) => (
+                quickAccessSymbols.map((symbol, index) => (
                   <div
                     key={symbol}
                     className="flex items-center justify-between bg-gray-800 rounded-lg p-2"
@@ -194,24 +197,8 @@ function PresetManagerComponent({
                     </div>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => moveUp(index)}
-                        disabled={index === 0}
-                        className="p-1 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        title="Move up"
-                      >
-                        ▲
-                      </button>
-                      <button
-                        onClick={() => moveDown(index)}
-                        disabled={index === selectedSymbols.length - 1}
-                        className="p-1 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        title="Move down"
-                      >
-                        ▼
-                      </button>
-                      <button
-                        onClick={() => removeSymbol(index)}
-                        className="p-1 text-red-400 hover:text-red-300 transition-colors ml-1"
+                        onClick={() => removeSymbol(symbol)}
+                        className="p-1 text-red-400 hover:text-red-300 transition-colors"
                         title="Remove"
                       >
                         ✕
@@ -226,7 +213,7 @@ function PresetManagerComponent({
           {/* Available Symbols */}
           <div className="flex flex-col">
             <h4 className="text-sm font-medium text-gray-300 mb-2">
-              Available Symbols
+              Add Symbol
             </h4>
             <div className="relative mb-2">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -256,8 +243,8 @@ function PresetManagerComponent({
                 </div>
               ) : (
                 filteredSymbols.slice(0, 50).map((symbolData) => {
-                  const isSelected = selectedSymbols.includes(symbolData.symbol);
-                  const isDisabled = isSelected || selectedSymbols.length >= MAX_QUICK_SYMBOLS;
+                  const isSelected = quickAccessSymbols.includes(symbolData.symbol);
+                  const isDisabled = isSelected || quickAccessSymbols.length >= MAX_QUICK_SYMBOLS;
 
                   return (
                     <button
@@ -319,18 +306,13 @@ function PresetManagerComponent({
           >
             Reset to Default
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500">Changes saved automatically</span>
             <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
+              onClick={handleModalClose}
               className="px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 rounded-lg transition-colors"
             >
-              Save Changes
+              Close
             </button>
           </div>
         </div>
