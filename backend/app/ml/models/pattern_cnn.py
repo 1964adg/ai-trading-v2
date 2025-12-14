@@ -40,7 +40,10 @@ class PatternCNN(BaseMLModel, nn.Module if TORCH_AVAILABLE else object):
     - harami, piercing_line, dark_cloud_cover
     - tweezer_top, tweezer_bottom, marubozu
     
-    Note: Requires PyTorch to be installed.
+    Note: Requires PyTorch to be installed. Conditional inheritance ensures
+    the class can be imported without PyTorch, but will raise ImportError
+    when instantiated. This allows the module to be loaded without crashing
+    the entire application when PyTorch is not available.
     """
     
     PATTERN_NAMES = [
@@ -110,15 +113,17 @@ class PatternCNN(BaseMLModel, nn.Module if TORCH_AVAILABLE else object):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.to(self.device)
     
-    def forward(self, x: Any) -> Any:
+    def forward(self, x: "Any") -> "Any":
         """
         Forward pass through the network.
         
         Args:
             x: Input tensor of shape (batch, sequence_length, 5)
+                Type: torch.Tensor when PyTorch is available
         
         Returns:
             Output tensor of shape (batch, num_patterns) with pattern probabilities
+            Type: torch.Tensor when PyTorch is available
         """
         # Transpose to (batch, channels, sequence)
         x = x.transpose(1, 2)

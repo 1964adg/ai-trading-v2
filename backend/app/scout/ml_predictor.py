@@ -9,6 +9,8 @@ import logging
 from pathlib import Path
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
+
 # Optional PyTorch import for advanced ML features
 TORCH_AVAILABLE = False
 torch = None
@@ -16,13 +18,11 @@ torch = None
 try:
     import torch
     TORCH_AVAILABLE = True
-    print("✅ PyTorch available - CNN pattern detection enabled")
+    logger.info("✅ PyTorch available - CNN pattern detection enabled")
 except ImportError:
-    print("⚠️  PyTorch not installed - CNN pattern detection disabled")
-    print("   Install with: pip install torch")
-    print("   Scout will use technical indicators only")
-
-logger = logging.getLogger(__name__)
+    logger.warning("⚠️  PyTorch not installed - CNN pattern detection disabled")
+    logger.info("   Install with: pip install torch")
+    logger.info("   Scout will use technical indicators only")
 
 
 class MLPredictor:
