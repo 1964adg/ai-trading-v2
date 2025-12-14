@@ -189,8 +189,7 @@ export default function ScoutPage() {
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-800 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent" 
-            style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', color: 'transparent' }}>
+        <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
           🔍 Crypto Scout Dashboard
         </h1>
 
@@ -321,9 +320,9 @@ export default function ScoutPage() {
             </div>
           ) : opportunities.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {opportunities.map((opp, index) => (
+              {opportunities.map((opp) => (
                 <div
-                  key={index}
+                  key={`${opp.symbol}-${opp.timestamp}`}
                   className={`bg-white rounded-2xl shadow-2xl p-6 hover:shadow-3xl hover:scale-105 transition border-2 ${getSignalBorderColor(opp.signal)}`}
                 >
                   {/* Header */}
