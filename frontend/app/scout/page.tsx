@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -118,7 +118,7 @@ export default function ScoutPage() {
   };
 
   // Fetch all data
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -144,19 +144,19 @@ export default function ScoutPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [minScore]);
 
   // Initial fetch and auto-refresh
   useEffect(() => {
     fetchData();
-  }, [minScore]);
+  }, [fetchData]);
 
   useEffect(() => {
     if (autoRefresh) {
       const interval = setInterval(fetchData, 60000); // 60 seconds
       return () => clearInterval(interval);
     }
-  }, [autoRefresh, minScore]);
+  }, [autoRefresh, fetchData]);
 
   const startScout = async () => {
     try {
