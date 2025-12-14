@@ -66,6 +66,12 @@ function QuickAccessPanelComponent({
 
   // Handle mouse enter with delay
   const handleMouseEnter = useCallback((symbol: string) => {
+    // Clear any existing timeout before setting a new one
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    
     setHoveredSymbol(symbol);
     hoverTimeoutRef.current = setTimeout(() => {
       setShowPopup(true);
@@ -76,6 +82,7 @@ function QuickAccessPanelComponent({
   const handleMouseLeave = useCallback(() => {
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
     }
     setShowPopup(false);
     setHoveredSymbol(null);

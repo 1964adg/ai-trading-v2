@@ -58,7 +58,7 @@ export default function OpportunityPopup({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [onClose]);
+  }, [onClose, popupRef]);
 
   return (
     <div
