@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { ChartDataPoint } from '@/lib/types';
 import { toUnixTimestamp, isValidUnixTimestamp } from '@/lib/formatters';
+import { syncManager, SyncEvent } from '@/lib/syncManager';
 
 interface OrderbookLevel {
   price: number;
@@ -66,6 +67,10 @@ export const useMarketStore = create<MarketState>((set, get) => ({
       asks: [],
       lastUpdateTime: 0,
     });
+    // Broadcast symbol change to other windows after state update
+    if (typeof window !== 'undefined') {
+      syncManager.broadcast(SyncEvent.SYMBOL_CHANGE, symbol);
+    }
   },
 
   updatePrice: (price: number) => {

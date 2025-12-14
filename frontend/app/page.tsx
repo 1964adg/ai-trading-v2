@@ -2,147 +2,65 @@
 
 import TradingModeSelector from '@/components/trading/TradingModeSelector';
 import RealBalancePanel from '@/components/trading/RealBalancePanel';
-import RealPositionsPanel from '@/components/trading/RealPositionsPanel';
-import RiskControlsPanel from '@/components/trading/RiskControlsPanel';
-import EnhancedOrderPanel from '@/components/orders/EnhancedOrderPanel';
-import OrderMonitoringPanel from '@/components/orders/OrderMonitoringPanel';
 import { useRealTrading } from '@/hooks/useRealTrading';
-import { useTradingModeStore } from '@/stores/tradingModeStore';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import TradingChart from '@/components/TradingChart';
 import TimeframeSelector from '@/components/TimeframeSelector';
 import PriceHeader from '@/components/PriceHeader';
 import RealtimeStatus from '@/components/RealtimeStatus';
-import PnLTracker from '@/components/trading/PnLTracker';
-import SymbolSelector from '@/components/trading/SymbolSelector';
 import QuickAccessPanel from '@/components/trading/QuickAccessPanel';
 import LiveOrderbook from '@/components/trading/LiveOrderbook';
 import QuickTradePanel from '@/components/trading/QuickTradePanel';
-import SessionStats from '@/components/trading/SessionStats';
-import TrailingStopPanel from '@/components/trading/TrailingStopPanel';
-import PositionSizeCalculator from '@/components/trading/PositionSizeCalculator';
-import RiskRewardDisplay from '@/components/trading/RiskRewardDisplay';
-import MultiPositionManager from '@/components/trading/MultiPositionManager';
-import VWAPControls from '@/components/indicators/VWAPControls';
-import VolumeProfileControls from '@/components/indicators/VolumeProfileControls';
-import OrderFlowPanel from '@/components/indicators/OrderFlowPanel';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useRealtimeWebSocket } from '@/hooks/useRealtimeWebSocket';
 import { useOrderbook } from '@/hooks/useOrderbook';
 import { useSymbolTicker } from '@/hooks/useSymbolData';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { useTrailingStop } from '@/hooks/useTrailingStop';
-import { usePositionSizing } from '@/hooks/usePositionSizing';
 import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
 import { Timeframe, ChartDataPoint } from '@/lib/types';
 import { toUnixTimestamp, isValidUnixTimestamp } from '@/lib/formatters';
 import { useTradingStore } from '@/stores/tradingStore';
 import { Position } from '@/stores/tradingStore';
-import { usePositionStore } from '@/stores/positionStore';
-import { useTradingConfigStore } from '@/stores/tradingConfigStore';
 import { useMarketStore } from '@/stores/marketStore';
-import { PatternDetector } from '@/components/PatternDetector';
-import { PatternDashboard } from '@/components/PatternDashboard';
-import PatternSelector from '@/components/trading/PatternSelector';
-import CustomPatternBuilder from '@/components/trading/CustomPatternBuilder';
-import { usePatternRecognition } from '@/hooks/usePatternRecognition';
-import { useOrderFlow } from '@/hooks/useOrderFlow';
-import { CandleData, PatternType, ESSENTIAL_CANDLESTICK_PATTERNS } from '@/types/patterns';
+import { syncManager, SyncEvent } from '@/lib/syncManager';
 
 const DEFAULT_SYMBOL = 'BTCUSDT';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
-
-// EMA Color indicators
-const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
 
 export default function Dashboard() {
   const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [isSymbolSelectorOpen, setIsSymbolSelectorOpen] = useState(false);
-  const [showEnhancedOrders, setShowEnhancedOrders] = useState(false);
   
   // Store viewport range for preservation on timeframe change
   const viewportRangeRef = useRef<{ from: number; to: number } | null>(null);
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
 
   // Real Trading Integration
-  const { currentMode } = useTradingModeStore();
   useRealTrading({ enabled: true, refreshInterval: 5000 });
 
   // Use Zustand store for trading state
   const {
     emaPeriods,
     emaEnabled,
-    setEmaPeriods,
-    setEmaEnabled,
-    openPositions,
-    totalPnL,
-    totalRealizedPnL,
     addPosition,
-    removePosition,
-    vwapConfig,
-    volumeProfileConfig,
-    setVwapConfig,
-    setVolumeProfileConfig,
-    orderFlowConfig,
-    setOrderFlowConfig,
-    enhancedOrders,
   } = useTradingStore();
 
-  // Market store for price updates
-  const { updatePrice } = useMarketStore();
+  // Market store for price updates and sync
+  const { setSymbol: setGlobalSymbol, updatePrice } = useMarketStore();
 
-  // Pattern Recognition Integration
-  const {
-    detectedPatterns,
-    detectPatterns,
-    patternStats,
-    overallPerformance,
-    isDetecting,
-    settings,
-    updateSettings,
-  } = usePatternRecognition({
-    enableRealTime: true,
-    initialSettings: {
-      minConfidence: 60,
-      sensitivity: 'MEDIUM',
-    },
-  });
-
-  // Order Flow Integration
-  const {
-    flowData,
-    currentDelta,
-    imbalance,
-    alerts: orderFlowAlerts,
-  } = useOrderFlow({
-    enabled: orderFlowConfig.enabled,
-    config: orderFlowConfig,
-    symbol,
-  });
-
-  // Pattern selector handlers
-  const handlePatternToggle = useCallback((patternType: PatternType, enabled: boolean) => {
-    const newEnabledPatterns = enabled
-      ? [...settings.enabledPatterns, patternType]
-      : settings.enabledPatterns.filter(p => p !== patternType);
-    updateSettings({ enabledPatterns: newEnabledPatterns });
-  }, [settings.enabledPatterns, updateSettings]);
-
-  const handleConfidenceChange = useCallback((confidence: number) => {
-    updateSettings({ minConfidence: confidence });
-  }, [updateSettings]);
-
-  const handleEnableAllPatterns = useCallback((enabled: boolean) => {
-    if (enabled) {
-      const allPatternTypes = ESSENTIAL_CANDLESTICK_PATTERNS.map(p => p.type);
-      updateSettings({ enabledPatterns: allPatternTypes });
-    } else {
-      updateSettings({ enabledPatterns: [] });
-    }
-  }, [updateSettings]);
+  // Listen for symbol changes from other windows
+  useEffect(() => {
+    const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (data: unknown) => {
+      const newSymbol = data as string;
+      if (newSymbol !== symbol) {
+        setSymbol(newSymbol);
+        setChartData([]);
+        viewportRangeRef.current = null;
+      }
+    });
+    return unsubscribe;
+  }, [symbol]);
 
   // Fetch 24h ticker data for price color indicator
   const { priceChangePercent24h } = useSymbolTicker(symbol, 10000);
@@ -153,12 +71,6 @@ export default function Dashboard() {
     enabled: true,
     maxLevels: 20,
   });
-
-  // Position store for session tracking
-  const { sessionStats } = usePositionStore();
-
-  // Trading config store for SL/TP/Trailing
-  const { stopLoss, trailingStop } = useTradingConfigStore();
 
   // Real-time WebSocket for positions, portfolio, and market updates
   const handleMarketUpdate = useCallback((data: { symbol: string; price: number }) => {
@@ -202,19 +114,6 @@ export default function Dashboard() {
       };
     }
   }, [symbol, isRealtimeConnected, subscribeTicker, unsubscribeTicker]);
-
-  // Keyboard shortcut: Ctrl+K to open symbol selector
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setIsSymbolSelectorOpen(true);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   // WebSocket real-time updates
   const handleWebSocketMessage = useCallback((data: unknown) => {
@@ -308,46 +207,6 @@ export default function Dashboard() {
     }
   }, [data]);
 
-  // Convert ChartDataPoint to CandleData for pattern detection
-  const convertToCandles = useCallback((chartPoints: ChartDataPoint[]): CandleData[] => {
-    return chartPoints.map(point => {
-      // Chart uses Unix seconds as Time, so keep timestamp consistent
-      let timestamp: number;
-      if (typeof point.time === 'number') {
-        // Chart time is in seconds, use it directly
-        timestamp = point.time;
-      } else if (typeof point.time === 'string') {
-        // Parse string date to seconds
-        timestamp = Math.floor(Date.parse(point.time) / 1000);
-      } else {
-        // Fallback to current time in seconds
-        timestamp = Math.floor(Date.now() / 1000);
-      }
-      
-      return {
-        time: point.time,
-        timestamp,
-        open: point.open,
-        high: point.high,
-        low: point.low,
-        close: point.close,
-        volume: point.volume,
-      };
-    });
-  }, []);
-
-  // Run pattern detection when chart data updates
-  useEffect(() => {
-    if (chartData.length > 0) {
-      const candles = convertToCandles(chartData);
-      // Process full chart data for better distribution across timeline
-      // Performance note: Detection is fast (<50ms requirement), so we can process all candles
-      if (candles.length >= 2) {
-        detectPatterns(candles);
-      }
-    }
-  }, [chartData, convertToCandles, detectPatterns]);
-
   // Handle timeframe change with viewport preservation
   const handleTimeframeChange = useCallback((newTimeframe: Timeframe) => {
     previousTimeframeRef.current = timeframe;
@@ -359,58 +218,29 @@ export default function Dashboard() {
   // Handle symbol change
   const handleSymbolChange = useCallback((newSymbol: string) => {
     setSymbol(newSymbol);
+    setGlobalSymbol(newSymbol);
+    // MarketStore will handle broadcasting
     // Clear chart data to trigger fresh load
     setChartData([]);
     viewportRangeRef.current = null;
-  }, []);
+  }, [setGlobalSymbol]);
 
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
 
-  // Update market store with current price for keyboard shortcuts
+  // Update market store with current price
   useEffect(() => {
     if (currentPrice > 0) {
       updatePrice(currentPrice);
     }
   }, [currentPrice, updatePrice]);
 
-  // Calculate position sizing (depends on currentPrice)
-  const positionSizing = usePositionSizing({
-    entryPrice: currentPrice,
-    stopLossPercent: stopLoss.customValue || stopLoss.value,
-  });
-
-  // Trailing stop management - handles automatic position closing
-  useTrailingStop({
-    currentPrice,
-    enabled: true,
-    onPositionClose: (positionId, reason) => {
-      console.log(`Position ${positionId} closed due to ${reason}`);
-    },
-  });
-
-  // Create a map of current prices for all symbols
-  const currentPrices = { [symbol]: currentPrice };
-
-  // Handle limit price from orderbook click - used for future limit order functionality
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleOrderbookPriceClick = useCallback((price: number) => {
-    // Price can be used to auto-fill limit order panel in future enhancement
+  // Handle limit price from orderbook click
+  const handleOrderbookPriceClick = useCallback(() => {
+    // Price can be used to auto-fill limit order panel in future
   }, []);
 
-  // Close all positions handler
-  const handleCloseAll = useCallback(() => {
-    openPositions.forEach((pos) => removePosition(pos.id));
-  }, [openPositions, removePosition]);
-
-  // Keyboard shortcuts for trading
-  useKeyboardShortcuts({
-    enabled: true,
-    onCloseAll: handleCloseAll,
-  });
-
-  // Demo order handlers with full stop loss, take profit, and trailing stop support
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleBuy = useCallback((quantity: number, price: number, stopLoss?: number, takeProfit?: number) => {
+  // Demo order handlers
+  const handleBuy = useCallback((quantity: number, price: number) => {
     const position: Position = {
       id: `pos_${Date.now()}`,
       symbol,
@@ -421,21 +251,11 @@ export default function Dashboard() {
       unrealizedPnL: 0,
       realizedPnL: 0,
       openTime: Date.now(),
-      stopLoss,
-      takeProfit,
-      trailingStop: trailingStop.enabled ? {
-        enabled: true,
-        percentage: trailingStop.percentage,
-        triggerDistance: trailingStop.triggerDistance,
-        peakPrice: price,
-        isActivated: false,
-      } : undefined,
     };
     addPosition(position);
-  }, [addPosition, symbol, trailingStop]);
+  }, [addPosition, symbol]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleSell = useCallback((quantity: number, price: number, stopLoss?: number, takeProfit?: number) => {
+  const handleSell = useCallback((quantity: number, price: number) => {
     const position: Position = {
       id: `pos_${Date.now()}`,
       symbol,
@@ -446,18 +266,9 @@ export default function Dashboard() {
       unrealizedPnL: 0,
       realizedPnL: 0,
       openTime: Date.now(),
-      stopLoss,
-      takeProfit,
-      trailingStop: trailingStop.enabled ? {
-        enabled: true,
-        percentage: trailingStop.percentage,
-        triggerDistance: trailingStop.triggerDistance,
-        peakPrice: price,
-        isActivated: false,
-      } : undefined,
     };
     addPosition(position);
-  }, [addPosition, symbol, trailingStop]);
+  }, [addPosition, symbol]);
 
   if (error) {
     return (
@@ -484,14 +295,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-black p-4">
-      {/* Symbol Selector Modal */}
-      <SymbolSelector
-        isOpen={isSymbolSelectorOpen}
-        onClose={() => setIsSymbolSelectorOpen(false)}
-        onSymbolSelect={handleSymbolChange}
-        currentSymbol={symbol}
-      />
-
       {/* Header */}
       <div className="max-w-full mx-auto mb-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -499,202 +302,50 @@ export default function Dashboard() {
             symbol={symbol}
             price={currentPrice}
             priceChangePercent={priceChangePercent24h}
-            onSymbolClick={() => setIsSymbolSelectorOpen(true)}
+            onSymbolClick={() => {}}
           />
-          <RealtimeStatus 
-            isKlinesConnected={isConnected} 
-            isRealtimeConnected={isRealtimeConnected}
-            lastUpdate={lastUpdate}
-          />
+          <div className="flex items-center gap-4">
+            <TimeframeSelector
+              selected={timeframe}
+              onSelect={handleTimeframeChange}
+            />
+            <TradingModeSelector />
+            <RealBalancePanel />
+            <RealtimeStatus
+              isKlinesConnected={isConnected}
+              isRealtimeConnected={isRealtimeConnected}
+              lastUpdate={lastUpdate}
+            />
+          </div>
         </div>
-        
-        {/* Real Trading Controls - NEW */}
-        <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <TradingModeSelector />
-          <RealBalancePanel />
-        </div>
-        
-        {/* Quick Access Panel */}
-        <div className="mt-3">
+      </div>
+
+      {/* Main Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Quick Access Panel - 2 columns */}
+        <div className="lg:col-span-2">
           <QuickAccessPanel
             currentSymbol={symbol}
             onSymbolChange={handleSymbolChange}
           />
         </div>
-        
-        {/* Backtesting Link */}
-        <div className="mt-3">
-          <a
-            href="/backtest"
-            className="block w-full p-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-lg transition-all shadow-lg"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">📊</span>
-                <div>
-                  <div className="text-white font-bold text-lg">Professional Backtesting Engine</div>
-                  <div className="text-blue-100 text-sm">
-                    Strategy development • Optimization • Monte Carlo • 50+ metrics
-                  </div>
-                </div>
-              </div>
-              <div className="text-white text-2xl">→</div>
-            </div>
-          </a>
-        </div>
-      </div>
 
-      {/* Main Grid Layout: Chart + Orderbook + Trading Sidebar */}
-      <div className="max-w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Main Chart Area - 7 columns on large screens */}
-        <div className="lg:col-span-7 space-y-4">
-          <TimeframeSelector selected={timeframe} onSelect={handleTimeframeChange} />
-
-          {/* EMA Controls - Compact */}
-          <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
-            <div className="flex items-center gap-4 flex-wrap">
-              <span className="text-sm font-medium text-gray-400">EMA:</span>
-              {emaPeriods.map((period, index) => (
-                <label
-                  key={index}
-                  className="flex items-center gap-2 text-sm cursor-pointer"
-                  style={{ color: emaEnabled[index] ? EMA_COLORS[index] : '#6b7280' }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={emaEnabled[index]}
-                    onChange={(e) => {
-                      const newEnabled = [...emaEnabled] as [boolean, boolean, boolean, boolean];
-                      newEnabled[index] = e.target.checked;
-                      setEmaEnabled(newEnabled);
-                    }}
-                    className="w-4 h-4 rounded"
-                    style={{ accentColor: EMA_COLORS[index] }}
-                  />
-                  <input
-                    type="number"
-                    value={period}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 9;
-                      const newPeriods = [...emaPeriods] as [number, number, number, number];
-                      newPeriods[index] = Math.max(1, Math.min(500, value));
-                      setEmaPeriods(newPeriods);
-                    }}
-                    min="1"
-                    max="500"
-                    disabled={!emaEnabled[index]}
-                    className="w-16 px-2 py-1 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none disabled:opacity-50 text-sm font-mono"
-                  />
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* VWAP & Volume Profile Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <VWAPControls
-              config={vwapConfig}
-              onChange={setVwapConfig}
-            />
-            <VolumeProfileControls
-              config={volumeProfileConfig}
-              onChange={setVolumeProfileConfig}
-            />
-          </div>
-
-          {/* Order Flow Controls */}
-          <OrderFlowPanel
-            config={orderFlowConfig}
-            onConfigChange={setOrderFlowConfig}
-            currentDelta={currentDelta}
-            cumulativeDelta={flowData?.cumulativeDelta}
-            imbalance={imbalance}
-            tickSpeed={flowData?.tickSpeed}
-            aggression={flowData?.aggression}
-            alertCount={orderFlowAlerts.length}
-          />
-
-          {/* Enhanced Orders Section - NEW */}
-          <div className="space-y-4">
-            {/* Toggle Button */}
-            <button
-              onClick={() => setShowEnhancedOrders(!showEnhancedOrders)}
-              className="w-full p-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-lg transition-all shadow-lg flex items-center justify-between group"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">⚡</span>
-                <div className="text-left">
-                  <div className="text-white font-bold text-lg">Enhanced Orders</div>
-                  <div className="text-blue-100 text-sm">
-                    Professional order types • Iceberg • OCO • Bracket • TWAP
-                  </div>
-                </div>
-              </div>
-              <div className="text-white text-xl group-hover:scale-110 transition-transform">
-                {showEnhancedOrders ? '▼' : '▶'}
-              </div>
-            </button>
-
-            {/* Enhanced Orders Panel */}
-            {showEnhancedOrders && (
-              <EnhancedOrderPanel
-                symbol={symbol}
-                currentPrice={currentPrice}
-                onClose={() => setShowEnhancedOrders(false)}
-              />
-            )}
-
-            {/* Order Monitoring */}
-            {enhancedOrders.length > 0 && (
-              <OrderMonitoringPanel orders={enhancedOrders} />
-            )}
-          </div>
-
+        {/* Main Trading Area - 8 columns */}
+        <div className="lg:col-span-8 space-y-4">
           <TradingChart
             data={chartData}
             symbol={symbol}
             emaPeriods={emaPeriods}
             emaEnabled={emaEnabled}
-            vwapConfig={vwapConfig}
-            volumeProfileConfig={volumeProfileConfig}
-            patterns={detectedPatterns}
           />
 
-          {/* Trading Controls Grid - Below Chart */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Quick Trading Panel */}
-            <QuickTradePanel
-              symbol={symbol}
-              currentPrice={currentPrice}
-              onBuy={handleBuy}
-              onSell={handleSell}
-            />
-            
-            {/* Trailing Stop Panel */}
-            <TrailingStopPanel
-              currentPrice={currentPrice}
-              compact={false}
-            />
-
-            {/* Position Size Calculator */}
-            <PositionSizeCalculator
-              currentPrice={currentPrice}
-              symbol={symbol}
-              compact={false}
-            />
-          </div>
-
-          {/* Risk/Reward and Session Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <RiskRewardDisplay
-              entryPrice={currentPrice}
-              positionSize={positionSizing.size}
-              side="long"
-              compact={false}
-            />
-
-            <SessionStats compact={false} />
-          </div>
+          {/* Quick Trading Panel */}
+          <QuickTradePanel
+            symbol={symbol}
+            currentPrice={currentPrice}
+            onBuy={handleBuy}
+            onSell={handleSell}
+          />
 
           {/* Stats Footer */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -730,53 +381,6 @@ export default function Dashboard() {
             symbol={symbol}
             maxLevels={10}
             onPriceClick={handleOrderbookPriceClick}
-          />
-        </div>
-
-        {/* Positions & P&L Sidebar - 3 columns */}
-        <div className="lg:col-span-3 space-y-4">
-          {/* Pattern Recognition Section - NEW */}
-          <PatternDetector
-            patterns={detectedPatterns}
-            isDetecting={isDetecting}
-          />
-          
-          {/* Pattern Selection UI - NEW */}
-          <PatternSelector
-            enabledPatterns={settings.enabledPatterns}
-            onPatternToggle={handlePatternToggle}
-            minConfidence={settings.minConfidence}
-            onConfidenceChange={handleConfidenceChange}
-            patternStats={patternStats}
-            onEnableAll={handleEnableAllPatterns}
-          />
-          
-          {/* Custom Pattern Builder - NEW */}
-          <CustomPatternBuilder />
-          
-          <PatternDashboard
-            patternStats={patternStats}
-            overallPerformance={overallPerformance}
-          />
-          
-          {/* Real Trading Components - Show for all modes */}
-          <RealPositionsPanel />
-          {currentMode !== 'paper' && (
-            <RiskControlsPanel />
-          )}
-          
-          {/* Multi-Position Manager */}
-          <MultiPositionManager
-            currentPrices={currentPrices}
-            compact={false}
-          />
-
-          <PnLTracker
-            unrealizedPnL={totalPnL}
-            realizedPnL={totalRealizedPnL}
-            totalPnL={totalPnL + totalRealizedPnL}
-            winRate={sessionStats.winRate}
-            tradesCount={sessionStats.totalTrades}
           />
         </div>
       </div>
