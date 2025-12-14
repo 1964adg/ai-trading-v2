@@ -3,10 +3,14 @@ FROM python:3.11-slim AS dev
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies for LightGBM and other ML libraries
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+        curl \
+        gcc \
+        g++ \
+        libgomp1 \
+        && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file
 COPY requirements.txt .
