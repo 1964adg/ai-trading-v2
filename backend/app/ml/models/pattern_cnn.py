@@ -1,9 +1,20 @@
 """PyTorch CNN for pattern recognition."""
 
-import torch
-import torch.nn as nn
+# Optional PyTorch import for advanced ML features
+TORCH_AVAILABLE = False
+torch = None
+nn = None
+
+try:
+    import torch
+    import torch.nn as nn
+    TORCH_AVAILABLE = True
+except ImportError:
+    # PyTorch not available - CNN pattern recognition disabled
+    pass
+
 import numpy as np
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, Optional
 import logging
 from pathlib import Path
 
@@ -13,7 +24,7 @@ from app.ml.utils.preprocessing import normalize_ohlcv
 logger = logging.getLogger(__name__)
 
 
-class PatternCNN(BaseMLModel, nn.Module):
+class PatternCNN(BaseMLModel, nn.Module if TORCH_AVAILABLE else object):
     """
     Convolutional Neural Network for candlestick pattern recognition.
     
@@ -24,6 +35,8 @@ class PatternCNN(BaseMLModel, nn.Module):
     - three_white_soldiers, three_black_crows
     - harami, piercing_line, dark_cloud_cover
     - tweezer_top, tweezer_bottom, marubozu
+    
+    Note: Requires PyTorch to be installed.
     """
     
     PATTERN_NAMES = [
@@ -43,6 +56,12 @@ class PatternCNN(BaseMLModel, nn.Module):
             sequence_length: Length of input OHLCV sequences
             num_patterns: Number of patterns to detect
         """
+        if not TORCH_AVAILABLE:
+            raise ImportError(
+                "PyTorch is required for PatternCNN. "
+                "Install with: pip install torch"
+            )
+        
         BaseMLModel.__init__(self, model_name="PatternCNN")
         nn.Module.__init__(self)
         

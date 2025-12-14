@@ -13,6 +13,7 @@ from app.routers.websocket import router as websocket_router
 from config import settings
 from services.realtime_service import realtime_service
 from services.websocket_manager import websocket_manager
+from app.scout.ml_predictor import TORCH_AVAILABLE
 import uvicorn
 from datetime import datetime
 import sys
@@ -35,6 +36,11 @@ TRADING MODE:
   • Paper Trading: ENABLED (simulated trades, real prices)
   • Live Trading:  DISABLED
   • Real-Time:      ENABLED (WebSocket streaming)
+
+ML FEATURES:
+  • Technical Analysis: ENABLED
+  • CNN Patterns:       {cnn_status}
+  • LSTM Prediction:    {lstm_status}
 
 DATA SOURCE:
   • Provider:       Binance Public API + WebSocket
@@ -80,11 +86,17 @@ EXAMPLES:
   Intervals: 1m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w
 ============================================================
     """
+    
+    cnn_status = "ENABLED" if TORCH_AVAILABLE else "DISABLED (install PyTorch)"
+    lstm_status = "ENABLED" if TORCH_AVAILABLE else "DISABLED (install PyTorch)"
+    
     print(banner.format(
         timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         port=settings.PORT,
         cors=', '.join(settings.CORS_ORIGINS),
-        reload='ENABLED'
+        reload='ENABLED',
+        cnn_status=cnn_status,
+        lstm_status=lstm_status
     ))
     
     # Initialize cross-service connections

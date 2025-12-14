@@ -7,8 +7,20 @@ import pandas as pd
 from typing import Optional, Dict, List, Tuple
 import logging
 from pathlib import Path
-import torch
 from datetime import datetime
+
+# Optional PyTorch import for advanced ML features
+TORCH_AVAILABLE = False
+torch = None
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+    print("✅ PyTorch available - CNN pattern detection enabled")
+except ImportError:
+    print("⚠️  PyTorch not installed - CNN pattern detection disabled")
+    print("   Install with: pip install torch")
+    print("   Scout will use technical indicators only")
 
 logger = logging.getLogger(__name__)
 
@@ -17,19 +29,27 @@ class MLPredictor:
     """ML-based price prediction for crypto scout"""
     
     def __init__(self):
+        self.torch_available = TORCH_AVAILABLE
         self.model_path = Path("infrastructure/ml/model_storage")
         self.models_loaded = False
         self.price_predictor = None
         
-        # Try to load models
-        try:
-            self._load_models()
-        except Exception as e:
-            logger.warning(f"ML models not loaded: {e}")
-            logger.info("Scout will work without ML predictions")
+        if not self.torch_available:
+            logger.info("   [MLPredictor] Running in fallback mode (technical indicators only)")
+        
+        # Try to load models (only if PyTorch available)
+        if self.torch_available:
+            try:
+                self._load_models()
+            except Exception as e:
+                logger.warning(f"ML models not loaded: {e}")
+                logger.info("Scout will work without ML predictions")
     
     def _load_models(self):
-        """Load trained ML models"""
+        """Load trained ML models (requires PyTorch)"""
+        if not self.torch_available:
+            return
+        
         try: 
             predictor_path = self.model_path / "price_predictor"
             
