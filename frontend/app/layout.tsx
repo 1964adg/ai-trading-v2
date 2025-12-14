@@ -1,39 +1,25 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import { ShortcutHelp, ShortcutToast, ShortcutConfirmation, ShortcutOverlay } from "@/components/shortcuts";
+import Navigation from "@/components/Navigation";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
+const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: "AI Trading v2 - Scalping Dashboard",
-  description: "Real-time cryptocurrency trading dashboard optimized for scalping",
+export const metadata:  Metadata = {
+  title: "AI Trading v2",
+  description: "Professional AI-Powered Trading Platform",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}:  Readonly<{
   children: React.ReactNode;
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={inter.className}>
+        <Navigation />
         {children}
-        <ShortcutHelp />
-        <ShortcutToast />
-        <ShortcutConfirmation />
-        <ShortcutOverlay />
       </body>
     </html>
   );
