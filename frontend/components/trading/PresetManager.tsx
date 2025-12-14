@@ -306,7 +306,8 @@ function PresetManagerComponent({
           >
             Reset to Default
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500">Changes saved automatically</span>
             <button
               onClick={handleModalClose}
               className="px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 rounded-lg transition-colors"
