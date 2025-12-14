@@ -153,7 +153,6 @@ export const useScoutStore = create<ScoutState>()(
     {
       name: 'scout-storage',
       storage: createJSONStorage(() => localStorage),
-      partialPersist: true,
       // Only persist quickAccessSymbols (opportunities can become stale)
       partialize: (state) => ({
         quickAccessSymbols: state.quickAccessSymbols,

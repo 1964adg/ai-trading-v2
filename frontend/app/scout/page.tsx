@@ -11,61 +11,7 @@ import { toast } from 'sonner';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// TypeScript Interfaces matching backend models
-interface OpportunityScore {
-  total: number;
-  technical: number;
-  volume: number;
-  momentum: number;
-  volatility: number;
-}
-
-interface TechnicalIndicators {
-  rsi?: number;
-  macd?: number;
-  macd_signal?: number;
-  bb_upper?: number;
-  bb_middle?: number;
-  bb_lower?: number;
-  sma_20?: number;
-  sma_50?: number;
-  ema_12?: number;
-  ema_26?: number;
-}
-
-interface Opportunity {
-  symbol: string;
-  price: number;
-  change_1h: number;
-  change_24h: number;
-  volume_24h: number;
-  volume_change: number;
-  score: OpportunityScore;
-  signal: string;
-  indicators: TechnicalIndicators;
-  reason: string;
-  timestamp: string;
-}
-
-interface TopMover {
-  symbol: string;
-  price: number;
-  change_percent: number;
-  volume_24h: number;
-  rank: number;
-}
-
-interface MarketOverview {
-  total_scanned: number;
-  bullish_count: number;
-  bearish_count: number;
-  neutral_count: number;
-  avg_score: number;
-  top_gainers: TopMover[];
-  top_losers: TopMover[];
-  timestamp: string;
-}
-
+// Local interfaces for scout status
 interface ScoutStatus {
   is_running: boolean;
   last_scan?: string;
