@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, memo, useCallback } from 'react';
+import { useState, memo, useCallback, useRef, useEffect } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import PresetManager from './PresetManager';
+import { useScoutStore } from '@/stores/scoutStore';
+import OpportunityPopup from '@/components/scout/OpportunityPopup';
 
 interface QuickAccessPanelProps {
   currentSymbol: string;
@@ -20,6 +22,7 @@ export const DEFAULT_QUICK_SYMBOLS = [
 ];
 
 const STORAGE_KEY = 'quick_access_symbols';
+const HOVER_DELAY = 1500; // 1.5 seconds
 
 function QuickAccessPanelComponent({
   currentSymbol,
@@ -30,6 +33,26 @@ function QuickAccessPanelComponent({
     DEFAULT_QUICK_SYMBOLS
   );
   const [showPresetManager, setShowPresetManager] = useState(false);
+  const [hoveredSymbol, setHoveredSymbol] = useState<string | null>(null);
+  const [showPopup, setShowPopup] = useState(false);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get scout store functions
+  const { 
+    quickAccessSymbols: scoutSymbols, 
+    getOpportunityBySymbol,
+    removeFromQuickAccess: removeFromScout,
+  } = useScoutStore();
+
+  // Use scout store symbols if available, otherwise fall back to local storage
+  const symbols = scoutSymbols.length > 0 ? scoutSymbols : quickSymbols;
+
+  // Update local storage when scout store changes
+  useEffect(() => {
+    if (scoutSymbols.length > 0) {
+      setQuickSymbols(scoutSymbols);
+    }
+  }, [scoutSymbols, setQuickSymbols]);
 
   // Handle symbol button click
   const handleSymbolClick = useCallback(
@@ -40,6 +63,36 @@ function QuickAccessPanelComponent({
     },
     [currentSymbol, onSymbolChange]
   );
+
+  // Handle mouse enter with delay
+  const handleMouseEnter = useCallback((symbol: string) => {
+    // Clear any existing timeout before setting a new one
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    
+    setHoveredSymbol(symbol);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setShowPopup(true);
+    }, HOVER_DELAY);
+  }, []);
+
+  // Handle mouse leave
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setShowPopup(false);
+    setHoveredSymbol(null);
+  }, []);
+
+  // Close popup
+  const handleClosePopup = useCallback(() => {
+    setShowPopup(false);
+    setHoveredSymbol(null);
+  }, []);
 
   // Open preset manager
   const openPresetManager = useCallback(() => {
@@ -55,34 +108,74 @@ function QuickAccessPanelComponent({
   const handlePresetUpdate = useCallback(
     (newSymbols: string[]) => {
       setQuickSymbols(newSymbols);
+      
+      // Sync with scout store - remove symbols that are no longer in the list
+      scoutSymbols.forEach(symbol => {
+        if (!newSymbols.includes(symbol)) {
+          removeFromScout(symbol);
+        }
+      });
     },
-    [setQuickSymbols]
+    [setQuickSymbols, scoutSymbols, removeFromScout]
   );
+
+  // Get opportunity for hovered symbol
+  const hoveredOpportunity = hoveredSymbol ? getOpportunityBySymbol(hoveredSymbol) : null;
 
   return (
     <>
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-gray-400 font-medium mr-1">Quick:</span>
         
-        {quickSymbols.map((symbol) => {
+        {symbols.map((symbol) => {
           const isActive = currentSymbol === symbol;
           const displayName = symbol.replace('USDT', '');
+          const opportunity = getOpportunityBySymbol(symbol);
+          
+          // Determine background color based on opportunity
+          let bgClass = 'bg-gray-800';
+          let hasOpportunity = false;
+          
+          if (opportunity) {
+            hasOpportunity = true;
+            if (opportunity.signal.includes('BUY')) {
+              bgClass = 'bg-gradient-to-r from-green-500 to-green-600';
+            } else if (opportunity.signal.includes('SELL')) {
+              bgClass = 'bg-gradient-to-r from-red-500 to-red-600';
+            }
+          }
           
           return (
-            <button
-              key={symbol}
-              onClick={() => handleSymbolClick(symbol)}
-              className={`
-                px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-150
-                ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
-                }
-              `}
-            >
-              {displayName}
-            </button>
+            <div key={symbol} className="relative">
+              <button
+                onClick={() => handleSymbolClick(symbol)}
+                onMouseEnter={() => hasOpportunity && handleMouseEnter(symbol)}
+                onMouseLeave={handleMouseLeave}
+                className={`
+                  px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-150 relative
+                  ${
+                    isActive
+                      ? 'ring-2 ring-blue-400 text-white shadow-lg'
+                      : hasOpportunity
+                      ? 'text-white shadow-lg shadow-opacity-25'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  }
+                  ${bgClass}
+                `}
+              >
+                {displayName}
+                {hasOpportunity && <span className="ml-1">🔥</span>}
+              </button>
+              
+              {/* Show popup if this symbol is hovered and has opportunity */}
+              {showPopup && hoveredSymbol === symbol && hoveredOpportunity && (
+                <OpportunityPopup
+                  opportunity={hoveredOpportunity}
+                  onClose={handleClosePopup}
+                  position="left"
+                />
+              )}
+            </div>
           );
         })}
 
@@ -99,7 +192,7 @@ function QuickAccessPanelComponent({
       {/* Preset Manager Modal */}
       {showPresetManager && (
         <PresetManager
-          quickSymbols={quickSymbols}
+          quickSymbols={symbols}
           onUpdate={handlePresetUpdate}
           onClose={closePresetManager}
         />
