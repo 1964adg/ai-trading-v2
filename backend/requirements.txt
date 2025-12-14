@@ -1,6 +1,6 @@
+# FastAPI & Server
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-python-binance==1.0.19
 pydantic==2.5.0
 pydantic-settings==2.1.0
 websockets==12.0
@@ -9,16 +9,20 @@ websockets==12.0
 httpx==0.25.2
 requests==2.31.0
 python-multipart==0.0.6
+
+# Environment
 python-dotenv==1.0.0
 
-# Machine Learning
-scikit-learn==1.4.0
-xgboost==2.0.3
-lightgbm==4.6.0  # Updated from 4.1.0 - fixes RCE vulnerability
-torch==2.6.0  # Updated from 2.1.0 - fixes heap overflow, use-after-free, and RCE vulnerabilities
-torchvision==0.21.0  # Updated to match torch 2.6.0
+# Binance API
+python-binance==1.0.19
+
+# Data Science
+pandas==2.1.3
+numpy==1.26.2
+
+# Technical Analysis
 ta==0.11.0
-pandas-ta==0.3.14b
-joblib==1.3.2
-numpy>=1.24.0
-pandas>=2.0.0
+
+# ML Base
+scikit-learn==1.3.2
+lightgbm==4.6.0
