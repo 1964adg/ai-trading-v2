@@ -3,7 +3,6 @@
 import TradingModeSelector from '@/components/trading/TradingModeSelector';
 import RealBalancePanel from '@/components/trading/RealBalancePanel';
 import { useRealTrading } from '@/hooks/useRealTrading';
-import { useTradingModeStore } from '@/stores/tradingModeStore';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import TradingChart from '@/components/TradingChart';
@@ -17,14 +16,12 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useRealtimeWebSocket } from '@/hooks/useRealtimeWebSocket';
 import { useOrderbook } from '@/hooks/useOrderbook';
 import { useSymbolTicker } from '@/hooks/useSymbolData';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
 import { Timeframe, ChartDataPoint } from '@/lib/types';
 import { toUnixTimestamp, isValidUnixTimestamp } from '@/lib/formatters';
 import { useTradingStore } from '@/stores/tradingStore';
 import { Position } from '@/stores/tradingStore';
 import { useMarketStore } from '@/stores/marketStore';
-import { CandleData } from '@/types/patterns';
 import { syncManager, SyncEvent } from '@/lib/syncManager';
 
 const DEFAULT_SYMBOL = 'BTCUSDT';
@@ -40,24 +37,22 @@ export default function Dashboard() {
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
 
   // Real Trading Integration
-  const { currentMode } = useTradingModeStore();
   useRealTrading({ enabled: true, refreshInterval: 5000 });
 
   // Use Zustand store for trading state
   const {
     emaPeriods,
     emaEnabled,
-    openPositions,
     addPosition,
-    removePosition,
   } = useTradingStore();
 
   // Market store for price updates and sync
-  const { symbol: globalSymbol, setSymbol: setGlobalSymbol, updatePrice } = useMarketStore();
+  const { setSymbol: setGlobalSymbol, updatePrice } = useMarketStore();
 
   // Listen for symbol changes from other windows
   useEffect(() => {
-    const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (newSymbol: string) => {
+    const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (data: unknown) => {
+      const newSymbol = data as string;
       if (newSymbol !== symbol) {
         setSymbol(newSymbol);
         setChartData([]);
@@ -212,30 +207,6 @@ export default function Dashboard() {
     }
   }, [data]);
 
-  // Convert ChartDataPoint to CandleData for future use
-  const convertToCandles = useCallback((chartPoints: ChartDataPoint[]): CandleData[] => {
-    return chartPoints.map(point => {
-      let timestamp: number;
-      if (typeof point.time === 'number') {
-        timestamp = point.time;
-      } else if (typeof point.time === 'string') {
-        timestamp = Math.floor(Date.parse(point.time) / 1000);
-      } else {
-        timestamp = Math.floor(Date.now() / 1000);
-      }
-      
-      return {
-        time: point.time,
-        timestamp,
-        open: point.open,
-        high: point.high,
-        low: point.low,
-        close: point.close,
-        volume: point.volume,
-      };
-    });
-  }, []);
-
   // Handle timeframe change with viewport preservation
   const handleTimeframeChange = useCallback((newTimeframe: Timeframe) => {
     previousTimeframeRef.current = timeframe;
@@ -265,7 +236,7 @@ export default function Dashboard() {
   }, [currentPrice, updatePrice]);
 
   // Handle limit price from orderbook click
-  const handleOrderbookPriceClick = useCallback((price: number) => {
+  const handleOrderbookPriceClick = useCallback(() => {
     // Price can be used to auto-fill limit order panel in future
   }, []);
 
@@ -336,13 +307,14 @@ export default function Dashboard() {
           />
           <div className="flex items-center gap-4">
             <TimeframeSelector
-              timeframe={timeframe}
-              onChange={handleTimeframeChange}
+              selected={timeframe}
+              onSelect={handleTimeframeChange}
             />
             <TradingModeSelector />
-            <RealBalancePanel compact />
+            <RealBalancePanel />
             <RealtimeStatus
-              isConnected={isConnected}
+              isKlinesConnected={isConnected}
+              isRealtimeConnected={isRealtimeConnected}
               lastUpdate={lastUpdate}
             />
           </div>
@@ -354,8 +326,8 @@ export default function Dashboard() {
         {/* Quick Access Panel - 2 columns */}
         <div className="lg:col-span-2">
           <QuickAccessPanel
-            onSymbolSelect={handleSymbolChange}
             currentSymbol={symbol}
+            onSymbolChange={handleSymbolChange}
           />
         </div>
 

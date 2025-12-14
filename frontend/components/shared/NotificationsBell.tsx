@@ -21,7 +21,8 @@ export default function NotificationsBell() {
 
   // Listen for notifications from other windows
   useEffect(() => {
-    const unsubscribe = syncManager.on(SyncEvent.NOTIFICATION, (notification: Notification) => {
+    const unsubscribe = syncManager.on(SyncEvent.NOTIFICATION, (data: unknown) => {
+      const notification = data as Notification;
       setNotifications(prev => [notification, ...prev].slice(0, 10)); // Keep last 10
     });
 

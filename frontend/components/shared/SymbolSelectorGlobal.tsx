@@ -15,7 +15,8 @@ export default function SymbolSelectorGlobal() {
 
   // Handle symbol changes from other windows
   useEffect(() => {
-    const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (newSymbol: string) => {
+    const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (data: unknown) => {
+      const newSymbol = data as string;
       if (newSymbol !== symbol) {
         setSymbol(newSymbol);
       }

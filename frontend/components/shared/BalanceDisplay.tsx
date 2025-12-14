@@ -10,14 +10,15 @@ import { syncManager, SyncEvent } from '@/lib/syncManager';
  * Shows available balance in the global header
  */
 export default function BalanceDisplay() {
-  const { balance } = useRealBalanceStore();
+  const { availableBalance } = useRealBalanceStore();
   const { currentMode } = useTradingModeStore();
-  const [displayBalance, setDisplayBalance] = useState(balance.available);
+  const [displayBalance, setDisplayBalance] = useState(availableBalance);
 
   // Listen for balance updates from other windows
   useEffect(() => {
-    const unsubscribe = syncManager.on(SyncEvent.BALANCE_UPDATE, (data: { available: number }) => {
-      setDisplayBalance(data.available);
+    const unsubscribe = syncManager.on(SyncEvent.BALANCE_UPDATE, (data: unknown) => {
+      const balanceData = data as { available: number };
+      setDisplayBalance(balanceData.available);
     });
 
     return unsubscribe;
@@ -25,8 +26,8 @@ export default function BalanceDisplay() {
 
   // Update display when local balance changes
   useEffect(() => {
-    setDisplayBalance(balance.available);
-  }, [balance.available]);
+    setDisplayBalance(availableBalance);
+  }, [availableBalance]);
 
   const formatBalance = (value: number) => {
     return value.toLocaleString('en-US', {

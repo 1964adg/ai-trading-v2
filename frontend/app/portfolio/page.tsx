@@ -24,9 +24,8 @@ export default function PortfolioPage() {
   const { totalPnL, totalRealizedPnL } = useTradingStore();
   const { sessionStats } = usePositionStore();
   const { currentMode } = useTradingModeStore();
-  const { positionSizing } = usePositionSizing({
-    symbol,
-    currentPrice,
+  const positionSizing = usePositionSizing({
+    entryPrice: currentPrice,
   });
 
   // Mock current prices for multi-position manager

@@ -85,14 +85,14 @@ export default function OrdersPage() {
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
             <div className="text-gray-400 text-sm mb-2">Active Orders</div>
             <div className="text-white text-3xl font-bold">
-              {enhancedOrders.filter(o => o.status === 'active').length}
+              {enhancedOrders.filter(o => o.status === 'ACTIVE').length}
             </div>
           </div>
           
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
             <div className="text-gray-400 text-sm mb-2">Pending Orders</div>
             <div className="text-white text-3xl font-bold">
-              {enhancedOrders.filter(o => o.status === 'pending').length}
+              {enhancedOrders.filter(o => o.status === 'PENDING').length}
             </div>
           </div>
           

@@ -15,13 +15,13 @@ export enum SyncEvent {
 
 interface SyncMessage {
   type: SyncEvent;
-  data: any;
+  data: unknown;
   timestamp: number;
 }
 
 class SyncManager {
   private channel: BroadcastChannel | null = null;
-  private listeners: Map<string, Set<(data: any) => void>> = new Map();
+  private listeners: Map<string, Set<(data: unknown) => void>> = new Map();
   
   constructor() {
     if (typeof window !== 'undefined') {
@@ -36,7 +36,7 @@ class SyncManager {
   /**
    * Broadcast an event to all windows
    */
-  broadcast(type: SyncEvent, data: any) {
+  broadcast(type: SyncEvent, data: unknown) {
     if (this.channel) {
       const message: SyncMessage = {
         type,
@@ -51,7 +51,7 @@ class SyncManager {
    * Subscribe to a specific event type
    * Returns unsubscribe function
    */
-  on(type: SyncEvent, callback: (data: any) => void): () => void {
+  on(type: SyncEvent, callback: (data: unknown) => void): () => void {
     if (!this.listeners.has(type)) {
       this.listeners.set(type, new Set());
     }

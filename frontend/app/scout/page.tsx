@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useScoutStore, FilterType } from '@/stores/scoutStore';
 import { toast } from 'sonner';
+import { syncManager, SyncEvent } from '@/lib/syncManager';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -182,6 +183,8 @@ export default function ScoutPage() {
     const success = addToQuickAccess(symbol);
     if (success) {
       toast.success(`${symbol} added to Quick Access ✓`);
+      // Broadcast quick access update to other windows
+      syncManager.broadcast(SyncEvent.QUICK_ACCESS_UPDATE, { symbol, action: 'add' });
     } else {
       toast.error('Quick Access limit reached (max 15 symbols)');
     }
