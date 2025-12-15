@@ -120,6 +120,16 @@ function TradingChartComponent({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const dataRef = useRef<ChartDataPoint[]>([]);
   const updateBufferRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Use refs for props to prevent infinite loops
+  const emaPeriodsRef = useRef(emaPeriods);
+  const emaEnabledRef = useRef(emaEnabled);
+  
+  // Update refs when props change
+  useEffect(() => {
+    emaPeriodsRef.current = emaPeriods;
+    emaEnabledRef.current = emaEnabled;
+  }, [emaPeriods, emaEnabled]);
 
   // Calculate session start (for today's trading session)
   const sessionStart = useMemo(() => {
@@ -179,10 +189,10 @@ function TradingChartComponent({
     if (candleData.length === 0) return;
 
     const closePrices = candleData.map(d => d.close);
-    const emaData = calculateMultipleEMA(closePrices, emaPeriods);
+    const emaData = calculateMultipleEMA(closePrices, emaPeriodsRef.current);
 
-    emaPeriods.forEach((period, index) => {
-      if (! emaEnabled[index]) return;
+    emaPeriodsRef.current.forEach((period, index) => {
+      if (!emaEnabledRef.current[index]) return;
 
       const series = emaSeriesMapRef.current.get(period);
       if (!series) return;
@@ -202,16 +212,16 @@ function TradingChartComponent({
         try {
           series.setData(emaValues);
         } catch (error) {
-          console. error('[TradingChart] EMA series setData error:', error);
+          console.error('[TradingChart] EMA series setData error:', error);
         }
       }
     });
-  }, [emaPeriods, emaEnabled]);
+  }, []); // Empty dependencies since we use refs
 
   // Create EMA series - Fixed: key by period for stable mapping
   const createEmaSeries = useCallback(() => {
     const chart = chartRef.current;
-    if (! chart) return;
+    if (!chart) return;
 
     // Remove all existing EMA series
     emaSeriesMapRef.current.forEach((series) => {
@@ -221,11 +231,11 @@ function TradingChartComponent({
         // Series may already be removed
       }
     });
-    emaSeriesMapRef.current. clear();
+    emaSeriesMapRef.current.clear();
 
     // Create new EMA series only for enabled periods
-    emaPeriods.forEach((period, index) => {
-      if (emaEnabled[index]) {
+    emaPeriodsRef.current.forEach((period, index) => {
+      if (emaEnabledRef.current[index]) {
         const emaSeries = chart.addLineSeries({
           color: EMA_COLORS[index],
           lineWidth: 2,
@@ -233,10 +243,10 @@ function TradingChartComponent({
           priceLineVisible: false,
           lastValueVisible: true,
         });
-        emaSeriesMapRef. current.set(period, emaSeries);
+        emaSeriesMapRef.current.set(period, emaSeries);
       }
     });
-  }, [emaPeriods, emaEnabled]);
+  }, []); // Empty dependencies since we use refs
 
   // Initialize chart
   useEffect(() => {

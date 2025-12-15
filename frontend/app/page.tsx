@@ -77,7 +77,7 @@ export default function Dashboard() {
     if (data.symbol === symbol) {
       updatePrice(data.price);
     }
-  }, [symbol, updatePrice]);
+  }, [symbol]); // Removed updatePrice from dependencies - it's a stable Zustand store action
 
   const handlePositionUpdate = useCallback((data: { positions?: unknown[] }) => {
     // Position updates are automatically broadcast
@@ -232,7 +232,8 @@ export default function Dashboard() {
     if (currentPrice > 0) {
       updatePrice(currentPrice);
     }
-  }, [currentPrice, updatePrice]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPrice]); // updatePrice is a stable Zustand store action, safe to omit
 
   // Handle limit price from orderbook click
   const handleOrderbookPriceClick = useCallback(() => {
@@ -335,6 +336,8 @@ export default function Dashboard() {
           <TradingChart
             data={chartData}
             symbol={symbol}
+            timeframe={timeframe}
+            onTimeframeChange={handleTimeframeChange}
             emaPeriods={emaPeriods}
             emaEnabled={emaEnabled}
           />
