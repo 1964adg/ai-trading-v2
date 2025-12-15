@@ -110,21 +110,40 @@ export function useRealTrading(options: UseRealTradingOptions = {}) {
   useEffect(() => {
     if (!enabled) return;
 
-    // Initial fetch (with loading state)
-    isFirstFetchRef.current = true;
-    Promise.all([fetchBalance(), fetchPositions()]).then(() => {
-      // After initial fetch completes, disable loading state for future updates
+    // Create stable function refs
+    const doFetch = async () => {
+      if (isFirstFetchRef.current) {
+        setBalanceLoading(true);
+        setPositionsLoading(true);
+      }
+      
+      try {
+        const balances = await realTradingAPI.getAccountInfo();
+        setBalances(balances);
+      } catch (error) {
+        console.error('Error fetching balance:', error);
+        setBalanceError(error instanceof Error ? error.message : 'Failed to fetch balance');
+      }
+      
+      try {
+        const positions = await realTradingAPI.getPositions();
+        setPositions(positions);
+      } catch (error) {
+        console.error('Error fetching positions:', error);
+        setPositionsError(error instanceof Error ? error.message : 'Failed to fetch positions');
+      }
+      
       isFirstFetchRef.current = false;
-    });
+    };
 
-    // Setup interval for periodic updates (without loading state)
-    const interval = setInterval(() => {
-      fetchBalance();
-      fetchPositions();
-    }, refreshInterval);
+    // Initial fetch
+    doFetch();
+
+    // Setup interval for periodic updates
+    const interval = setInterval(doFetch, refreshInterval);
 
     return () => clearInterval(interval);
-  }, [enabled, refreshInterval, fetchBalance, fetchPositions]);
+  }, [enabled, refreshInterval, setBalances, setBalanceLoading, setBalanceError, setPositions, setPositionsLoading, setPositionsError]);
 
   return {
     // State
