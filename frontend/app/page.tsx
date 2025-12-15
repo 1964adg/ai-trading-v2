@@ -335,6 +335,8 @@ export default function Dashboard() {
           <TradingChart
             data={chartData}
             symbol={symbol}
+            timeframe={timeframe}
+            onTimeframeChange={handleTimeframeChange}
             emaPeriods={emaPeriods}
             emaEnabled={emaEnabled}
           />
