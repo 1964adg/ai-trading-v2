@@ -56,6 +56,7 @@ export default function Dashboard() {
 
   // Memoize arrays to prevent unnecessary re-renders
   // Zustand creates new array references on every state change, even if arrays haven't changed
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const emaPeriods = useMemo(() => storeEmaPeriods, [
     storeEmaPeriods[0],
     storeEmaPeriods[1],
@@ -63,6 +64,7 @@ export default function Dashboard() {
     storeEmaPeriods[3],
   ]);
   
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const emaEnabled = useMemo(() => storeEmaEnabled, [
     storeEmaEnabled[0],
     storeEmaEnabled[1],
@@ -101,6 +103,7 @@ export default function Dashboard() {
     if (data.symbol === symbolRef.current) {
       updatePrice(data.price);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependencies - using symbolRef and updatePrice is stable Zustand action
 
   const handlePositionUpdate = useCallback((data: { positions?: unknown[] }) => {

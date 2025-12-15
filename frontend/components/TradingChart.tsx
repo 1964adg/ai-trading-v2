@@ -137,7 +137,8 @@ function TradingChartComponent({
         updateEmaData(dataRef.current);
       }
     }
-  }, [emaPeriods, emaEnabled]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emaPeriods, emaEnabled]); // createEmaSeries and updateEmaData are stable (empty deps)
 
   // Calculate session start (for today's trading session)
   const sessionStart = useMemo(() => {
