@@ -50,7 +50,8 @@ class BinanceDataCollector:
             
             if not klines:
                 logger.warning(f"No data returned for {symbol}")
-                return None
+                # Return empty DataFrame instead of None
+                return pd.DataFrame()
             
             # Convert to DataFrame
             df = pd.DataFrame(klines, columns=[
@@ -75,4 +76,5 @@ class BinanceDataCollector:
             
         except Exception as e:
             logger.error(f"Error fetching data for {symbol}: {e}")
-            return None
+            # Return empty DataFrame instead of None
+            return pd.DataFrame()
