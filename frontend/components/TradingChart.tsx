@@ -125,10 +125,18 @@ function TradingChartComponent({
   const emaPeriodsRef = useRef(emaPeriods);
   const emaEnabledRef = useRef(emaEnabled);
   
-  // Update refs when props change
+  // Update refs when props change AND recreate EMA series
   useEffect(() => {
     emaPeriodsRef.current = emaPeriods;
     emaEnabledRef.current = emaEnabled;
+    
+    // Recreate EMA series when configuration changes
+    if (chartRef.current) {
+      createEmaSeries();
+      if (dataRef.current.length > 0) {
+        updateEmaData(dataRef.current);
+      }
+    }
   }, [emaPeriods, emaEnabled]);
 
   // Calculate session start (for today's trading session)
@@ -348,15 +356,6 @@ function TradingChartComponent({
       chart.remove();
     };
   }, []);
-
-  // Handle EMA enabled/periods changes - recreate series
-  useEffect(() => {
-    if (!chartRef.current) return;
-    createEmaSeries();
-    if (dataRef.current. length > 0) {
-      updateEmaData(dataRef.current);
-    }
-  }, [emaEnabled, emaPeriods, createEmaSeries, updateEmaData]);
 
   // Handle data updates with viewport preservation and buffering
   // FIXED: More robust error handling and validation

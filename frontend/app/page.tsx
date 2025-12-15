@@ -3,7 +3,7 @@
 import TradingModeSelector from '@/components/trading/TradingModeSelector';
 import RealBalancePanel from '@/components/trading/RealBalancePanel';
 import { useRealTrading } from '@/hooks/useRealTrading';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import useSWR from 'swr';
 import TradingChart from '@/components/TradingChart';
 import TimeframeSelector from '@/components/TimeframeSelector';
@@ -32,19 +32,43 @@ export default function Dashboard() {
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   
-  // Store viewport range for preservation on timeframe change
+  // Use refs to prevent callback recreation
   const viewportRangeRef = useRef<{ from: number; to: number } | null>(null);
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
+  const timeframeRef = useRef<Timeframe>(timeframe);
+  const symbolRef = useRef<string>(symbol);
+  
+  // Keep refs in sync
+  useEffect(() => {
+    timeframeRef.current = timeframe;
+    symbolRef.current = symbol;
+  }, [timeframe, symbol]);
 
   // Real Trading Integration
   useRealTrading({ enabled: true, refreshInterval: 5000 });
 
   // Use Zustand store for trading state
   const {
-    emaPeriods,
-    emaEnabled,
+    emaPeriods: storeEmaPeriods,
+    emaEnabled: storeEmaEnabled,
     addPosition,
   } = useTradingStore();
+
+  // Memoize arrays to prevent unnecessary re-renders
+  // Zustand creates new array references on every state change, even if arrays haven't changed
+  const emaPeriods = useMemo(() => storeEmaPeriods, [
+    storeEmaPeriods[0],
+    storeEmaPeriods[1],
+    storeEmaPeriods[2],
+    storeEmaPeriods[3],
+  ]);
+  
+  const emaEnabled = useMemo(() => storeEmaEnabled, [
+    storeEmaEnabled[0],
+    storeEmaEnabled[1],
+    storeEmaEnabled[2],
+    storeEmaEnabled[3],
+  ]);
 
   // Market store for price updates and sync
   const { setSymbol: setGlobalSymbol, updatePrice } = useMarketStore();
@@ -74,10 +98,10 @@ export default function Dashboard() {
 
   // Real-time WebSocket for positions, portfolio, and market updates
   const handleMarketUpdate = useCallback((data: { symbol: string; price: number }) => {
-    if (data.symbol === symbol) {
+    if (data.symbol === symbolRef.current) {
       updatePrice(data.price);
     }
-  }, [symbol]); // Removed updatePrice from dependencies - it's a stable Zustand store action
+  }, []); // Empty dependencies - using symbolRef and updatePrice is stable Zustand action
 
   const handlePositionUpdate = useCallback((data: { positions?: unknown[] }) => {
     // Position updates are automatically broadcast
@@ -209,11 +233,11 @@ export default function Dashboard() {
 
   // Handle timeframe change with viewport preservation
   const handleTimeframeChange = useCallback((newTimeframe: Timeframe) => {
-    previousTimeframeRef.current = timeframe;
+    previousTimeframeRef.current = timeframeRef.current;
     setTimeframe(newTimeframe);
     // Clear chart data to trigger fresh load
     setChartData([]);
-  }, [timeframe]);
+  }, []); // Empty dependencies - using refs for stable callback
 
   // Handle symbol change
   const handleSymbolChange = useCallback((newSymbol: string) => {
@@ -244,7 +268,7 @@ export default function Dashboard() {
   const handleBuy = useCallback((quantity: number, price: number) => {
     const position: Position = {
       id: `pos_${Date.now()}`,
-      symbol,
+      symbol: symbolRef.current,
       side: 'long',
       entryPrice: price,
       quantity,
@@ -254,12 +278,12 @@ export default function Dashboard() {
       openTime: Date.now(),
     };
     addPosition(position);
-  }, [addPosition, symbol]);
+  }, [addPosition]); // Using symbolRef for stable callback
 
   const handleSell = useCallback((quantity: number, price: number) => {
     const position: Position = {
       id: `pos_${Date.now()}`,
-      symbol,
+      symbol: symbolRef.current,
       side: 'short',
       entryPrice: price,
       quantity,
@@ -269,7 +293,7 @@ export default function Dashboard() {
       openTime: Date.now(),
     };
     addPosition(position);
-  }, [addPosition, symbol]);
+  }, [addPosition]); // Using symbolRef for stable callback
 
   if (error) {
     return (
