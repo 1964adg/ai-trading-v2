@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, memo, useMemo } from 'react';
+import { useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData } from 'lightweight-charts';
 import { ChartDataPoint, Timeframe } from '@/lib/types';
 import { formatCurrency, formatNumber, isValidUnixTimestamp } from '@/lib/formatters';
@@ -120,7 +120,6 @@ function TradingChartComponent({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const dataRef = useRef<ChartDataPoint[]>([]);
   const updateBufferRef = useRef<NodeJS.Timeout | null>(null);
-  const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>(timeframe);
 
   // Calculate session start (for today's trading session)
   const sessionStart = useMemo(() => {
@@ -150,7 +149,6 @@ function TradingChartComponent({
   const { markers } = usePatternMarkers(patterns, { showMarkers: true });
 
   const handleTimeframeClick = useCallback((tf: Timeframe) => {
-    setSelectedTimeframe(tf);
     onTimeframeChange?.(tf);
   }, [onTimeframeChange]);
 
@@ -456,7 +454,7 @@ function TradingChartComponent({
                 key={tf}
                 onClick={() => handleTimeframeClick(tf)}
                 className={`px-2 py-1 text-xs rounded font-medium transition-colors ${
-                  selectedTimeframe === tf
+                  timeframe === tf
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
