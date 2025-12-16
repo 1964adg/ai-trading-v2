@@ -31,13 +31,13 @@ export default function Dashboard() {
   const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  
+
   // Use refs to prevent callback recreation
   const viewportRangeRef = useRef<{ from: number; to: number } | null>(null);
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
   const timeframeRef = useRef<Timeframe>(timeframe);
   const symbolRef = useRef<string>(symbol);
-  
+
   // Keep refs in sync
   useEffect(() => {
     timeframeRef.current = timeframe;
@@ -63,7 +63,14 @@ export default function Dashboard() {
     storeEmaPeriods[2],
     storeEmaPeriods[3],
   ]);
-  
+
+  // Memoize chartData to prevent infinite loop
+  const memoizedChartData = useMemo(() => chartData, [
+    chartData. length,
+    JSON.stringify(chartData[0]?.time),
+    JSON.stringify(chartData[chartData.length - 1]?.time),
+  ]);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const emaEnabled = useMemo(() => storeEmaEnabled, [
     storeEmaEnabled[0],
@@ -120,10 +127,10 @@ export default function Dashboard() {
     // Could show notification toast here
   }, []);
 
-  const { 
-    isConnected: isRealtimeConnected, 
+  const {
+    isConnected: isRealtimeConnected,
     subscribeTicker,
-    unsubscribeTicker 
+    unsubscribeTicker
   } = useRealtimeWebSocket({
     enabled: true,
     onMarketUpdate: handleMarketUpdate,
@@ -155,13 +162,13 @@ export default function Dashboard() {
     ) {
       const klineData = data as { timestamp: number; open: number; high: number; low: number; close: number };
       const timestamp = toUnixTimestamp(klineData.timestamp);
-      
+
       // Skip invalid timestamps
       if (!isValidUnixTimestamp(timestamp)) {
         console.warn('[WebSocket] Invalid timestamp received:', klineData.timestamp);
         return;
       }
-      
+
       const newPoint: ChartDataPoint = {
         time: timestamp as ChartDataPoint['time'],
         open: klineData.open,
@@ -361,7 +368,7 @@ export default function Dashboard() {
         {/* Main Trading Area - 8 columns */}
         <div className="lg:col-span-8 space-y-4">
           <TradingChart
-            data={chartData}
+            data={memoizedChartData}
             symbol={symbol}
             timeframe={timeframe}
             onTimeframeChange={handleTimeframeChange}

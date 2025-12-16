@@ -36,7 +36,7 @@ const MAX_DISPLAYED_PATTERNS = 3; // Number of patterns to display in overlay
  */
 function normalizeCandle(candle: ChartDataPoint): ChartDataPoint {
   let timestamp: number;
-  
+
   // Handle various timestamp formats aggressively
   if (typeof candle. time === 'number') {
     // If it's already a number, check if it's in milliseconds
@@ -56,13 +56,13 @@ function normalizeCandle(candle: ChartDataPoint): ChartDataPoint {
     console.warn('[TradingChart] Invalid timestamp format, using current time:', candle.time);
     timestamp = Math.floor(Date. now() / 1000);
   }
-  
+
   // Ensure timestamp is valid (after year 2000)
   if (timestamp < 946684800) { // Jan 1, 2000
     console.warn('[TradingChart] Timestamp too old, using current time:', timestamp);
     timestamp = Math. floor(Date.now() / 1000);
   }
-  
+
   return {
     ... candle,
     time: timestamp as Time,
@@ -78,26 +78,26 @@ function normalizeChartData(data: ChartDataPoint[]): ChartDataPoint[] {
     console.warn('[TradingChart] Invalid or empty data array');
     return [];
   }
-  
+
   const normalized = data
     .map(normalizeCandle)
     .filter(candle => {
       const timeAsNumber = candle. time as number;
-      return isValidUnixTimestamp(timeAsNumber) && 
+      return isValidUnixTimestamp(timeAsNumber) &&
              typeof candle.open === 'number' &&
              typeof candle.high === 'number' &&
              typeof candle.low === 'number' &&
              typeof candle.close === 'number';
     })
     .sort((a, b) => (a.time as number) - (b. time as number));
-    
+
   console.log('[TradingChart] Normalized data:', {
     original: data.length,
     normalized: normalized.length,
     sampleTime: normalized[0]?.time,
     sampleTimeType: typeof normalized[0]?. time
   });
-  
+
   return normalized;
 }
 
@@ -120,11 +120,11 @@ function TradingChartComponent({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const dataRef = useRef<ChartDataPoint[]>([]);
   const updateBufferRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Use refs for props to prevent infinite loops
   const emaPeriodsRef = useRef(emaPeriods);
   const emaEnabledRef = useRef(emaEnabled);
-  
+
   // Update refs when props change (only sync refs, no chart operations)
   useEffect(() => {
     emaPeriodsRef.current = emaPeriods;
@@ -139,6 +139,7 @@ function TradingChartComponent({
   }, []);
 
   // Calculate VWAP data
+   /*
   const { vwapData } = useVWAP({
     candles: data,
     config: vwapConfig || { enabled: false, period: 'session', source: 'hlc3', bands: [1, 2], showBands: true, color: '#4ECDC4', bandColor: '#95E1D3' },
@@ -157,7 +158,7 @@ function TradingChartComponent({
 
   // Generate pattern markers
   const { markers } = usePatternMarkers(patterns, { showMarkers: true });
-
+ */
   const handleTimeframeClick = useCallback((tf: Timeframe) => {
     onTimeframeChange?.(tf);
   }, [onTimeframeChange]);
@@ -376,7 +377,7 @@ function TradingChartComponent({
       }
 
       // Preserve current viewport
-      const viewportRange = preserveViewport();
+      const viewportRange =null;// preserveViewport();
 
       // Always use full setData for now to avoid timestamp ordering issues
       try {
@@ -386,9 +387,9 @@ function TradingChartComponent({
           lastTime: normalizedData[normalizedData.length - 1]?. time,
           timeType: typeof normalizedData[0]?.time
         });
-        
+
         series.setData(normalizedData);
-        
+
         // Store reference to current data
         dataRef.current = normalizedData;
 
@@ -396,14 +397,32 @@ function TradingChartComponent({
         updateEmaData(normalizedData);
 
         // Restore viewport after update
+                // Auto-scroll to latest candle if near right edge
         if (viewportRange) {
-          setTimeout(() => restoreViewport(viewportRange), 50);
+          const range = viewportRange. to - viewportRange.from;
+          const dataLength = normalizedData.length;
+          const isNearEnd = viewportRange.to >= dataLength - 5;
+
+          if (isNearEnd) {
+            // Scroll to show latest data
+            setTimeout(() => {
+              chartRef.current?.timeScale().scrollToRealTime();
+            }, 50);
+          } else {
+            // Preserve viewport if user scrolled back
+            setTimeout(() => restoreViewport(viewportRange), 50);
+          }
+        } else {
+          // First load - fit all content
+          setTimeout(() => {
+            chartRef.current?.timeScale().fitContent();
+          }, 100);
         }
-        
+
       } catch (error) {
         console. error('[TradingChart] Chart setData error:', error);
         console.error('[TradingChart] Problematic data sample:', normalizedData. slice(0, 3));
-        
+
         // Last resort: create simple test data
         const fallbackData = [{
           time: Math.floor(Date. now() / 1000) as Time,
@@ -412,7 +431,7 @@ function TradingChartComponent({
           low: 49000,
           close: 50500
         }];
-        
+
         try {
           series. setData(fallbackData);
           console.log('[TradingChart] Using fallback data');
@@ -444,7 +463,7 @@ function TradingChartComponent({
     } catch (error) {
       console.error('[TradingChart] Error setting pattern markers:', error);
     }
-  }, [patterns, markers]);
+  }, [patterns]);
 
   return (
     <div className="w-full">
@@ -477,7 +496,7 @@ function TradingChartComponent({
           className="absolute bg-gray-900 border border-gray-700 rounded p-2 text-xs text-white pointer-events-none z-10 font-mono leading-relaxed"
           style={{ display: 'none' }}
         />
-        
+
         {/* VWAP Overlay */}
         {vwapConfig && (
           <VWAPOverlay
@@ -486,7 +505,7 @@ function TradingChartComponent({
             config={vwapConfig}
           />
         )}
-        
+
         {/* Volume Profile Overlay */}
         {volumeProfileConfig && (
           <VolumeProfileOverlay
@@ -495,7 +514,7 @@ function TradingChartComponent({
             config={volumeProfileConfig}
           />
         )}
-        
+
         {/* Pattern Markers Overlay */}
         {patterns.length > 0 && (
           <div className="absolute top-2 right-2 z-20 bg-gray-900/90 border border-gray-700 rounded-lg p-2 text-xs space-y-1 max-w-xs">
