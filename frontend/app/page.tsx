@@ -3,9 +3,10 @@
 import TradingModeSelector from '@/components/trading/TradingModeSelector';
 import RealBalancePanel from '@/components/trading/RealBalancePanel';
 import { useRealTrading } from '@/hooks/useRealTrading';
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import useSWR from 'swr';
-import TradingChart from '@/components/TradingChart';
+// TEMPORARY: TradingChart import commented out while component is disabled
+// import TradingChart from '@/components/TradingChart';
 import TimeframeSelector from '@/components/TimeframeSelector';
 import PriceHeader from '@/components/PriceHeader';
 import RealtimeStatus from '@/components/RealtimeStatus';
@@ -49,35 +50,45 @@ export default function Dashboard() {
 
   // Use Zustand store for trading state
   const {
-    emaPeriods: storeEmaPeriods,
-    emaEnabled: storeEmaEnabled,
+    // TEMPORARY: Commented out while TradingChart is disabled
+    // emaPeriods: storeEmaPeriods,
+    // emaEnabled: storeEmaEnabled,
     addPosition,
   } = useTradingStore();
 
+  // TEMPORARY: Commented out while TradingChart is disabled
   // Memoize arrays to prevent unnecessary re-renders
   // Zustand creates new array references on every state change, even if arrays haven't changed
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  /*
   const emaPeriods = useMemo(() => storeEmaPeriods, [
     storeEmaPeriods[0],
     storeEmaPeriods[1],
     storeEmaPeriods[2],
     storeEmaPeriods[3],
   ]);
+  */
 
+  // TEMPORARY: Commented out while TradingChart is disabled
   // Memoize chartData to prevent infinite loop
+  /*
   const memoizedChartData = useMemo(() => chartData, [
     chartData. length,
     JSON.stringify(chartData[0]?.time),
     JSON.stringify(chartData[chartData.length - 1]?.time),
   ]);
+  */
 
+  // TEMPORARY: Commented out while TradingChart is disabled
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  /*
   const emaEnabled = useMemo(() => storeEmaEnabled, [
     storeEmaEnabled[0],
     storeEmaEnabled[1],
     storeEmaEnabled[2],
     storeEmaEnabled[3],
   ]);
+  */
 
   // Market store for price updates and sync
   const { setSymbol: setGlobalSymbol, updatePrice } = useMarketStore();
@@ -207,8 +218,10 @@ export default function Dashboard() {
     enabled: true,
   });
 
+  // TEMPORARY: Disabled while TradingChart is commented out
+  // TODO: Re-enable when chart is restored
   const { data, error, isLoading } = useSWR(
-    `/api/klines/${symbol}/${timeframe}`,
+    null, // Disabled
     () => fetchKlines(symbol, timeframe, 500),
     {
       refreshInterval: 10000,
@@ -367,6 +380,9 @@ export default function Dashboard() {
 
         {/* Main Trading Area - 8 columns */}
         <div className="lg:col-span-8 space-y-4">
+          {/* TEMPORARY: TradingChart disabled - API endpoint not ready */}
+          {/* TODO: Re-enable when backend /api/klines endpoint is implemented */}
+          {/* 
           <TradingChart
             data={memoizedChartData}
             symbol={symbol}
@@ -375,6 +391,63 @@ export default function Dashboard() {
             emaPeriods={emaPeriods}
             emaEnabled={emaEnabled}
           />
+          */}
+
+          {/* Chart Placeholder */}
+          <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center space-y-6">
+            <div className="text-6xl mb-4">📊</div>
+            <h3 className="text-white text-2xl font-bold">Trading Chart</h3>
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+              Chart component temporarily disabled while backend API is being set up.
+            </p>
+            
+            <div className="bg-gray-800 rounded-lg p-6 max-w-xl mx-auto text-left space-y-3">
+              <div className="text-yellow-400 font-semibold mb-3">⚡ To restore chart functionality:</div>
+              
+              <div className="flex items-start gap-3">
+                <span className="text-blue-400 font-mono">1.</span>
+                <div>
+                  <div className="text-white font-medium">Implement backend API endpoint</div>
+                  <div className="text-gray-400 text-sm">
+                    <code className="bg-gray-900 px-2 py-1 rounded">GET /api/klines?symbol=BTCUSDT&timeframe=15m&limit=100</code>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <span className="text-blue-400 font-mono">2.</span>
+                <div>
+                  <div className="text-white font-medium">Test endpoint returns valid data</div>
+                  <div className="text-gray-400 text-sm">Array of candles with time, open, high, low, close, volume</div>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <span className="text-blue-400 font-mono">3.</span>
+                <div>
+                  <div className="text-white font-medium">Un-comment TradingChart component</div>
+                  <div className="text-gray-400 text-sm">Remove this placeholder and restore original component</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-center gap-6 pt-4">
+              <div className="text-center">
+                <div className="text-gray-500 text-sm">Current Symbol</div>
+                <div className="text-white font-mono text-xl">{symbol}</div>
+              </div>
+              <div className="text-gray-700">|</div>
+              <div className="text-center">
+                <div className="text-gray-500 text-sm">Timeframe</div>
+                <div className="text-blue-400 font-mono text-xl">{timeframe}</div>
+              </div>
+              <div className="text-gray-700">|</div>
+              <div className="text-center">
+                <div className="text-gray-500 text-sm">Candles Ready</div>
+                <div className="text-green-400 font-mono text-xl">{chartData.length}</div>
+              </div>
+            </div>
+          </div>
 
           {/* Quick Trading Panel */}
           <QuickTradePanel
