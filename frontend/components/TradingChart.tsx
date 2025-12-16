@@ -125,20 +125,11 @@ function TradingChartComponent({
   const emaPeriodsRef = useRef(emaPeriods);
   const emaEnabledRef = useRef(emaEnabled);
   
-  // Update refs when props change AND recreate EMA series
+  // Update refs when props change (only sync refs, no chart operations)
   useEffect(() => {
     emaPeriodsRef.current = emaPeriods;
     emaEnabledRef.current = emaEnabled;
-    
-    // Recreate EMA series when configuration changes
-    if (chartRef.current) {
-      createEmaSeries();
-      if (dataRef.current.length > 0) {
-        updateEmaData(dataRef.current);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emaPeriods, emaEnabled]); // createEmaSeries and updateEmaData are stable (empty deps)
+  }, [emaPeriods, emaEnabled]);
 
   // Calculate session start (for today's trading session)
   const sessionStart = useMemo(() => {
@@ -305,6 +296,9 @@ function TradingChartComponent({
     chartRef.current = chart;
     seriesRef.current = candlestickSeries;
 
+    // Create initial EMA series once during chart initialization
+    createEmaSeries();
+
     // Tooltip handling
     chart.subscribeCrosshairMove((param) => {
       if (! tooltipRef.current) return;
@@ -356,7 +350,8 @@ function TradingChartComponent({
       emaSeriesMap. clear();
       chart.remove();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Chart initialization should only run once on mount, dependencies intentionally omitted
 
   // Handle data updates with viewport preservation and buffering
   // FIXED: More robust error handling and validation
