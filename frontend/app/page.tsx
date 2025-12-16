@@ -73,7 +73,7 @@ export default function Dashboard() {
   // Memoize chartData to prevent infinite loop
   /*
   const memoizedChartData = useMemo(() => chartData, [
-    chartData. length,
+    chartData.length,
     JSON.stringify(chartData[0]?.time),
     JSON.stringify(chartData[chartData.length - 1]?.time),
   ]);
