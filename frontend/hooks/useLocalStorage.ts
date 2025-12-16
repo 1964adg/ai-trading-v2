@@ -5,41 +5,30 @@ import { useState, useEffect, useCallback } from 'react';
 /**
  * Custom hook for persistent storage with localStorage
  * Handles SSR safely and provides a type-safe API
+ * FIXED: Prevents hydration mismatch by deferring localStorage read to client-only
  */
 export function useLocalStorage<T>(
-  key: string,
+  key:  string,
   defaultValue: T
 ): [T, (value: T | ((prev: T) => T)) => void] {
-  // Initialize state with a function to handle SSR
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    if (typeof window === 'undefined') {
-      return defaultValue;
-    }
-    
-    try {
-      const item = window.localStorage.getItem(key);
-      if (item === null) {
-        return defaultValue;
-      }
-      return JSON.parse(item) as T;
-    } catch (error) {
-      console.error(`[useLocalStorage] Error reading key "${key}":`, error);
-      return defaultValue;
-    }
-  });
+  // FIXED: Always start with defaultValue on server AND initial client render
+  const [storedValue, setStoredValue] = useState<T>(defaultValue);
+  const [mounted, setMounted] = useState(false);
 
-  // Sync with localStorage on mount (for SSR hydration)
+  // FIXED: Only read from localStorage AFTER hydration (client-only)
   useEffect(() => {
+    setMounted(true);
+
     if (typeof window === 'undefined') return;
-    
+
     try {
-      const item = window.localStorage.getItem(key);
+      const item = window.localStorage. getItem(key);
       if (item !== null) {
         const parsed = JSON.parse(item) as T;
         setStoredValue(parsed);
       }
     } catch (error) {
-      console.error(`[useLocalStorage] Error syncing key "${key}":`, error);
+      console.error(`[useLocalStorage] Error reading key "${key}":`, error);
     }
   }, [key]);
 
@@ -49,9 +38,9 @@ export function useLocalStorage<T>(
       try {
         // Allow value to be a function for functional updates
         const valueToStore = typeof value === 'function' ? (value as (prev: T) => T)(storedValue) : value;
-        
+
         setStoredValue(valueToStore);
-        
+
         if (typeof window !== 'undefined') {
           window.localStorage.setItem(key, JSON.stringify(valueToStore));
         }
