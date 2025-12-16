@@ -351,7 +351,7 @@ function TradingChartComponent({
       chart.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // createEmaSeries is a stable callback with empty deps, safe to omit
+  }, []); // Chart initialization should only run once on mount, dependencies intentionally omitted
 
   // Handle data updates with viewport preservation and buffering
   // FIXED: More robust error handling and validation
