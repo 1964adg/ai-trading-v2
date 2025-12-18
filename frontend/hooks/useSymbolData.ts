@@ -65,6 +65,14 @@ export function useSymbolData(
 
     let filtered = symbols;
 
+    // Filter to show only EUR, BNB, GBP, USDC pairs (Binance Italia compatible)
+    filtered = filtered.filter(s => 
+      s.quoteAsset === 'EUR' || 
+      s.quoteAsset === 'BNB' ||
+      s.quoteAsset === 'GBP' ||
+      s.quoteAsset === 'USDC'
+    );
+
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toUpperCase().trim();
