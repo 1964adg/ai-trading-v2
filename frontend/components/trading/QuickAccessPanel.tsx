@@ -11,14 +11,25 @@ interface QuickAccessPanelProps {
   onSymbolChange: (symbol: string) => void;
 }
 
-// Default quick access symbols - popular crypto pairs
+// Binance Italia - EUR, BNB and Fiat pairs
 export const DEFAULT_QUICK_SYMBOLS = [
-  'BTCUSDT',
-  'ETHUSDT',
-  'BNBUSDT',
-  'ADAUSDT',
-  'SOLUSDT',
-  'DOGEUSDT',
+  // EUR pairs (primary - Binance Italia)
+  'BTCEUR',
+  'ETHEUR',
+  'SOLEUR',
+  'ADAEUR',
+  'BNBEUR',
+  'MATICEUR',
+
+  // BNB pairs (alternative)
+  'BTCBNB',
+  'ETHBNB',
+  'SOLBNB',
+
+  // Other fiat (if available)
+  'AVAXEUR',
+  'LINKEUR',
+  'DOTEUR',
 ];
 
 const STORAGE_KEY = 'quick_access_symbols';
@@ -38,8 +49,8 @@ function QuickAccessPanelComponent({
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get scout store functions
-  const { 
-    quickAccessSymbols: scoutSymbols, 
+  const {
+    quickAccessSymbols: scoutSymbols,
     getOpportunityBySymbol,
   } = useScoutStore();
 
@@ -70,7 +81,7 @@ function QuickAccessPanelComponent({
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
-    
+
     setHoveredSymbol(symbol);
     hoverTimeoutRef.current = setTimeout(() => {
       setShowPopup(true);
@@ -110,16 +121,28 @@ function QuickAccessPanelComponent({
     <>
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-gray-400 font-medium mr-1">Quick:</span>
-        
+
         {symbols.map((symbol) => {
           const isActive = currentSymbol === symbol;
-          const displayName = symbol.replace('USDT', '');
+          // Better display:  remove quote currency (EUR/BNB/USDT/etc.)
+const displayName = symbol
+  .replace('EUR', '')
+  .replace('BNB', '')
+  .replace('USDT', '')
+  .replace('BUSD', '')
+  .replace('GBP', '');
+
+// Add indicator for quote currency
+const quoteCurrency = symbol.includes('EUR') ? '€'
+  : symbol.includes('BNB') ? '🟡'
+  : symbol.includes('USDT') ? '$'
+  : '';
           const opportunity = getOpportunityBySymbol(symbol);
-          
+
           // Determine background color based on opportunity
           let bgClass = 'bg-gray-800';
           let hasOpportunity = false;
-          
+
           if (opportunity) {
             hasOpportunity = true;
             if (opportunity.signal.includes('BUY')) {
@@ -128,29 +151,29 @@ function QuickAccessPanelComponent({
               bgClass = 'bg-gradient-to-r from-red-500 to-red-600';
             }
           }
-          
+
           return (
             <div key={symbol} className="relative">
               <button
-                onClick={() => handleSymbolClick(symbol)}
-                onMouseEnter={() => hasOpportunity && handleMouseEnter(symbol)}
-                onMouseLeave={handleMouseLeave}
-                className={`
-                  px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-150 relative
-                  ${
-                    isActive
-                      ? 'ring-2 ring-blue-400 text-white shadow-lg'
-                      : hasOpportunity
-                      ? 'text-white shadow-lg shadow-opacity-25'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  }
-                  ${bgClass}
-                `}
-              >
-                {displayName}
-                {hasOpportunity && <span className="ml-1">🔥</span>}
-              </button>
-              
+  onClick={() => handleSymbolClick(symbol)}
+  onMouseEnter={() => hasOpportunity && handleMouseEnter(symbol)}
+  onMouseLeave={handleMouseLeave}
+  className={`
+    px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-150 relative
+    ${
+      isActive
+        ? 'ring-2 ring-blue-400 text-white shadow-lg'
+        : hasOpportunity
+        ? 'text-white shadow-lg shadow-opacity-25'
+        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+    }
+    ${bgClass}
+  `}
+>
+  {displayName}{quoteCurrency}
+  {hasOpportunity && <span className="ml-1">🔥</span>}
+</button>
+
               {/* Show popup if this symbol is hovered and has opportunity */}
               {showPopup && hoveredSymbol === symbol && hoveredOpportunity && (
                 <OpportunityPopup

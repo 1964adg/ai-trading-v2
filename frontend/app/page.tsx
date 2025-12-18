@@ -25,7 +25,7 @@ import { Position } from '@/stores/tradingStore';
 import { useMarketStore } from '@/stores/marketStore';
 import { syncManager, SyncEvent } from '@/lib/syncManager';
 
-const DEFAULT_SYMBOL = 'BTCUSDT';
+const DEFAULT_SYMBOL = 'BTCEUR'; // Binance Italia
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
 
 export default function Dashboard() {
@@ -382,7 +382,7 @@ export default function Dashboard() {
         <div className="lg:col-span-8 space-y-4">
           {/* TEMPORARY: TradingChart disabled - API endpoint not ready */}
           {/* TODO: Re-enable when backend /api/klines endpoint is implemented */}
-          {/* 
+          {/*
           <TradingChart
             data={memoizedChartData}
             symbol={symbol}
@@ -400,10 +400,10 @@ export default function Dashboard() {
             <p className="text-gray-400 text-lg max-w-2xl mx-auto">
               Chart component temporarily disabled while backend API is being set up.
             </p>
-            
+
             <div className="bg-gray-800 rounded-lg p-6 max-w-xl mx-auto text-left space-y-3">
               <div className="text-yellow-400 font-semibold mb-3">⚡ To restore chart functionality:</div>
-              
+
               <div className="flex items-start gap-3">
                 <span className="text-blue-400 font-mono">1.</span>
                 <div>
@@ -413,7 +413,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-start gap-3">
                 <span className="text-blue-400 font-mono">2.</span>
                 <div>
@@ -421,7 +421,7 @@ export default function Dashboard() {
                   <div className="text-gray-400 text-sm">Array of candles with time, open, high, low, close, volume</div>
                 </div>
               </div>
-              
+
               <div className="flex items-start gap-3">
                 <span className="text-blue-400 font-mono">3.</span>
                 <div>
@@ -430,7 +430,7 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center justify-center gap-6 pt-4">
               <div className="text-center">
                 <div className="text-gray-500 text-sm">Current Symbol</div>
