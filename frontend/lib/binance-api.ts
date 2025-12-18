@@ -33,15 +33,20 @@ export async function fetchBinanceSymbols(): Promise<BinanceSymbol[]> {
 
     const data: BinanceExchangeInfo = await response.json();
     
-    // Filter only USDT pairs that are actively trading
-    const usdtSymbols = data.symbols.filter(
-      (s) => s.quoteAsset === 'USDT' && s.status === 'TRADING'
+    // Filter for EUR, BNB, GBP, and USDC pairs that are actively trading (Binance Italia compatible)
+    const binanceItaliaSymbols = data.symbols.filter(
+      (s) => 
+        (s.quoteAsset === 'EUR' || 
+         s.quoteAsset === 'BNB' || 
+         s.quoteAsset === 'GBP' || 
+         s.quoteAsset === 'USDC') && 
+        s.status === 'TRADING'
     );
 
-    exchangeInfoCache = usdtSymbols;
+    exchangeInfoCache = binanceItaliaSymbols;
     exchangeInfoCacheTime = Date.now();
 
-    return usdtSymbols;
+    return binanceItaliaSymbols;
   } catch (error) {
     console.error('Error fetching Binance symbols:', error);
     return exchangeInfoCache || [];
@@ -137,19 +142,27 @@ export async function fetchSymbolsWithTickers(): Promise<SymbolData[]> {
 }
 
 /**
- * Popular trading pairs for quick access
+ * Popular trading pairs for quick access (Binance Italia - EUR and BNB pairs)
  */
 export const POPULAR_SYMBOLS = [
-  'BTCUSDT',
-  'ETHUSDT',
-  'BNBUSDT',
-  'SOLUSDT',
-  'XRPUSDT',
-  'ADAUSDT',
-  'DOGEUSDT',
-  'AVAXUSDT',
-  'DOTUSDT',
-  'MATICUSDT',
+  // EUR pairs (Binance Italia)
+  'BTCEUR',
+  'ETHEUR',
+  'SOLEUR',
+  'ADAEUR',
+  'BNBEUR',
+  'MATICEUR',
+  
+  // BNB pairs (alternative)
+  'BTCBNB',
+  'ETHBNB',
+  'SOLBNB',
+  
+  // Additional EUR pairs
+  'AVAXEUR',
+  'DOTEUR',
+  'LINKEUR',
+  'XRPEUR',
 ];
 
 /**
@@ -171,7 +184,21 @@ export function getFavoriteSymbols(): string[] {
       return POPULAR_SYMBOLS.slice(0, 5);
     }
     
-    return parsed;
+    // Migrate old USDT favorites to EUR equivalents
+    const migrated = parsed.map(symbol => {
+      if (symbol.endsWith('USDT')) {
+        const base = symbol.replace('USDT', '');
+        return `${base}EUR`; // Try EUR first
+      }
+      return symbol;
+    });
+    
+    // Save migrated favorites if any changed
+    if (migrated.some((s, i) => s !== parsed[i])) {
+      saveFavoriteSymbols(migrated);
+    }
+    
+    return migrated;
   } catch {
     return POPULAR_SYMBOLS.slice(0, 5);
   }
