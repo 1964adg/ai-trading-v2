@@ -8,6 +8,34 @@ from services.binance_service import binance_service
 router = APIRouter()
 
 
+async def _fetch_klines_data(symbol: str, interval: str, limit: int):
+    """
+    Internal function to fetch klines data from Binance.
+    Shared by both query params and path params endpoints.
+    
+    Args:
+        symbol: Trading pair symbol (e.g., BTCEUR)
+        interval: Kline interval (e.g., 1m, 5m, 15m, 1h, 4h, 1d)
+        limit: Number of klines to return (1-1000)
+    
+    Returns:
+        JSON response with klines data
+    """
+    try:
+        data = binance_service.get_klines_data(
+            symbol=symbol.upper(),
+            interval=interval,
+            limit=limit
+        )
+        return {"success": True, "data": data}
+    except BinanceAPIException as e:
+        raise HTTPException(status_code=400, detail=f"Invalid request: {e.message}")
+    except ConnectionError:
+        raise HTTPException(status_code=503, detail="Unable to connect to Binance API")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.get("/klines")
 async def get_klines_query(
     symbol: str = Query(..., description="Trading pair symbol (e.g., BTCEUR)"),
@@ -22,8 +50,7 @@ async def get_klines_query(
     
     Returns the same data as /api/klines/{symbol}/{interval}
     """
-    # Reuse existing logic - map 'timeframe' to 'interval' for consistency
-    return await get_klines_path(symbol=symbol, interval=timeframe, limit=limit)
+    return await _fetch_klines_data(symbol=symbol, interval=timeframe, limit=limit)
 
 
 @router.get("/klines/{symbol}/{interval}")
@@ -45,19 +72,7 @@ async def get_klines_path(
     Returns:
         JSON response with klines data
     """
-    try:
-        data = binance_service.get_klines_data(
-            symbol=symbol.upper(),
-            interval=interval,
-            limit=limit
-        )
-        return {"success": True, "data": data}
-    except BinanceAPIException as e:
-        raise HTTPException(status_code=400, detail=f"Invalid request: {e.message}")
-    except ConnectionError:
-        raise HTTPException(status_code=503, detail="Unable to connect to Binance API")
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    return await _fetch_klines_data(symbol=symbol, interval=interval, limit=limit)
 
 
 @router.websocket("/ws/klines/{symbol}/{interval}")
