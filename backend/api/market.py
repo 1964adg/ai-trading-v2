@@ -48,7 +48,13 @@ async def get_klines_query(
     This endpoint supports the frontend format:
     GET /api/klines?symbol=BTCEUR&timeframe=1m&limit=100
     
-    Returns the same data as /api/klines/{symbol}/{interval}
+    Args:
+        symbol: Trading pair symbol (e.g., BTCEUR)
+        timeframe: Timeframe interval (e.g., 1m, 5m, 15m, 1h, 4h, 1d)
+        limit: Number of candles to return (1-1000, default: 100)
+    
+    Returns:
+        JSON response with klines data (same format as path params endpoint)
     """
     return await _fetch_klines_data(symbol=symbol, interval=timeframe, limit=limit)
 
