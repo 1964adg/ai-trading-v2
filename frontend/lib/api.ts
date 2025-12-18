@@ -13,8 +13,15 @@ export async function fetchKlines(
   limit: number = 500
 ): Promise<ApiResponse<KlineData[]>> {
   try {
+    // Use query params format for better compatibility
+    const params = new URLSearchParams({
+      symbol,
+      timeframe: interval,
+      limit: limit.toString()
+    });
+    
     const response = await fetch(
-      `${API_BASE_URL}/api/klines/${symbol}/${interval}?limit=${limit}`
+      `${API_BASE_URL}/api/klines?${params}`
     );
 
     if (!response.ok) {
