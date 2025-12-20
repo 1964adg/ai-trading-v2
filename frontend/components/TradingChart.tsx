@@ -377,7 +377,7 @@ function TradingChartComponent({
       }
 
       // Preserve current viewport
-      const viewportRange =null;// preserveViewport();
+      const viewportRange = preserveViewport();
 
       // Always use full setData for now to avoid timestamp ordering issues
       try {
