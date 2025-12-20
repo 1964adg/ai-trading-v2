@@ -6,7 +6,7 @@ import { useRealTrading } from '@/hooks/useRealTrading';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 // TEMPORARY: TradingChart import commented out while component is disabled
-// import TradingChart from '@/components/TradingChart';
+import TradingChart from '@/components/TradingChart';
 import TimeframeSelector from '@/components/TimeframeSelector';
 import PriceHeader from '@/components/PriceHeader';
 import RealtimeStatus from '@/components/RealtimeStatus';
@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+  const [markers, setMarkers] = useState<any[]>([]);  // ✅ AGGIUNGI
 
   // Use refs to prevent callback recreation
   const viewportRangeRef = useRef<{ from: number; to: number } | null>(null);
@@ -221,38 +222,44 @@ export default function Dashboard() {
   // TEMPORARY: Disabled while TradingChart is commented out
   // TODO: Re-enable when chart is restored
   const { data, error, isLoading } = useSWR(
-    null, // Disabled
-    () => fetchKlines(symbol, timeframe, 500),
-    {
-      refreshInterval: 10000,
-      revalidateOnFocus: false,
-    }
-  );
+  `/api/klines? symbol=${symbol}&timeframe=${timeframe}&limit=500`,  // ✅ Active key
+  () => fetchKlines(symbol, timeframe, 500),
+  {
+    refreshInterval: 10000,
+    revalidateOnFocus: false,
+  }
+);
 
   // Initialize chartData from SWR response
-  useEffect(() => {
-    if (data?.success && data.data.length > 0) {
-      setChartData((prev) => {
-        const apiData = transformKlinesToChartData(data.data);
+  // Initialize and update chartData from SWR response
+useEffect(() => {
+  if (data?.success && data. data.length > 0) {
+    setChartData((prev) => {
+      const apiData = transformKlinesToChartData(data.data);
 
-        if (prev.length === 0) {
-          return apiData.sort((a, b) => Number(a.time) - Number(b.time));
-        }
+      // First load - full replace
+      if (prev.length === 0) {
+        return apiData.sort((a, b) => Number(a.time) - Number(b.time));
+      }
 
-        const lastApiTime = apiData.length > 0 ? apiData[apiData.length - 1].time : 0;
-        const lastPrevTime = prev.length > 0 ? prev[prev.length - 1].time : 0;
+      // ✅ SMART MERGE - only update if needed
+      const lastPrevTime = prev[prev. length - 1]?.time || 0;
+      const lastApiTime = apiData[apiData. length - 1]?.time || 0;
 
-        let merged;
-        if (lastPrevTime > lastApiTime) {
-          merged = [...apiData.slice(0, -1), prev[prev.length - 1]];
-        } else {
-          merged = apiData;
-        }
+      // No new data - keep existing (preserves zoom)
+      if (lastApiTime <= lastPrevTime) {
+        return prev;
+      }
 
-        return merged.sort((a, b) => Number(a.time) - Number(b.time));
-      });
-    }
-  }, [data]);
+      // Merge:  keep most of prev, add/update recent candles
+      const recentCount = 5; // Only merge last 5 candles
+      const baseData = prev.slice(0, -recentCount);
+      const recentData = apiData.slice(-recentCount);
+
+      return [...baseData, ...recentData];
+    });
+  }
+}, [data]);
 
   // Handle timeframe change with viewport preservation
   const handleTimeframeChange = useCallback((newTimeframe: Timeframe) => {
@@ -283,9 +290,14 @@ export default function Dashboard() {
   }, [currentPrice]); // updatePrice is a stable Zustand store action, safe to omit
 
   // Handle limit price from orderbook click
-  const handleOrderbookPriceClick = useCallback(() => {
-    // Price can be used to auto-fill limit order panel in future
-  }, []);
+const handleOrderbookPriceClick = useCallback(() => {
+  // Price can be used to auto-fill limit order panel in future
+}, []);
+
+// Handle price click from chart
+const handlePriceClick = useCallback((price: number) => {
+  console.log('[Chart] Price clicked:', price);
+}, []);
 
   // Demo order handlers
   const handleBuy = useCallback((quantity: number, price: number) => {
@@ -382,16 +394,20 @@ export default function Dashboard() {
         <div className="lg:col-span-8 space-y-4">
           {/* TEMPORARY: TradingChart disabled - API endpoint not ready */}
           {/* TODO: Re-enable when backend /api/klines endpoint is implemented */}
-          {/*
-          <TradingChart
-            data={memoizedChartData}
-            symbol={symbol}
-            timeframe={timeframe}
-            onTimeframeChange={handleTimeframeChange}
-            emaPeriods={emaPeriods}
-            emaEnabled={emaEnabled}
-          />
-          */}
+          {
+          // ✅ NUOVO (props corretti):
+<TradingChart
+  symbol={symbol}
+  timeframe={timeframe}
+  data={chartData}
+  markers={markers}
+  onPriceClick={handlePriceClick}
+  onVisibleRangeChange={(range) => {
+    viewportRangeRef.current = range;  // Salva zoom/scroll
+  }}
+  visibleRange={viewportRangeRef.current}  // Ripristina zoom
+/>
+          }
 
           {/* Chart Placeholder */}
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center space-y-6">
