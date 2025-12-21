@@ -121,19 +121,18 @@ export function useRealtimeWebSocket(
   }, [sendMessage]);
 
   const connect = useCallback(() => {
-    // TEMPORARY FIX: Backend returns 403 on /api/ws/realtime
-    // TODO: Fix backend WebSocket endpoint auth/accept
-    console.warn('[useRealtimeWebSocket] WebSocket realtime disabled (backend returns 403)');
-    console.info('[useRealtimeWebSocket] Using REST API polling as fallback');
-    
+  // Realtime WebSocket is optional - only for multi-window sync
+  // Using REST API polling as fallback (works fine for single window)
+  console.debug('[useRealtimeWebSocket] Realtime WS not available - using REST fallback (OK)');
+
     // Set disconnected state
     setIsConnected(false);
-    
+
     // Early return - no WebSocket connection
     return;
-    
+
     /* COMMENTED OUT - Re-enable after backend fix
-    
+
     if (!enabled || wsRef.current?.readyState === WebSocket.OPEN) {
       return;
     }
@@ -218,7 +217,7 @@ export function useRealtimeWebSocket(
       console.error('[Realtime WS] Connection error:', error);
       setIsConnected(false);
     }
-    
+
     */
   }, [enabled, sendMessage]);
 

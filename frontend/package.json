@@ -12,6 +12,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.9",
     "decimal.js": "^10.6.0",
     "framer-motion": "^10.18.0",
     "idb": "^8.0.3",

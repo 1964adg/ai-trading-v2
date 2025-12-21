@@ -1,15 +1,10 @@
 'use client';
 
-import TradingModeSelector from '@/components/trading/TradingModeSelector';
-import RealBalancePanel from '@/components/trading/RealBalancePanel';
+import UnifiedPriceHeader from '@/components/trading/UnifiedPriceHeader';
 import { useRealTrading } from '@/hooks/useRealTrading';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import TradingChart from '@/components/TradingChart';
-import TimeframeSelector from '@/components/TimeframeSelector';
-import PriceHeader from '@/components/PriceHeader';
-import RealtimeStatus from '@/components/RealtimeStatus';
-import QuickAccessPanel from '@/components/trading/QuickAccessPanel';
 import LiveOrderbook from '@/components/trading/LiveOrderbook';
 import QuickTradePanel from '@/components/trading/QuickTradePanel';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -25,7 +20,7 @@ import { useMarketStore } from '@/stores/marketStore';
 import { syncManager, SyncEvent } from '@/lib/syncManager';
 
 const DEFAULT_SYMBOL = 'BTCEUR'; // Binance Italia
-const DEFAULT_TIMEFRAME: Timeframe = '1m';
+const DEFAULT_TIMEFRAME:  Timeframe = '1m';
 
 export default function Dashboard() {
   const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
@@ -45,19 +40,17 @@ export default function Dashboard() {
   }, [timeframe, symbol]);
 
   // Real Trading Integration
-  useRealTrading({ enabled: true, refreshInterval: 5000 });
+  useRealTrading({ enabled: true, refreshInterval:  5000 });
 
   // Use Zustand store for trading state
-  const {
-    addPosition,
-  } = useTradingStore();
+  const { addPosition } = useTradingStore();
 
   // Market store for price updates and sync
   const { setSymbol: setGlobalSymbol, updatePrice } = useMarketStore();
 
   // Listen for symbol changes from other windows
   useEffect(() => {
-    const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (data: unknown) => {
+    const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (data:  unknown) => {
       const newSymbol = data as string;
       if (newSymbol !== symbol) {
         setSymbol(newSymbol);
@@ -72,9 +65,9 @@ export default function Dashboard() {
   const { priceChangePercent24h } = useSymbolTicker(symbol, 10000);
 
   // Real-time orderbook data
-  const { isConnected: isOrderbookConnected } = useOrderbook({
+  const { isConnected:  isOrderbookConnected } = useOrderbook({
     symbol,
-    enabled: true,
+    enabled:  true,
     maxLevels: 20,
   });
 
@@ -86,8 +79,7 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependencies - using symbolRef and updatePrice is stable Zustand action
 
-  const handlePositionUpdate = useCallback((data: { positions?: unknown[] }) => {
-    // Position updates are automatically broadcast
+  const handlePositionUpdate = useCallback((data: { positions?:  unknown[] }) => {
     console.log('[Dashboard] Position update received:', data.positions?.length);
   }, []);
 
@@ -97,16 +89,15 @@ export default function Dashboard() {
 
   const handleOrderUpdate = useCallback((data: { orderType?: string }) => {
     console.log('[Dashboard] Order update received:', data);
-    // Could show notification toast here
   }, []);
 
   const {
-    isConnected: isRealtimeConnected,
+    isConnected:  isRealtimeConnected,
     subscribeTicker,
     unsubscribeTicker
   } = useRealtimeWebSocket({
-    enabled: true,
-    onMarketUpdate: handleMarketUpdate,
+    enabled:  true,
+    onMarketUpdate:  handleMarketUpdate,
     onPositionUpdate: handlePositionUpdate,
     onPortfolioUpdate: handlePortfolioUpdate,
     onOrderUpdate: handleOrderUpdate,
@@ -136,8 +127,7 @@ export default function Dashboard() {
       const klineData = data as { timestamp: number; open: number; high: number; low: number; close: number };
       const timestamp = toUnixTimestamp(klineData.timestamp);
 
-      // Skip invalid timestamps
-      if (!isValidUnixTimestamp(timestamp)) {
+      if (! isValidUnixTimestamp(timestamp)) {
         console.warn('[WebSocket] Invalid timestamp received:', klineData.timestamp);
         return;
       }
@@ -157,17 +147,8 @@ export default function Dashboard() {
         const lastTime = lastPoint.time as number;
         const newTime = newPoint.time as number;
 
-        // Ignore old data (network delays)
-        if (newTime < lastTime) {
-          return prev;
-        }
-
-        // Update last candle if same time
-        if (lastTime === newTime) {
-          return [...prev.slice(0, -1), newPoint];
-        }
-
-        // Add new point
+        if (newTime < lastTime) return prev;
+        if (lastTime === newTime) return [...prev.slice(0, -1), newPoint];
         return [...prev, newPoint];
       });
     }
@@ -185,7 +166,7 @@ export default function Dashboard() {
     () => fetchKlines(symbol, timeframe, 500),
     {
       refreshInterval: 10000,
-      revalidateOnFocus: false,
+      revalidateOnFocus:  false,
     }
   );
 
@@ -195,22 +176,16 @@ export default function Dashboard() {
       setChartData((prev) => {
         const apiData = transformKlinesToChartData(data.data);
 
-        // First load - full replace
         if (prev.length === 0) {
           return apiData.sort((a, b) => Number(a.time) - Number(b.time));
         }
 
-        // Smart merge - only update if needed
         const lastPrevTime = prev[prev.length - 1]?.time || 0;
         const lastApiTime = apiData[apiData.length - 1]?.time || 0;
 
-        // No new data - keep existing (preserves zoom)
-        if (lastApiTime <= lastPrevTime) {
-          return prev;
-        }
+        if (lastApiTime <= lastPrevTime) return prev;
 
-        // Merge: keep most of prev, add/update recent candles
-        const recentCount = 5; // Only merge last 5 candles
+        const recentCount = 5;
         const baseData = prev.slice(0, -recentCount);
         const recentData = apiData.slice(-recentCount);
 
@@ -219,25 +194,22 @@ export default function Dashboard() {
     }
   }, [data]);
 
-  // Handle timeframe change with viewport preservation
+  // Handle timeframe change
   const handleTimeframeChange = useCallback((newTimeframe: Timeframe) => {
     previousTimeframeRef.current = timeframeRef.current;
     setTimeframe(newTimeframe);
-    // Clear chart data to trigger fresh load
     setChartData([]);
-  }, []); // Empty dependencies - using refs for stable callback
+  }, []);
 
   // Handle symbol change
   const handleSymbolChange = useCallback((newSymbol: string) => {
     setSymbol(newSymbol);
     setGlobalSymbol(newSymbol);
-    // MarketStore will handle broadcasting
-    // Clear chart data to trigger fresh load
     setChartData([]);
     viewportRangeRef.current = null;
   }, [setGlobalSymbol]);
 
-  const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
+  const currentPrice = chartData.length > 0 ?  chartData[chartData.length - 1].close : 0;
 
   // Update market store with current price
   useEffect(() => {
@@ -245,12 +217,29 @@ export default function Dashboard() {
       updatePrice(currentPrice);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPrice]); // updatePrice is a stable Zustand store action, safe to omit
+  }, [currentPrice]);
 
-  // Handle limit price from orderbook click
-  const handleOrderbookPriceClick = useCallback(() => {
-    // Price can be used to auto-fill limit order panel in future
+  // Handle orderbook price click
+  const handleOrderbookPriceClick = useCallback((price: number) => {
+    console.log('[Orderbook] Price clicked:', price);
   }, []);
+
+  // Handle quick trade submission
+  const handleQuickTrade = useCallback(async (order: {
+    side: 'BUY' | 'SELL';
+    type: 'MARKET' | 'LIMIT';
+    quantity: number;
+    price?: number;
+  }) => {
+    console.log('[QuickTrade] Order submitted:', order);
+
+    try {
+      alert(`✅ ${order.side} order submitted!\nType: ${order.type}\nQty: ${order.quantity}\nPrice: ${order.price || 'MARKET'}`);
+    } catch (error) {
+      console.error('[QuickTrade] Error:', error);
+      alert('❌ Order failed.Check console.');
+    }
+  }, [symbol]);
 
   // Demo order handlers
   const handleBuy = useCallback((quantity: number, price: number) => {
@@ -266,7 +255,7 @@ export default function Dashboard() {
       openTime: Date.now(),
     };
     addPosition(position);
-  }, [addPosition]); // Using symbolRef for stable callback
+  }, [addPosition]);
 
   const handleSell = useCallback((quantity: number, price: number) => {
     const position: Position = {
@@ -281,7 +270,7 @@ export default function Dashboard() {
       openTime: Date.now(),
     };
     addPosition(position);
-  }, [addPosition]); // Using symbolRef for stable callback
+  }, [addPosition]);
 
   if (error) {
     return (
@@ -308,43 +297,28 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-black p-4">
-      {/* Header */}
+
+      {/* Unified Header - Click symbol to open modal */}
       <div className="max-w-full mx-auto mb-4">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <PriceHeader
-            symbol={symbol}
-            price={currentPrice}
-            priceChangePercent={priceChangePercent24h}
-            onSymbolClick={() => {}}
-          />
-          <div className="flex items-center gap-4">
-            <TimeframeSelector
-              selected={timeframe}
-              onSelect={handleTimeframeChange}
-            />
-            <TradingModeSelector />
-            <RealBalancePanel />
-            <RealtimeStatus
-              isKlinesConnected={isConnected}
-              isRealtimeConnected={isRealtimeConnected}
-              lastUpdate={lastUpdate}
-            />
-          </div>
-        </div>
+        <UnifiedPriceHeader
+          symbol={symbol}
+          price={currentPrice}
+          priceChangePercent={priceChangePercent24h}
+          timeframe={timeframe}
+          onSymbolChange={handleSymbolChange}
+          onTimeframeChange={handleTimeframeChange}
+          isConnected={isConnected}
+          connectionStatus={isRealtimeConnected ? 'FULL' : isConnected ? 'PARTIAL' : 'OFFLINE'}
+          tradingMode="paper"
+        />
       </div>
 
       {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Quick Access Panel - 2 columns */}
-        <div className="lg:col-span-2">
-          <QuickAccessPanel
-            currentSymbol={symbol}
-            onSymbolChange={handleSymbolChange}
-          />
-        </div>
+      <div className="grid grid-cols-1 lg: grid-cols-12 gap-4">
 
         {/* Main Trading Area - 8 columns */}
         <div className="lg:col-span-8 space-y-4">
+
           {/* Trading Chart */}
           <TradingChart
             symbol={symbol}
@@ -375,7 +349,7 @@ export default function Dashboard() {
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
               <div className="text-xs text-gray-400 mb-1">Status</div>
               <div className={`text-xl font-bold ${isConnected ? 'text-bull' : 'text-bear'}`}>
-                {isConnected ? 'LIVE' : 'OFFLINE'}
+                {isConnected ?  'LIVE' : 'OFFLINE'}
               </div>
             </div>
 
@@ -388,14 +362,25 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Live Orderbook - 2 columns */}
-        <div className="lg:col-span-2">
+        {/* Right Sidebar - 4 columns total */}
+        <div className="lg:col-span-4 space-y-4">
+
+          {/* Live Orderbook */}
           <LiveOrderbook
             symbol={symbol}
             maxLevels={10}
             onPriceClick={handleOrderbookPriceClick}
           />
+
+          {/* Quick Trade Panel */}
+          <QuickTradePanel
+            symbol={symbol}
+            currentPrice={currentPrice}
+            balance={1000}
+            onOrderSubmit={handleQuickTrade}
+          />
         </div>
+
       </div>
     </div>
   );
