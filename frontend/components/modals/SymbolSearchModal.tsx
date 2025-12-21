@@ -51,9 +51,8 @@ const BINANCE_SYMBOLS:  SymbolData[] = [
   { symbol: 'INJUSDT', price: 28.45, change24h: 3.45, volume24h: 87000000 },
 ];
 
-type SortBy = 'name' | 'volume' | 'change';
+type SortBy = 'name' | 'price' | 'volume' | 'change';
 type SortOrder = 'asc' | 'desc';
-type ViewMode = 'select' | 'manage';
 
 export default function SymbolSearchModal({
   isOpen,
@@ -65,7 +64,6 @@ export default function SymbolSearchModal({
   const [favorites, setFavorites] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortBy>('volume');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [viewMode, setViewMode] = useState<ViewMode>('select');
   const [customSymbol, setCustomSymbol] = useState('');
 
   // Load favorites from localStorage
@@ -107,6 +105,9 @@ export default function SymbolSearchModal({
       switch (sortBy) {
         case 'name':
           comparison = a.symbol.localeCompare(b.symbol);
+          break;
+        case 'price':
+          comparison = (b.price || 0) - (a.price || 0);
           break;
         case 'volume':
           comparison = (b.volume24h || 0) - (a.volume24h || 0);
@@ -153,7 +154,6 @@ export default function SymbolSearchModal({
   const handleSelect = (symbol: string) => {
     onSymbolSelect(symbol);
     setSearch('');
-    setViewMode('select');
   };
 
   // Toggle sort
@@ -170,7 +170,6 @@ export default function SymbolSearchModal({
   useEffect(() => {
     if (! isOpen) {
       setSearch('');
-      setViewMode('select');
       setCustomSymbol('');
     }
   }, [isOpen]);
@@ -187,35 +186,9 @@ export default function SymbolSearchModal({
           {/* Header */}
           <div className="p-4 border-b border-gray-800">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <Dialog.Title className="text-2xl font-bold text-white flex items-center gap-2">
-                  {viewMode === 'select' ? '🔍 Select Trading Symbol' : '⚙️ Manage Quick Access'}
-                </Dialog.Title>
-
-                {/* View Mode Toggle */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setViewMode('select')}
-                    className={`px-3 py-1 text-sm rounded transition-colors ${
-                      viewMode === 'select'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                    }`}
-                  >
-                    Select
-                  </button>
-                  <button
-                    onClick={() => setViewMode('manage')}
-                    className={`px-3 py-1 text-sm rounded transition-colors ${
-                      viewMode === 'manage'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                    }`}
-                  >
-                    Manage Presets
-                  </button>
-                </div>
-              </div>
+              <Dialog.Title className="text-2xl font-bold text-white flex items-center gap-2">
+                🔍 Select Trading Symbol
+              </Dialog.Title>
 
               <button
                 onClick={onClose}
@@ -227,179 +200,151 @@ export default function SymbolSearchModal({
               </button>
             </div>
 
-            {/* Search Input (Select Mode) */}
-            {viewMode === 'select' && (
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="🔎 Search symbols...  (e.g.  BTC, ETH, SOL)"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus: border-blue-500 text-lg"
-                autoFocus
-              />
-            )}
+            {/* Search Input */}
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="🔎 Search symbols...  (e.g.  BTC, ETH, SOL)"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus: border-blue-500 text-lg"
+              autoFocus
+            />
+          </div>
 
-            {/* Add Custom Symbol (Manage Mode) */}
-            {viewMode === 'manage' && (
+          {/* Quick Access Presets Section - Always Visible */}
+          <div className="p-4 border-b border-gray-800 bg-gray-800/50">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm text-gray-300 font-semibold flex items-center gap-2">
+                ⭐ Quick Access Presets ({favorites.length})
+              </h3>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={customSymbol}
                   onChange={(e) => setCustomSymbol(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddCustom()}
-                  placeholder="Add custom symbol (e.g. DOGEEUR)"
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                  placeholder="Add custom..."
+                  className="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 w-32"
                 />
                 <button
                   onClick={handleAddCustom}
                   disabled={!customSymbol.trim()}
-                  className="px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold rounded-lg transition-colors"
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold rounded text-sm transition-colors"
                 >
                   + Add
                 </button>
               </div>
+            </div>
+
+            {favorites.length > 0 ? (
+              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                {favoriteSymbols.map(symbolData => (
+                  <div
+                    key={symbolData.symbol}
+                    className="relative group"
+                  >
+                    <button
+                      onClick={() => handleSelect(symbolData.symbol)}
+                      className={`w-full px-3 py-2 rounded-lg font-mono font-semibold transition-all text-center ${
+                        symbolData.symbol === currentSymbol
+                          ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      }`}
+                    >
+                      <div className="text-sm truncate">{symbolData.symbol}</div>
+                      <div className="text-xs text-gray-400">
+                        {symbolData.price ? `${symbolData.price.toFixed(2)}€` : '---'}
+                      </div>
+                      <div className={`text-xs ${(symbolData.change24h || 0) >= 0 ? 'text-bull' : 'text-bear'}`}>
+                        {(symbolData.change24h || 0) >= 0 ? '▲' : '▼'} {symbolData.change24h?.toFixed(2)}%
+                      </div>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveFavorite(symbolData.symbol);
+                      }}
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs font-bold"
+                      title="Remove"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500 text-sm">
+                No presets yet. Add symbols above or click ⭐ in the list below.
+              </div>
             )}
           </div>
 
-          {/* MANAGE MODE:  Favorites Management */}
-          {viewMode === 'manage' && (
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-white mb-2">Quick Access Buttons ({favorites.length})</h3>
-                <p className="text-sm text-gray-400 mb-4">
-                  Manage your favorite symbols for quick access.  These will appear in the dashboard panel.
-                </p>
-              </div>
+          {/* Sort Buttons Bar */}
+          <div className="p-4 border-b border-gray-800 bg-gray-800/30">
+            <div className="flex items-center gap-4 flex-wrap">
+              <span className="text-sm text-gray-400 font-semibold">Sort by:</span>
 
-              {favorites.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <div className="text-4xl mb-2">📌</div>
-                  <div>No favorites yet.Add symbols above or star them in Select mode.</div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {favorites.map((symbol) => {
-                    const symbolData = BINANCE_SYMBOLS.find(s => s.symbol === symbol);
-                    return (
-                      <div
-                        key={symbol}
-                        className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover: border-gray-600 transition-colors"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="font-mono font-bold text-lg text-white">{symbol}</div>
-                          <button
-                            onClick={() => handleRemoveFavorite(symbol)}
-                            className="text-red-400 hover:text-red-300 transition-colors"
-                            title="Remove"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                        {symbolData && (
-                          <div className="text-xs text-gray-400 space-y-1">
-                            <div>{symbolData.price?.toFixed(2)} EUR</div>
-                            <div className={symbolData.change24h && symbolData.change24h >= 0 ? 'text-bull' : 'text-bear'}>
-                              {symbolData.change24h && symbolData.change24h >= 0 ? '▲' : '▼'} {symbolData.change24h?.toFixed(2)}%
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <SortButton
+                label="Name"
+                active={sortBy === 'name'}
+                order={sortBy === 'name' ? sortOrder : null}
+                onClick={() => handleSort('name')}
+              />
+
+              <SortButton
+                label="Price"
+                active={sortBy === 'price'}
+                order={sortBy === 'price' ? sortOrder : null}
+                onClick={() => handleSort('price')}
+              />
+
+              <SortButton
+                label="Volume"
+                active={sortBy === 'volume'}
+                order={sortBy === 'volume' ? sortOrder : null}
+                onClick={() => handleSort('volume')}
+              />
+
+              <SortButton
+                label="Change %"
+                active={sortBy === 'change'}
+                order={sortBy === 'change' ? sortOrder : null}
+                onClick={() => handleSort('change')}
+              />
+
+              <div className="ml-auto text-xs text-gray-500">
+                {filteredSymbols.length} symbols
+              </div>
             </div>
-          )}
+          </div>
 
-          {/* SELECT MODE: Symbol Selection */}
-          {viewMode === 'select' && (
-            <>
-              {/* Favorites Section */}
-              {favoriteSymbols.length > 0 && ! search && (
-                <div className="p-4 border-b border-gray-800 bg-gray-800/50">
-                  <h3 className="text-sm text-gray-400 font-semibold mb-3 flex items-center gap-2">
-                    ⭐ Quick Access Favorites
-                  </h3>
-                  <div className="grid grid-cols-2 md: grid-cols-4 lg:grid-cols-6 gap-2">
-                    {favoriteSymbols.map(symbolData => (
-                      <SymbolCard
-                        key={symbolData.symbol}
-                        symbolData={symbolData}
-                        isActive={symbolData.symbol === currentSymbol}
-                        isFavorite={true}
-                        onSelect={handleSelect}
-                        onToggleFavorite={toggleFavorite}
-                        compact
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Filters Bar */}
-              <div className="p-4 border-b border-gray-800 bg-gray-800/30">
-                <div className="flex items-center gap-4 flex-wrap">
-                  <span className="text-sm text-gray-400 font-semibold">Sort by:</span>
-
-                  <SortButton
-                    label="Name"
-                    active={sortBy === 'name'}
-                    order={sortBy === 'name' ? sortOrder : null}
-                    onClick={() => handleSort('name')}
+          {/* Compact Symbols List - 1 Row Per Symbol */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {filteredSymbols.length > 0 ? (
+              <div className="space-y-1">
+                {filteredSymbols.map(symbolData => (
+                  <SymbolRow
+                    key={symbolData.symbol}
+                    symbolData={symbolData}
+                    isActive={symbolData.symbol === currentSymbol}
+                    isFavorite={favorites.includes(symbolData.symbol)}
+                    onSelect={handleSelect}
+                    onToggleFavorite={toggleFavorite}
                   />
-
-                  <SortButton
-                    label="Volume 24h"
-                    active={sortBy === 'volume'}
-                    order={sortBy === 'volume' ? sortOrder : null}
-                    onClick={() => handleSort('volume')}
-                  />
-
-                  <SortButton
-                    label="Change %"
-                    active={sortBy === 'change'}
-                    order={sortBy === 'change' ? sortOrder : null}
-                    onClick={() => handleSort('change')}
-                  />
-
-                  <div className="ml-auto text-xs text-gray-500">
-                    {filteredSymbols.length} symbols
-                  </div>
-                </div>
+                ))}
               </div>
-
-              {/* Symbols List */}
-              <div className="flex-1 overflow-y-auto p-4">
-                {filteredSymbols.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {filteredSymbols.map(symbolData => (
-                      <SymbolCard
-                        key={symbolData.symbol}
-                        symbolData={symbolData}
-                        isActive={symbolData.symbol === currentSymbol}
-                        isFavorite={favorites.includes(symbolData.symbol)}
-                        onSelect={handleSelect}
-                        onToggleFavorite={toggleFavorite}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <div className="text-4xl mb-2">🔍</div>
-                    <div>No symbols found for "{search}"</div>
-                  </div>
-                )}
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <div className="text-4xl mb-2">🔍</div>
+                <div>No symbols found for &quot;{search}&quot;</div>
               </div>
-            </>
-          )}
+            )}
+          </div>
 
           {/* Footer */}
           <div className="p-4 border-t border-gray-800 bg-gray-800/50 text-xs text-gray-400 flex items-center justify-between">
             <div>
-              {viewMode === 'select' ?
-                'Click ⭐ to add/remove from Quick Access' :
-                'Quick Access buttons appear in the main dashboard'
-              }
+              Click ⭐ to add/remove from Quick Access • Click row to select symbol
             </div>
             <div className="text-blue-400 font-mono">
               Current: {currentSymbol}
@@ -440,102 +385,62 @@ function SortButton({ label, active, order, onClick }: SortButtonProps) {
   );
 }
 
-// Symbol Card Component
-interface SymbolCardProps {
+// Symbol Row Component - Compact 1-line layout
+interface SymbolRowProps {
   symbolData: SymbolData;
   isActive: boolean;
   isFavorite: boolean;
   onSelect: (symbol:  string) => void;
   onToggleFavorite: (symbol: string) => void;
-  compact?: boolean;
 }
 
-function SymbolCard({ symbolData, isActive, isFavorite, onSelect, onToggleFavorite, compact }: SymbolCardProps) {
+function SymbolRow({ symbolData, isActive, isFavorite, onSelect, onToggleFavorite }: SymbolRowProps) {
   const { symbol, price, change24h, volume24h } = symbolData;
   const changeColor = (change24h || 0) >= 0 ? 'text-bull' : 'text-bear';
   const changeIcon = (change24h || 0) >= 0 ? '▲' : '▼';
 
-  if (compact) {
-    return (
-      <div className="relative">
-        <button
-          onClick={() => onSelect(symbol)}
-          className={`w-full px-4 py-3 rounded-lg font-mono font-semibold transition-all ${
-            isActive
-              ?  'bg-blue-600 text-white ring-2 ring-blue-400'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-          }`}
-        >
-          <div className="text-sm">{symbol}</div>
-          <div className={`text-xs ${changeColor}`}>
-            {changeIcon} {change24h?.toFixed(2)}%
-          </div>
-        </button>
-
-        <span
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleFavorite(symbol);
-          }}
-          className="absolute top-1 right-1 text-yellow-400 cursor-pointer hover:scale-110 transition-transform"
-          role="button"
-          aria-label="Toggle favorite"
-        >
-          ⭐
-        </span>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative">
+    <div
+      className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all cursor-pointer ${
+        isActive
+          ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+          : 'bg-gray-800/50 hover:bg-gray-700 text-gray-300'
+      }`}
+      onClick={() => onSelect(symbol)}
+    >
+      {/* Favorite Star */}
       <button
-        onClick={() => onSelect(symbol)}
-        className={`w-full p-4 rounded-lg transition-all text-left ${
-          isActive
-            ? 'bg-blue-600 text-white ring-2 ring-blue-400'
-            : 'bg-gray-800 hover:bg-gray-700'
-        }`}
-      >
-        <div className="flex items-start justify-between mb-2">
-          <div className="font-mono font-bold text-lg">{symbol}</div>
-        </div>
-
-        <div className="space-y-1 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-400">Price: </span>
-            <span className="font-mono font-semibold">{price?.toFixed(2)} EUR</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-gray-400">Change 24h:</span>
-            <span className={`font-mono font-semibold ${changeColor}`}>
-              {changeIcon} {change24h?.toFixed(2)}%
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-gray-400">Volume: </span>
-            <span className="font-mono text-xs">
-              €{((volume24h || 0) / 1000000).toFixed(1)}M
-            </span>
-          </div>
-        </div>
-      </button>
-
-      <span
         onClick={(e) => {
           e.stopPropagation();
           onToggleFavorite(symbol);
         }}
-        className={`absolute top-2 right-2 text-lg cursor-pointer hover:scale-110 transition-transform ${
+        className={`text-xl hover:scale-110 transition-transform ${
           isFavorite ?  'text-yellow-400' : 'text-gray-600 hover:text-gray-400'
         }`}
-        role="button"
         aria-label="Toggle favorite"
       >
         {isFavorite ? '⭐' : '☆'}
-      </span>
+      </button>
+
+      {/* Symbol Name */}
+      <div className="font-mono font-bold text-base w-24">
+        {symbol}
+      </div>
+
+      {/* Price */}
+      <div className="font-mono font-semibold text-base w-32 text-right">
+        {price ? `${price.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€` : '---'}
+      </div>
+
+      {/* Change % */}
+      <div className={`font-mono font-semibold text-base w-28 text-right ${changeColor}`}>
+        {changeIcon} {change24h !== undefined ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '---'}
+      </div>
+
+      {/* Volume */}
+      <div className="font-mono text-sm text-gray-400 w-24 text-right">
+        {volume24h ? `€${(volume24h / 1000000).toFixed(0)}M` : '---'}
+      </div>
     </div>
   );
 }

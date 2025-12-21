@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import SymbolSelectorGlobal from '@/components/shared/SymbolSelectorGlobal';
 import BalanceDisplay from '@/components/shared/BalanceDisplay';
 import NotificationsBell from '@/components/shared/NotificationsBell';
 import PopOutButtons from '@/components/layout/PopOutButtons';
@@ -58,7 +57,6 @@ export default function GlobalHeader() {
       
       {/* Controls Row */}
       <div className="flex items-center gap-6 px-6 py-3">
-        <SymbolSelectorGlobal />
         <div className="flex-1" />
         <BalanceDisplay />
         <NotificationsBell />
