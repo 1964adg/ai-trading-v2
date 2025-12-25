@@ -4,7 +4,6 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import BalanceDisplay from '@/components/shared/BalanceDisplay';
 import NotificationsBell from '@/components/shared/NotificationsBell';
-import PopOutButtons from '@/components/layout/PopOutButtons';
 
 /**
  * Global Header Component
@@ -12,7 +11,7 @@ import PopOutButtons from '@/components/layout/PopOutButtons';
  */
 export default function GlobalHeader() {
   const pathname = usePathname();
-  
+
   const navItems = [
     { href: '/', label: '📈 Trading' },
     { href: '/scout', label: '🔍 Scout' },
@@ -21,7 +20,7 @@ export default function GlobalHeader() {
     { href: '/portfolio', label: '💼 Portfolio' },
     { href: '/backtest', label: '🧪 Backtest' },
   ];
-  
+
   return (
     <header className="sticky top-0 z-50 bg-gray-900 border-b border-gray-800 shadow-lg">
       {/* Navigation Row */}
@@ -48,13 +47,9 @@ export default function GlobalHeader() {
             {item.label}
           </Link>
         ))}
-        
-        {/* Pop-out buttons (right side) */}
-        <div className="ml-auto">
-          <PopOutButtons />
-        </div>
+
       </nav>
-      
+
       {/* Controls Row */}
       <div className="flex items-center gap-6 px-6 py-3">
         <div className="flex-1" />
