@@ -46,7 +46,7 @@ export default function Dashboard() {
   const { addPosition } = useTradingStore();
 
   // Market store for price updates and sync
-  const { setSymbol: setGlobalSymbol, updatePrice } = useMarketStore();
+  const { setSymbol: setGlobalSymbol, updatePrice, setConnectionStatus } = useMarketStore();
 
   // Listen for symbol changes from other windows
   useEffect(() => {
@@ -218,6 +218,12 @@ export default function Dashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPrice]);
+
+  // Update connection status in global store
+  useEffect(() => {
+    const status = isRealtimeConnected ? 'FULL' : isConnected ? 'PARTIAL' : 'OFFLINE';
+    setConnectionStatus(status);
+  }, [isConnected, isRealtimeConnected, setConnectionStatus]);
 
   // Handle orderbook price click
   const handleOrderbookPriceClick = useCallback((price: number) => {

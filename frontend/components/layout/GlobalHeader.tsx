@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import BalanceDisplay from '@/components/shared/BalanceDisplay';
 import NotificationsBell from '@/components/shared/NotificationsBell';
+import { useMarketStore } from '@/stores/marketStore';
 
 /**
  * Global Header Component
@@ -11,6 +12,7 @@ import NotificationsBell from '@/components/shared/NotificationsBell';
  */
 export default function GlobalHeader() {
   const pathname = usePathname();
+  const { connectionStatus } = useMarketStore();
 
   const navItems = [
     { href: '/', label: '📈 Trading' },
@@ -21,10 +23,19 @@ export default function GlobalHeader() {
     { href: '/backtest', label: '🧪 Backtest' },
   ];
 
+  // Status styling
+  const statusColor = {
+    FULL: 'bg-green-500',
+    PARTIAL: 'bg-yellow-500',
+    OFFLINE: 'bg-red-500'
+  }[connectionStatus];
+
+  const statusDot = connectionStatus !== 'OFFLINE' ? 'animate-pulse' : '';
+
   return (
     <header className="sticky top-0 z-50 bg-gray-900 border-b border-gray-800 shadow-lg">
-      {/* Navigation Row */}
-      <nav className="flex items-center gap-6 px-6 py-3 border-b border-gray-800">
+      {/* Unified Navigation Row */}
+      <nav className="flex items-center gap-6 px-6 py-3">
         {/* Logo */}
         <div className="flex items-center gap-2 mr-4">
           <div className="text-2xl">🚀</div>
@@ -48,14 +59,21 @@ export default function GlobalHeader() {
           </Link>
         ))}
 
-      </nav>
+        {/* Right side: Connection Status + Balance + Notifications */}
+        <div className="ml-auto flex items-center gap-4">
+          
+          {/* Connection Status Badge */}
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-800 rounded-lg">
+            <div className={`w-2 h-2 rounded-full ${statusColor} ${statusDot}`} />
+            <span className="text-xs font-medium text-gray-300 uppercase">
+              {connectionStatus}
+            </span>
+          </div>
 
-      {/* Controls Row */}
-      <div className="flex items-center gap-6 px-6 py-3">
-        <div className="flex-1" />
-        <BalanceDisplay />
-        <NotificationsBell />
-      </div>
+          <BalanceDisplay />
+          <NotificationsBell />
+        </div>
+      </nav>
     </header>
   );
 }
