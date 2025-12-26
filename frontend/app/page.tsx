@@ -2,6 +2,7 @@
 
 import UnifiedPriceHeader from '@/components/trading/UnifiedPriceHeader';
 import EmaConfigModal from '@/components/modals/EmaConfigModal';  // ← NEW
+import SymbolSearchModal from '@/components/modals/SymbolSearchModal';  // ← NEW
 import { useRealTrading } from '@/hooks/useRealTrading';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import useSWR from 'swr';
@@ -27,7 +28,8 @@ export default function Dashboard() {
   const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-const [showEmaConfig, setShowEmaConfig] = useState(false);  // ← NEW
+const [showEmaConfig, setShowEmaConfig] = useState(false);
+const [showSymbolSelector, setShowSymbolSelector] = useState(false);  // ← NEW
   // Use refs to prevent callback recreation
   const viewportRangeRef = useRef<{ from:  number; to: number } | null>(null);
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
@@ -297,7 +299,8 @@ const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
   priceChangePercent={priceChangePercent24h}
   timeframe={timeframe}
   onTimeframeChange={handleTimeframeChange}
-  onSymbolClick={() => {/* TODO: Open symbol modal */}}
+  onSymbolClick={() => setShowSymbolSelector(true)}  // ← CAMBIA QUI
+  onSymbolSelect={handleSymbolChange}  // ← AGGIUNGI QUESTA
   emaPeriods={emaPeriods}
   emaEnabled={emaEnabled}
   onEmaToggle={toggleEma}
@@ -372,7 +375,7 @@ const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
           />
         </div>
          </div>
-    {/* EMA Config Modal */}
+          {/* EMA Config Modal */}
       <EmaConfigModal
         isOpen={showEmaConfig}
         onClose={() => setShowEmaConfig(false)}
@@ -382,6 +385,14 @@ const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
           setEmaPeriods(newPeriods);
           setEmaEnabled(newEnabled);
         }}
+      />
+
+      {/* Symbol Search Modal */}
+      <SymbolSearchModal
+        isOpen={showSymbolSelector}
+        onClose={() => setShowSymbolSelector(false)}
+        currentSymbol={symbol}
+        onSymbolSelect={handleSymbolChange}
       />
     </div>
   );

@@ -1,24 +1,24 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Timeframe } from '@/lib/types';
 import { formatCurrency, formatPercentage } from '@/lib/formatters';
 
 interface UnifiedPriceHeaderProps {
   symbol: string;
   price: number;
-  priceChangePercent: number;
-  timeframe: Timeframe;
-  onTimeframeChange:  (tf: Timeframe) => void;
+  priceChangePercent:  number;
+  timeframe:  Timeframe;
+  onTimeframeChange: (tf: Timeframe) => void;
   onSymbolClick?:  () => void;
+  onSymbolSelect:  (symbol: string) => void;
   emaPeriods?:  [number, number, number, number];
   emaEnabled?: [boolean, boolean, boolean, boolean];
   onEmaToggle?:  (index: number) => void;
   onEmaConfig?: () => void;
 }
 
-const TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
-
-// Colori EMA che matchano il grafico
+const TIMEFRAMES:  Timeframe[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
 
 export default function UnifiedPriceHeader({
@@ -28,17 +28,71 @@ export default function UnifiedPriceHeader({
   timeframe,
   onTimeframeChange,
   onSymbolClick,
+  onSymbolSelect,
   emaPeriods = [9, 21, 50, 200],
   emaEnabled = [true, true, true, false],
   onEmaToggle,
   onEmaConfig,
 }: UnifiedPriceHeaderProps) {
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  // Load favorites from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('scalping_favorite_symbols');
+      if (stored) {
+        try {
+          setFavorites(JSON.parse(stored));
+        } catch {
+          setFavorites(['BTCEUR', 'ETHEUR', 'BNBEUR']);
+        }
+      } else {
+        setFavorites(['BTCEUR', 'ETHEUR', 'BNBEUR']);
+      }
+    }
+  }, []);
+
+  // Listen for localStorage changes (from modal)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const stored = localStorage.getItem('scalping_favorite_symbols');
+      if (stored) {
+        try {
+          setFavorites(JSON.parse(stored));
+        } catch {
+          // Ignore
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // Poll for changes (since same-window storage events don't fire)
+    const interval = setInterval(() => {
+      const stored = localStorage.getItem('scalping_favorite_symbols');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (JSON.stringify(parsed) !== JSON.stringify(favorites)) {
+            setFavorites(parsed);
+          }
+        } catch {
+          // Ignore
+        }
+      }
+    }, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [favorites]);
 
   return (
     <div className="bg-gray-900 rounded-lg border border-gray-800 p-4 space-y-3">
 
-      {/* RIGA 1: Symbol + Price + Percentage */}
-      <div className="flex items-center gap-4">
+      {/* RIGA 1: Symbol + Price + Percentage + Quick Presets */}
+      <div className="flex items-center gap-4 flex-wrap">
 
         {/* Symbol Selector Button */}
         <button
@@ -69,6 +123,29 @@ export default function UnifiedPriceHeader({
             <span>{priceChangePercent !== 0 ? formatPercentage(priceChangePercent) : '--%'}</span>
           </div>
         </div>
+
+        {/* Separator */}
+        <div className="h-8 w-px bg-gray-700" />
+
+        {/* Quick Access Preset Buttons */}
+        {favorites.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {favorites.slice(0, 10).map((favSymbol) => (
+              <button
+                key={favSymbol}
+                onClick={() => onSymbolSelect(favSymbol)}
+                className={`px-3 py-1.5 rounded text-sm font-mono font-semibold transition-all ${
+                  favSymbol === symbol
+                    ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                }`}
+                title={`Switch to ${favSymbol}`}
+              >
+                ⭐ {favSymbol}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* RIGA 2: Timeframes + EMA + Config */}
@@ -76,14 +153,14 @@ export default function UnifiedPriceHeader({
 
         {/* Timeframe Buttons */}
         <div className="flex gap-1">
-          {TIMEFRAMES. map((tf) => (
+          {TIMEFRAMES.map((tf) => (
             <button
               key={tf}
               onClick={() => onTimeframeChange(tf)}
               className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                 timeframe === tf
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  ?  'bg-blue-600 text-white'
+                  :  'bg-gray-800 text-gray-400 hover:bg-gray-700'
               }`}
             >
               {tf}

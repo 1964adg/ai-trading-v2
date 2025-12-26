@@ -7,7 +7,7 @@ interface SymbolSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSymbolSelect: (symbol: string) => void;
-  currentSymbol:  string;
+  currentSymbol: string;
 }
 
 interface SymbolData {
@@ -34,7 +34,7 @@ const BINANCE_SYMBOLS:  SymbolData[] = [
   { symbol: 'ATOMEUR', price: 14.32, change24h: 0.78, volume24h: 48000000 },
   { symbol: 'XLMEUR', price: 0.18, change24h: 2.34, volume24h: 42000000 },
   { symbol: 'ETCEUR', price: 28.45, change24h: -0.92, volume24h: 36000000 },
-  { symbol: 'TRXEUR', price: 0.12, change24h: 1.67, volume24h: 82000000 },
+  { symbol:  'TRXEUR', price: 0.12, change24h: 1.67, volume24h: 82000000 },
   { symbol: 'EOSEUR', price: 1.05, change24h: -1.23, volume24h: 28000000 },
   { symbol: 'VETEUR', price: 0.045, change24h: 0.56, volume24h: 34000000 },
   { symbol: 'ALGOUSDT', price: 0.35, change24h: 3.12, volume24h: 45000000 },
@@ -54,6 +54,8 @@ const BINANCE_SYMBOLS:  SymbolData[] = [
 type SortBy = 'name' | 'price' | 'volume' | 'change';
 type SortOrder = 'asc' | 'desc';
 
+const MAX_FAVORITES = 10;
+
 export default function SymbolSearchModal({
   isOpen,
   onClose,
@@ -67,17 +69,32 @@ export default function SymbolSearchModal({
   const [customSymbol, setCustomSymbol] = useState('');
 
   // Load favorites from localStorage
+    // Load favorites from localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('scalping_favorite_symbols');
       if (stored) {
         try {
-          setFavorites(JSON.parse(stored));
+          const parsed = JSON.parse(stored);
+          // Se array vuoto, usa default
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setFavorites(parsed);
+          } else {
+            // Default presets
+            const defaultFavorites = ['BTCEUR', 'ETHEUR', 'BNBEUR'];
+            setFavorites(defaultFavorites);
+            localStorage.setItem('scalping_favorite_symbols', JSON.stringify(defaultFavorites));
+          }
         } catch {
-          setFavorites(['BTCEUR', 'ETHEUR', 'BNBEUR']);
+          const defaultFavorites = ['BTCEUR', 'ETHEUR', 'BNBEUR'];
+          setFavorites(defaultFavorites);
+          localStorage.setItem('scalping_favorite_symbols', JSON.stringify(defaultFavorites));
         }
       } else {
-        setFavorites(['BTCEUR', 'ETHEUR', 'BNBEUR']);
+        // First time - usa default
+        const defaultFavorites = ['BTCEUR', 'ETHEUR', 'BNBEUR'];
+        setFavorites(defaultFavorites);
+        localStorage.setItem('scalping_favorite_symbols', JSON.stringify(defaultFavorites));
       }
     }
   }, []);
@@ -128,21 +145,36 @@ export default function SymbolSearchModal({
     return BINANCE_SYMBOLS.filter(s => favorites.includes(s.symbol));
   }, [favorites]);
 
-  // Toggle favorite
-  const toggleFavorite = (symbol: string) => {
-    const newFavorites = favorites.includes(symbol)
-      ? favorites.filter(s => s !== symbol)
-      : [...favorites, symbol];
+  // Add to favorites (max 10)
+  const addFavorite = (symbol: string) => {
+    if (favorites.includes(symbol)) {
+      return; // Already added
+    }
+    if (favorites.length >= MAX_FAVORITES) {
+      alert(`⚠️ Maximum ${MAX_FAVORITES} presets reached.Remove one first.`);
+      return;
+    }
+    const newFavorites = [...favorites, symbol];
     saveFavorites(newFavorites);
   };
 
   // Add custom symbol
   const handleAddCustom = () => {
     const symbolUpper = customSymbol.toUpperCase().trim();
-    if (symbolUpper && !favorites.includes(symbolUpper)) {
-      saveFavorites([...favorites, symbolUpper]);
-      setCustomSymbol('');
+    if (!symbolUpper) return;
+
+    if (favorites.includes(symbolUpper)) {
+      alert(`ℹ️ ${symbolUpper} is already in Quick Access Presets`);
+      return;
     }
+
+    if (favorites.length >= MAX_FAVORITES) {
+      alert(`⚠️ Maximum ${MAX_FAVORITES} presets reached.Remove one first.`);
+      return;
+    }
+
+    saveFavorites([...favorites, symbolUpper]);
+    setCustomSymbol('');
   };
 
   // Remove favorite
@@ -168,7 +200,7 @@ export default function SymbolSearchModal({
 
   // Reset on close
   useEffect(() => {
-    if (! isOpen) {
+    if (!isOpen) {
       setSearch('');
       setCustomSymbol('');
     }
@@ -205,39 +237,40 @@ export default function SymbolSearchModal({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="🔎 Search symbols...  (e.g.  BTC, ETH, SOL)"
+              placeholder="🔎 Search symbols... (e.g. BTC, ETH, SOL)"
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus: border-blue-500 text-lg"
               autoFocus
             />
           </div>
 
-          {/* Quick Access Presets Section - Always Visible */}
+          {/* Quick Access Presets Section */}
           <div className="p-4 border-b border-gray-800 bg-gray-800/50">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm text-gray-300 font-semibold flex items-center gap-2">
-                ⭐ Quick Access Presets ({favorites.length})
+                ⭐ Quick Access Presets ({favorites.length}/{MAX_FAVORITES})
               </h3>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={customSymbol}
-                  onChange={(e) => setCustomSymbol(e.target.value)}
+                  onChange={(e) => setCustomSymbol(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddCustom()}
-                  placeholder="Add custom..."
-                  className="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 w-32"
+                  placeholder="Enter symbol..."
+                  className="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white placeholder-gray-500 focus: outline-none focus:border-blue-500 w-32"
                 />
                 <button
                   onClick={handleAddCustom}
-                  disabled={!customSymbol.trim()}
+                  disabled={!customSymbol.trim() || favorites.length >= MAX_FAVORITES}
                   className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold rounded text-sm transition-colors"
+                  title={favorites.length >= MAX_FAVORITES ?  `Max ${MAX_FAVORITES} presets reached` : 'Add to Quick Access'}
                 >
-                  + Add
+                  ⭐ Add
                 </button>
               </div>
             </div>
 
-            {favorites.length > 0 ? (
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+            {favorites.length > 0 ?  (
+              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
                 {favoriteSymbols.map(symbolData => (
                   <div
                     key={symbolData.symbol}
@@ -253,7 +286,7 @@ export default function SymbolSearchModal({
                     >
                       <div className="text-sm truncate">{symbolData.symbol}</div>
                       <div className="text-xs text-gray-400">
-                        {symbolData.price ? `${symbolData.price.toFixed(2)}€` : '---'}
+                        {symbolData.price ?  `${symbolData.price.toFixed(2)}€` : '---'}
                       </div>
                       <div className={`text-xs ${(symbolData.change24h || 0) >= 0 ? 'text-bull' : 'text-bear'}`}>
                         {(symbolData.change24h || 0) >= 0 ? '▲' : '▼'} {symbolData.change24h?.toFixed(2)}%
@@ -264,8 +297,8 @@ export default function SymbolSearchModal({
                         e.stopPropagation();
                         handleRemoveFavorite(symbolData.symbol);
                       }}
-                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs font-bold"
-                      title="Remove"
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs"
+                      title="Remove from presets"
                     >
                       ✕
                     </button>
@@ -274,7 +307,7 @@ export default function SymbolSearchModal({
               </div>
             ) : (
               <div className="text-center py-4 text-gray-500 text-sm">
-                No presets yet. Add symbols above or click ⭐ in the list below.
+                No presets yet.Enter a symbol above and click &quot;⭐ Add&quot; or click &quot;⭐ Add Preset&quot; in the list below.
               </div>
             )}
           </div>
@@ -301,14 +334,14 @@ export default function SymbolSearchModal({
               <SortButton
                 label="Volume"
                 active={sortBy === 'volume'}
-                order={sortBy === 'volume' ? sortOrder : null}
+                order={sortBy === 'volume' ?  sortOrder : null}
                 onClick={() => handleSort('volume')}
               />
 
               <SortButton
                 label="Change %"
                 active={sortBy === 'change'}
-                order={sortBy === 'change' ? sortOrder : null}
+                order={sortBy === 'change' ?  sortOrder : null}
                 onClick={() => handleSort('change')}
               />
 
@@ -329,7 +362,8 @@ export default function SymbolSearchModal({
                     isActive={symbolData.symbol === currentSymbol}
                     isFavorite={favorites.includes(symbolData.symbol)}
                     onSelect={handleSelect}
-                    onToggleFavorite={toggleFavorite}
+                    onAddFavorite={addFavorite}
+                    favoritesCount={favorites.length}
                   />
                 ))}
               </div>
@@ -391,45 +425,39 @@ interface SymbolRowProps {
   isActive: boolean;
   isFavorite: boolean;
   onSelect: (symbol:  string) => void;
-  onToggleFavorite: (symbol: string) => void;
+  onAddFavorite: (symbol:  string) => void;
+  favoritesCount: number;
 }
 
-function SymbolRow({ symbolData, isActive, isFavorite, onSelect, onToggleFavorite }: SymbolRowProps) {
+function SymbolRow({ symbolData, isActive, isFavorite, onSelect, onAddFavorite, favoritesCount }: SymbolRowProps) {
   const { symbol, price, change24h, volume24h } = symbolData;
   const changeColor = (change24h || 0) >= 0 ? 'text-bull' : 'text-bear';
   const changeIcon = (change24h || 0) >= 0 ? '▲' : '▼';
 
   return (
     <div
-      className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all cursor-pointer ${
+      className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all ${
         isActive
           ? 'bg-blue-600 text-white ring-2 ring-blue-400'
           : 'bg-gray-800/50 hover:bg-gray-700 text-gray-300'
       }`}
-      onClick={() => onSelect(symbol)}
     >
-      {/* Favorite Star */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleFavorite(symbol);
-        }}
-        className={`text-xl hover:scale-110 transition-transform ${
-          isFavorite ?  'text-yellow-400' : 'text-gray-600 hover:text-gray-400'
-        }`}
-        aria-label="Toggle favorite"
-      >
-        {isFavorite ? '⭐' : '☆'}
-      </button>
+      {/* Star Indicator (not clickable) */}
+      <div className={`text-xl w-6 ${isFavorite ? 'text-yellow-400' : 'text-gray-700'}`}>
+        {isFavorite ?  '⭐' : '☆'}
+      </div>
 
-      {/* Symbol Name */}
-      <div className="font-mono font-bold text-base w-24">
+      {/* Symbol Name - Clickable */}
+      <div
+        className="font-mono font-bold text-base w-24 cursor-pointer hover:text-blue-400"
+        onClick={() => onSelect(symbol)}
+      >
         {symbol}
       </div>
 
       {/* Price */}
       <div className="font-mono font-semibold text-base w-32 text-right">
-        {price ? `${price.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€` : '---'}
+        {price ?  `${price.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits:  2 })}€` : '---'}
       </div>
 
       {/* Change % */}
@@ -439,8 +467,27 @@ function SymbolRow({ symbolData, isActive, isFavorite, onSelect, onToggleFavorit
 
       {/* Volume */}
       <div className="font-mono text-sm text-gray-400 w-24 text-right">
-        {volume24h ? `€${(volume24h / 1000000).toFixed(0)}M` : '---'}
+        {volume24h ?  `€${(volume24h / 1000000).toFixed(0)}M` : '---'}
       </div>
+
+      {/* Add Preset Button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onAddFavorite(symbol);
+        }}
+        disabled={isFavorite || favoritesCount >= MAX_FAVORITES}
+        className={`ml-auto px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+          isFavorite
+            ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            : favoritesCount >= MAX_FAVORITES
+            ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            : 'bg-blue-600 hover:bg-blue-700 text-white'
+        }`}
+        title={isFavorite ? 'Already in presets' : favoritesCount >= MAX_FAVORITES ? 'Max presets reached' : 'Add to Quick Access'}
+      >
+        {isFavorite ? '✓ Added' : '⭐ Add Preset'}
+      </button>
     </div>
   );
 }

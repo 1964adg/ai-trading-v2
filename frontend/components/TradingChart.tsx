@@ -490,69 +490,35 @@ useEffect(() => {
   }, [patterns]);
 
   return (
-  <div className="w-full">
-    {/* Symbol + Price Info */}
-<div className="mb-4 flex items-center gap-4 bg-gray-900 rounded-lg border border-gray-800 p-4">
-
-  {/* Symbol Selector Button */}
-  <button
-    onClick={onSymbolClick}
-    className="flex items-center gap-2 bg-gray-800 hover:bg-blue-600 px-4 py-2 rounded-lg transition-all group"
-    title="Click to select symbol"
-  >
-    <span className="text-2xl font-bold text-white">{symbol}</span>
-    <svg
-      className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-    </svg>
-  </button>
-
-  {/* Price Display */}
-  <div className="flex items-baseline gap-3">
-    <span className="text-3xl font-bold text-white font-mono">
-      {price > 0 ? formatCurrency(price) : '--,---€'}
-    </span>
-    <div className={`flex items-center gap-1 font-semibold text-lg ${
-      priceChangePercent >= 0 ? 'text-bull' : 'text-bear'
-    }`}>
-      <span>{priceChangePercent >= 0 ? '▲' : '▼'}</span>
-      <span>{priceChangePercent !== 0 ? formatPercentage(priceChangePercent) : '--%'}</span>
-    </div>
-  </div>
-</div>
-
-    {/* Chart Container */}
-    <div className="relative">
-      <div ref={chartContainerRef} className="rounded-lg border border-gray-700" />
-      <div
-        ref={tooltipRef}
-        className="absolute bg-gray-900 border border-gray-700 rounded p-2 text-xs text-white pointer-events-none z-10 font-mono leading-relaxed"
-        style={{ display: 'none' }}
-      />
-
-      {/* VWAP & Volume Profile overlays */}
-      {vwapConfig && (
-        <VWAPOverlay
-          chart={chartRef.current}
-          vwapData={vwapData}
-          config={vwapConfig}
+    <div className="w-full">
+      {/* Chart Container */}
+      <div className="relative">
+        <div ref={chartContainerRef} className="rounded-lg border border-gray-700" />
+        <div
+          ref={tooltipRef}
+          className="absolute bg-gray-900 border border-gray-700 rounded p-2 text-xs text-white pointer-events-none z-10 font-mono leading-relaxed"
+          style={{ display: 'none' }}
         />
-      )}
 
-      {volumeProfileConfig && (
-        <VolumeProfileOverlay
-          chart={chartRef.current}
-          profileData={profileData}
-          config={volumeProfileConfig}
-        />
-      )}
+        {/* VWAP & Volume Profile overlays */}
+        {vwapConfig && (
+          <VWAPOverlay
+            chart={chartRef.current}
+            vwapData={vwapData}
+            config={vwapConfig}
+          />
+        )}
+
+        {volumeProfileConfig && (
+          <VolumeProfileOverlay
+            chart={chartRef.current}
+            profileData={profileData}
+            config={volumeProfileConfig}
+          />
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
 }
 
 const TradingChart = memo(TradingChartComponent);
