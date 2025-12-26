@@ -19,7 +19,7 @@ import { Position } from '@/stores/tradingStore';
 import { useMarketStore } from '@/stores/marketStore';
 import { syncManager, SyncEvent } from '@/lib/syncManager';
 
-const DEFAULT_SYMBOL = 'BTCEUR'; // Binance Italia
+const DEFAULT_SYMBOL = 'BTCEUR';
 const DEFAULT_TIMEFRAME:  Timeframe = '1m';
 
 export default function Dashboard() {
@@ -28,7 +28,7 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
 
   // Use refs to prevent callback recreation
-  const viewportRangeRef = useRef<{ from: number; to: number } | null>(null);
+  const viewportRangeRef = useRef<{ from:  number; to: number } | null>(null);
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
   const timeframeRef = useRef<Timeframe>(timeframe);
   const symbolRef = useRef<string>(symbol);
@@ -50,7 +50,7 @@ export default function Dashboard() {
 
   // Listen for symbol changes from other windows
   useEffect(() => {
-    const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (data:  unknown) => {
+    const unsubscribe = syncManager.on(SyncEvent. SYMBOL_CHANGE, (data:  unknown) => {
       const newSymbol = data as string;
       if (newSymbol !== symbol) {
         setSymbol(newSymbol);
@@ -61,59 +61,57 @@ export default function Dashboard() {
     return unsubscribe;
   }, [symbol]);
 
-  // Fetch 24h ticker data for price color indicator
+  // Fetch 24h ticker data
   const { priceChangePercent24h } = useSymbolTicker(symbol, 10000);
 
-  // Real-time orderbook data
+  // Real-time orderbook
   const { isConnected:  isOrderbookConnected } = useOrderbook({
     symbol,
-    enabled:  true,
+    enabled: true,
     maxLevels: 20,
   });
 
-  // Real-time WebSocket for positions, portfolio, and market updates
-  const handleMarketUpdate = useCallback((data: { symbol: string; price: number }) => {
+  // WebSocket handlers
+  const handleMarketUpdate = useCallback((data: { symbol:  string; price: number }) => {
     if (data.symbol === symbolRef.current) {
       updatePrice(data.price);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependencies - using symbolRef and updatePrice is stable Zustand action
+  }, []);
 
-  const handlePositionUpdate = useCallback((data: { positions?:  unknown[] }) => {
-    console.log('[Dashboard] Position update received:', data.positions?.length);
+  const handlePositionUpdate = useCallback((data:  { positions?: unknown[] }) => {
+    console.log('[Dashboard] Position update:', data.positions?.length);
   }, []);
 
   const handlePortfolioUpdate = useCallback((data: { portfolio?: unknown }) => {
-    console.log('[Dashboard] Portfolio update received:', data.portfolio);
+    console.log('[Dashboard] Portfolio update:', data. portfolio);
   }, []);
 
-  const handleOrderUpdate = useCallback((data: { orderType?: string }) => {
-    console.log('[Dashboard] Order update received:', data);
+  const handleOrderUpdate = useCallback((data: { orderType?:  string }) => {
+    console.log('[Dashboard] Order update:', data);
   }, []);
 
   const {
-    isConnected:  isRealtimeConnected,
+    isConnected: isRealtimeConnected,
     subscribeTicker,
     unsubscribeTicker
   } = useRealtimeWebSocket({
-    enabled:  true,
-    onMarketUpdate:  handleMarketUpdate,
+    enabled: true,
+    onMarketUpdate: handleMarketUpdate,
     onPositionUpdate: handlePositionUpdate,
     onPortfolioUpdate: handlePortfolioUpdate,
     onOrderUpdate: handleOrderUpdate,
   });
 
-  // Subscribe to ticker when symbol changes
+  // Subscribe to ticker
   useEffect(() => {
     if (isRealtimeConnected) {
       subscribeTicker(symbol);
-      return () => {
-        unsubscribeTicker(symbol);
-      };
+      return () => unsubscribeTicker(symbol);
     }
   }, [symbol, isRealtimeConnected, subscribeTicker, unsubscribeTicker]);
 
-  // WebSocket real-time updates
+  // WebSocket message handler
   const handleWebSocketMessage = useCallback((data: unknown) => {
     if (
       data &&
@@ -128,27 +126,25 @@ export default function Dashboard() {
       const timestamp = toUnixTimestamp(klineData.timestamp);
 
       if (! isValidUnixTimestamp(timestamp)) {
-        console.warn('[WebSocket] Invalid timestamp received:', klineData.timestamp);
+        console.warn('[WebSocket] Invalid timestamp:', klineData.timestamp);
         return;
       }
 
       const newPoint: ChartDataPoint = {
         time: timestamp as ChartDataPoint['time'],
         open: klineData.open,
-        high: klineData.high,
+        high: klineData. high,
         low: klineData.low,
         close: klineData.close,
       };
 
       setChartData((prev) => {
         if (prev.length === 0) return [newPoint];
-
         const lastPoint = prev[prev.length - 1];
         const lastTime = lastPoint.time as number;
         const newTime = newPoint.time as number;
-
         if (newTime < lastTime) return prev;
-        if (lastTime === newTime) return [...prev.slice(0, -1), newPoint];
+        if (lastTime === newTime) return [...prev. slice(0, -1), newPoint];
         return [...prev, newPoint];
       });
     }
@@ -166,30 +162,25 @@ export default function Dashboard() {
     () => fetchKlines(symbol, timeframe, 500),
     {
       refreshInterval: 10000,
-      revalidateOnFocus:  false,
+      revalidateOnFocus: false,
     }
   );
 
-  // Initialize and update chartData from SWR response
+  // Initialize chartData from API
   useEffect(() => {
-    if (data?.success && data.data.length > 0) {
+    if (data?. success && data.data. length > 0) {
       setChartData((prev) => {
         const apiData = transformKlinesToChartData(data.data);
-
         if (prev.length === 0) {
-          return apiData.sort((a, b) => Number(a.time) - Number(b.time));
+          return apiData. sort((a, b) => Number(a.time) - Number(b.time));
         }
-
         const lastPrevTime = prev[prev.length - 1]?.time || 0;
-        const lastApiTime = apiData[apiData.length - 1]?.time || 0;
-
+        const lastApiTime = apiData[apiData. length - 1]?.time || 0;
         if (lastApiTime <= lastPrevTime) return prev;
-
         const recentCount = 5;
         const baseData = prev.slice(0, -recentCount);
         const recentData = apiData.slice(-recentCount);
-
-        return [...baseData, ...recentData];
+        return [... baseData, ...recentData];
       });
     }
   }, [data]);
@@ -202,16 +193,16 @@ export default function Dashboard() {
   }, []);
 
   // Handle symbol change
-  const handleSymbolChange = useCallback((newSymbol: string) => {
+  const handleSymbolChange = useCallback((newSymbol:  string) => {
     setSymbol(newSymbol);
     setGlobalSymbol(newSymbol);
     setChartData([]);
     viewportRangeRef.current = null;
   }, [setGlobalSymbol]);
 
-  const currentPrice = chartData.length > 0 ?  chartData[chartData.length - 1].close : 0;
+  const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
 
-  // Update market store with current price
+  // Update market store
   useEffect(() => {
     if (currentPrice > 0) {
       updatePrice(currentPrice);
@@ -219,37 +210,29 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPrice]);
 
-  // Update connection status in global store
+  // Update connection status
   useEffect(() => {
-    const status = isRealtimeConnected ? 'FULL' : isConnected ? 'PARTIAL' : 'OFFLINE';
+    const status = isRealtimeConnected ?  'FULL' : isConnected ? 'PARTIAL' : 'OFFLINE';
     setConnectionStatus(status);
   }, [isConnected, isRealtimeConnected, setConnectionStatus]);
 
-  // Handle orderbook price click
+  // Handlers
   const handleOrderbookPriceClick = useCallback((price: number) => {
     console.log('[Orderbook] Price clicked:', price);
   }, []);
 
-  // Handle quick trade submission
   const handleQuickTrade = useCallback(async (order: {
     side: 'BUY' | 'SELL';
     type: 'MARKET' | 'LIMIT';
     quantity: number;
-    price?: number;
+    price?:  number;
   }) => {
-    console.log('[QuickTrade] Order submitted:', order);
+    console.log('[QuickTrade] Order:', order);
+    alert(`✅ ${order.side} order submitted!\nType: ${order.type}\nQty: ${order.quantity}\nPrice: ${order.price || 'MARKET'}`);
+  }, []);
 
-    try {
-      alert(`✅ ${order.side} order submitted!\nType: ${order.type}\nQty: ${order.quantity}\nPrice: ${order.price || 'MARKET'}`);
-    } catch (error) {
-      console.error('[QuickTrade] Error:', error);
-      alert('❌ Order failed.Check console.');
-    }
-  }, [symbol]);
-
-  // Demo order handlers
   const handleBuy = useCallback((quantity: number, price: number) => {
-    const position: Position = {
+    const position:  Position = {
       id: `pos_${Date.now()}`,
       symbol: symbolRef.current,
       side: 'long',
@@ -273,7 +256,7 @@ export default function Dashboard() {
       leverage: 1,
       unrealizedPnL: 0,
       realizedPnL: 0,
-      openTime: Date.now(),
+      openTime: Date. now(),
     };
     addPosition(position);
   }, [addPosition]);
@@ -304,18 +287,15 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-black p-4">
 
-      {/* Unified Header - Click symbol to open modal */}
+      {/* Unified Header - Only Timeframes + EMA */}
       <div className="max-w-full mx-auto mb-4">
         <UnifiedPriceHeader
-          symbol={symbol}
-          price={currentPrice}
-          priceChangePercent={priceChangePercent24h}
           timeframe={timeframe}
-          onSymbolChange={handleSymbolChange}
           onTimeframeChange={handleTimeframeChange}
           emaPeriods={emaPeriods}
           emaEnabled={emaEnabled}
           onEmaToggle={toggleEma}
+          onEmaConfig={() => {/* TODO: Open EMA config modal */}}
         />
       </div>
 
@@ -325,11 +305,15 @@ export default function Dashboard() {
         {/* Main Trading Area - 8 columns */}
         <div className="lg:col-span-8 space-y-4">
 
-          {/* Trading Chart */}
           <TradingChart
             symbol={symbol}
             timeframe={timeframe}
             data={chartData}
+            price={currentPrice}
+            priceChangePercent={priceChangePercent24h}
+            onSymbolClick={() => {/* TODO: Open symbol modal */}}
+            emaPeriods={emaPeriods}
+            emaEnabled={emaEnabled}
           />
 
           {/* Quick Trading Panel */}
@@ -341,8 +325,7 @@ export default function Dashboard() {
           />
 
           {/* Stats Footer */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-
+          <div className="grid grid-cols-1 md: grid-cols-3 gap-3">
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
               <div className="text-xs text-gray-400 mb-1">Timeframe</div>
               <div className="text-xl font-bold text-blue-400 font-mono">{timeframe}</div>
@@ -351,20 +334,20 @@ export default function Dashboard() {
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
               <div className="text-xs text-gray-400 mb-1">Status</div>
               <div className={`text-xl font-bold ${isConnected ? 'text-bull' : 'text-bear'}`}>
-                {isConnected ?  'LIVE' : 'OFFLINE'}
+                {isConnected ? 'LIVE' : 'OFFLINE'}
               </div>
             </div>
 
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
               <div className="text-xs text-gray-400 mb-1">Orderbook</div>
               <div className={`text-xl font-bold ${isOrderbookConnected ? 'text-bull' : 'text-bear'}`}>
-                {isOrderbookConnected ? 'LIVE' : 'OFFLINE'}
+                {isOrderbookConnected ?  'LIVE' : 'OFFLINE'}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Sidebar - 4 columns total */}
+        {/* Right Sidebar - 4 columns */}
         <div className="lg:col-span-4 space-y-4">
 
           {/* Live Orderbook */}

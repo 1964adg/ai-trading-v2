@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData } from 'lightweight-charts';
 import { ChartDataPoint, Timeframe } from '@/lib/types';
-import { formatCurrency, formatNumber, isValidUnixTimestamp } from '@/lib/formatters';
+import { formatCurrency, formatNumber, formatPercentage, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
 import { DetectedPattern } from '@/types/patterns';
 import { usePatternMarkers } from '@/components/charts/PatternOverlay';
@@ -19,10 +19,14 @@ interface TradingChartProps {
   timeframe?: Timeframe;
   onTimeframeChange?: (timeframe: Timeframe) => void;
   emaPeriods?: [number, number, number, number];
-  emaEnabled?: [boolean, boolean, boolean, boolean];
+  emaEnabled?:  [boolean, boolean, boolean, boolean];
   patterns?: DetectedPattern[];
-  vwapConfig?: VWAPConfig;
+  vwapConfig?:  VWAPConfig;
   volumeProfileConfig?: VolumeProfileConfig;
+  // NEW: Price info for header
+  price?: number;
+  priceChangePercent?: number;
+  onSymbolClick?: () => void;
 }
 
 const TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w'];
@@ -38,7 +42,7 @@ function normalizeCandle(candle: ChartDataPoint): ChartDataPoint {
   let timestamp: number;
 
   // Handle various timestamp formats aggressively
-  if (typeof candle. time === 'number') {
+  if (typeof candle.time === 'number') {
     // If it's already a number, check if it's in milliseconds
     if (candle.time > 9999999999) { // Greater than year 2286 in seconds = milliseconds
       timestamp = Math.floor(candle.time / 1000);
@@ -47,24 +51,24 @@ function normalizeCandle(candle: ChartDataPoint): ChartDataPoint {
     }
   } else if (typeof candle.time === 'string') {
     // Parse string date
-    timestamp = Math.floor(new Date(candle. time).getTime() / 1000);
+    timestamp = Math.floor(new Date(candle.time).getTime() / 1000);
   } else if (candle.time instanceof Date) {
     // Handle Date objects
-    timestamp = Math.floor(candle.time. getTime() / 1000);
+    timestamp = Math.floor(candle.time.getTime() / 1000);
   } else {
     // Fallback: use current time
     console.warn('[TradingChart] Invalid timestamp format, using current time:', candle.time);
-    timestamp = Math.floor(Date. now() / 1000);
+    timestamp = Math.floor(Date.now() / 1000);
   }
 
   // Ensure timestamp is valid (after year 2000)
   if (timestamp < 946684800) { // Jan 1, 2000
     console.warn('[TradingChart] Timestamp too old, using current time:', timestamp);
-    timestamp = Math. floor(Date.now() / 1000);
+    timestamp = Math.floor(Date.now() / 1000);
   }
 
   return {
-    ... candle,
+    ...candle,
     time: timestamp as Time,
   };
 }
@@ -82,20 +86,20 @@ function normalizeChartData(data: ChartDataPoint[]): ChartDataPoint[] {
   const normalized = data
     .map(normalizeCandle)
     .filter(candle => {
-      const timeAsNumber = candle. time as number;
+      const timeAsNumber = candle.time as number;
       return isValidUnixTimestamp(timeAsNumber) &&
              typeof candle.open === 'number' &&
              typeof candle.high === 'number' &&
              typeof candle.low === 'number' &&
              typeof candle.close === 'number';
     })
-    .sort((a, b) => (a.time as number) - (b. time as number));
+    .sort((a, b) => (a.time as number) - (b.time as number));
 
   console.log('[TradingChart] Normalized data:', {
     original: data.length,
     normalized: normalized.length,
     sampleTime: normalized[0]?.time,
-    sampleTimeType: typeof normalized[0]?. time
+    sampleTimeType: typeof normalized[0]?.time
   });
 
   return normalized;
@@ -111,6 +115,9 @@ function TradingChartComponent({
   patterns = [],
   vwapConfig,
   volumeProfileConfig,
+  price = 0,
+  priceChangePercent = 0,
+  onSymbolClick,
 }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -179,7 +186,7 @@ function TradingChartComponent({
     const chart = chartRef.current;
     if (!chart || !logicalRange) return;
     try {
-      chart. timeScale().setVisibleLogicalRange(logicalRange);
+      chart.timeScale().setVisibleLogicalRange(logicalRange);
     } catch {
       // Ignore errors during viewport restoration
     }
@@ -304,35 +311,35 @@ function TradingChartComponent({
     chart.subscribeCrosshairMove((param) => {
       if (! tooltipRef.current) return;
 
-      if (param.point === undefined || !param.time || param.point.x < 0 || param.point. y < 0) {
+      if (param.point === undefined || !param.time || param.point.x < 0 || param.point.y < 0) {
         tooltipRef.current.style.display = 'none';
         return;
       }
 
       const ohlcData = param.seriesData.get(candlestickSeries);
       if (! ohlcData || !('open' in ohlcData)) {
-        tooltipRef.current.style. display = 'none';
+        tooltipRef.current.style.display = 'none';
         return;
       }
 
       const candle = ohlcData as { open: number; high: number; low: number; close: number };
 
-      tooltipRef.current. style.display = 'block';
+      tooltipRef.current.style.display = 'block';
       tooltipRef.current.innerHTML = `
-        <div><strong>O:</strong> ${formatCurrency(candle. open)}</div>
+        <div><strong>O:</strong> ${formatCurrency(candle.open)}</div>
         <div><strong>H:</strong> ${formatCurrency(candle.high)}</div>
         <div><strong>L:</strong> ${formatCurrency(candle.low)}</div>
         <div><strong>C:</strong> ${formatCurrency(candle.close)}</div>
       `;
 
-      tooltipRef.current. style.left = `${param.point.x + 15}px`;
+      tooltipRef.current.style.left = `${param.point.x + 15}px`;
       tooltipRef.current.style.top = `${param.point.y + 15}px`;
     });
 
     const handleResize = () => {
-      if (chartContainerRef. current && chartRef.current) {
+      if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
-          width: chartContainerRef. current.clientWidth,
+          width: chartContainerRef.current.clientWidth,
         });
       }
     };
@@ -348,7 +355,7 @@ function TradingChartComponent({
       if (updateBuffer) {
         clearTimeout(updateBuffer);
       }
-      emaSeriesMap. clear();
+      emaSeriesMap.clear();
       chart.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -366,7 +373,7 @@ function TradingChartComponent({
 
     // Buffer updates for performance
     updateBufferRef.current = setTimeout(() => {
-      const series = seriesRef. current;
+      const series = seriesRef.current;
       if (!series) return;
 
       // Normalize all data to ensure timestamps are valid Unix seconds
@@ -384,7 +391,7 @@ function TradingChartComponent({
         console.log('[TradingChart] Setting chart data:', {
           dataLength: normalizedData.length,
           firstTime: normalizedData[0]?.time,
-          lastTime: normalizedData[normalizedData.length - 1]?. time,
+          lastTime: normalizedData[normalizedData.length - 1]?.time,
           timeType: typeof normalizedData[0]?.time
         });
 
@@ -399,7 +406,7 @@ function TradingChartComponent({
         // Restore viewport after update
                 // Auto-scroll to latest candle if near right edge
         if (viewportRange) {
-          const range = viewportRange. to - viewportRange.from;
+          const range = viewportRange.to - viewportRange.from;
           const dataLength = normalizedData.length;
           const isNearEnd = viewportRange.to >= dataLength - 5;
 
@@ -420,12 +427,12 @@ function TradingChartComponent({
         }
 
       } catch (error) {
-        console. error('[TradingChart] Chart setData error:', error);
-        console.error('[TradingChart] Problematic data sample:', normalizedData. slice(0, 3));
+        console.error('[TradingChart] Chart setData error:', error);
+        console.error('[TradingChart] Problematic data sample:', normalizedData.slice(0, 3));
 
         // Last resort: create simple test data
         const fallbackData = [{
-          time: Math.floor(Date. now() / 1000) as Time,
+          time: Math.floor(Date.now() / 1000) as Time,
           open: 50000,
           high: 51000,
           low: 49000,
@@ -433,7 +440,7 @@ function TradingChartComponent({
         }];
 
         try {
-          series. setData(fallbackData);
+          series.setData(fallbackData);
           console.log('[TradingChart] Using fallback data');
         } catch (fallbackError) {
           console.error('[TradingChart] Even fallback data failed:', fallbackError);
@@ -466,79 +473,69 @@ function TradingChartComponent({
   }, [patterns]);
 
   return (
-    <div className="w-full">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="text-sm text-gray-400 font-mono">
-          {symbol} - {data.length} candles
-        </div>
-        {onTimeframeChange && (
-          <div className="flex gap-1 flex-wrap">
-            {TIMEFRAMES.map((tf) => (
-              <button
-                key={tf}
-                onClick={() => handleTimeframeClick(tf)}
-                className={`px-2 py-1 text-xs rounded font-medium transition-colors ${
-                  timeframe === tf
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                }`}
-              >
-                {tf}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="relative">
-        <div ref={chartContainerRef} className="rounded-lg border border-gray-700" />
-        <div
-          ref={tooltipRef}
-          className="absolute bg-gray-900 border border-gray-700 rounded p-2 text-xs text-white pointer-events-none z-10 font-mono leading-relaxed"
-          style={{ display: 'none' }}
-        />
+  <div className="w-full">
+    {/* Symbol + Price Info */}
+<div className="mb-4 flex items-center gap-4 bg-gray-900 rounded-lg border border-gray-800 p-4">
 
-        {/* VWAP Overlay */}
-        {vwapConfig && (
-          <VWAPOverlay
-            chart={chartRef.current}
-            vwapData={vwapData}
-            config={vwapConfig}
-          />
-        )}
+  {/* Symbol Selector Button */}
+  <button
+    onClick={onSymbolClick}
+    className="flex items-center gap-2 bg-gray-800 hover:bg-blue-600 px-4 py-2 rounded-lg transition-all group"
+    title="Click to select symbol"
+  >
+    <span className="text-2xl font-bold text-white">{symbol}</span>
+    <svg
+      className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
 
-        {/* Volume Profile Overlay */}
-        {volumeProfileConfig && (
-          <VolumeProfileOverlay
-            chart={chartRef.current}
-            profileData={profileData}
-            config={volumeProfileConfig}
-          />
-        )}
-
-        {/* Pattern Markers Overlay */}
-        {patterns.length > 0 && (
-          <div className="absolute top-2 right-2 z-20 bg-gray-900/90 border border-gray-700 rounded-lg p-2 text-xs space-y-1 max-w-xs">
-            <div className="text-gray-400 font-semibold mb-1">Detected Patterns</div>
-            {patterns.slice(-MAX_DISPLAYED_PATTERNS).reverse().map((pattern, index) => (
-              <div
-                key={`${pattern.id}-${index}`}
-                className={`flex items-center justify-between gap-2 p-1.5 rounded ${
-                  pattern.signal === 'BULLISH'
-                    ? 'bg-green-500/10 text-green-400'
-                    : pattern.signal === 'BEARISH'
-                    ? 'bg-red-500/10 text-red-400'
-                    : 'bg-yellow-500/10 text-yellow-400'
-                }`}
-              >
-                <span className="font-medium">{pattern.pattern.name}</span>
-                <span className="text-xs opacity-75">{pattern.confidence}%</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+  {/* Price Display */}
+  <div className="flex items-baseline gap-3">
+    <span className="text-3xl font-bold text-white font-mono">
+      {price > 0 ? formatCurrency(price) : '--,---€'}
+    </span>
+    <div className={`flex items-center gap-1 font-semibold text-lg ${
+      priceChangePercent >= 0 ? 'text-bull' : 'text-bear'
+    }`}>
+      <span>{priceChangePercent >= 0 ? '▲' : '▼'}</span>
+      <span>{priceChangePercent !== 0 ? formatPercentage(priceChangePercent) : '--%'}</span>
     </div>
-  );
+  </div>
+</div>
+
+    {/* Chart Container */}
+    <div className="relative">
+      <div ref={chartContainerRef} className="rounded-lg border border-gray-700" />
+      <div
+        ref={tooltipRef}
+        className="absolute bg-gray-900 border border-gray-700 rounded p-2 text-xs text-white pointer-events-none z-10 font-mono leading-relaxed"
+        style={{ display: 'none' }}
+      />
+
+      {/* VWAP & Volume Profile overlays */}
+      {vwapConfig && (
+        <VWAPOverlay
+          chart={chartRef.current}
+          vwapData={vwapData}
+          config={vwapConfig}
+        />
+      )}
+
+      {volumeProfileConfig && (
+        <VolumeProfileOverlay
+          chart={chartRef.current}
+          profileData={profileData}
+          config={volumeProfileConfig}
+        />
+      )}
+    </div>
+  </div>
+);
 }
 
 const TradingChart = memo(TradingChartComponent);
