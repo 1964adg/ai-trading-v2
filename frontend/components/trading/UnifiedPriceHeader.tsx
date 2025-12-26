@@ -102,6 +102,7 @@ export default function UnifiedPriceHeader({
                         : 'bg-gray-800 text-gray-500 hover:bg-gray-700'
                     }`}
                     title={`EMA ${period} - Click to ${emaEnabled[index] ? 'disable' : 'enable'}`}
+                    aria-label={`Toggle EMA ${period} indicator, currently ${emaEnabled[index] ? 'enabled' : 'disabled'}`}
                   >
                     EMA{period} {emaEnabled[index] ? '✓' : '✗'}
                   </button>
