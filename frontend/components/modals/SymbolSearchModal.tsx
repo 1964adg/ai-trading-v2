@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Dialog } from '@headlessui/react';
+import Toast, { ToastType } from '@/components/ui/Toast';
 
 interface SymbolSearchModalProps {
-  isOpen:  boolean;
+  isOpen: boolean;
   onClose: () => void;
   onSymbolSelect: (symbol: string) => void;
   currentSymbol: string;
@@ -13,8 +14,8 @@ interface SymbolSearchModalProps {
 interface SymbolData {
   symbol: string;
   price?:  number;
-  change24h?:  number;
-  volume24h?:  number;
+  change24h?: number;
+  volume24h?: number;
 }
 
 // EUR/BNB pairs from Binance Italia
@@ -51,11 +52,11 @@ const BINANCE_SYMBOLS:  SymbolData[] = [
   { symbol: 'INJUSDT', price: 28.45, change24h: 3.45, volume24h: 87000000 },
 ];
 
-type SortBy = 'name' | 'price' | 'volume' | 'change' | 'favorites';
+type SortBy = 'name' | 'price' | 'volume' | 'change' | 'favorites' | 'presets';
 type SortOrder = 'asc' | 'desc';
 
-const MAX_FAVORITES = 10;
-const DEFAULT_FAVORITES = ['BTCEUR', 'ETHEUR', 'BNBEUR'];
+const MAX_PRESETS = 10;
+const DEFAULT_PRESETS = ['BTCEUR', 'ETHEUR', 'BNBEUR'];
 
 export default function SymbolSearchModal({
   isOpen,
@@ -64,62 +65,108 @@ export default function SymbolSearchModal({
   currentSymbol,
 }: SymbolSearchModalProps) {
   const [search, setSearch] = useState('');
-  const [favorites, setFavorites] = useState<string[]>([]);
+
+  // SEPARATE STATES:  Favorites vs Presets
+  const [favorites, setFavorites] = useState<string[]>([]); // ⭐ Favorites (unlimited)
+  const [presets, setPresets] = useState<string[]>([]); // 🔘 Quick Access Presets (max 10)
+
   const [sortBy, setSortBy] = useState<SortBy>('volume');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
   // Load favorites from localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('scalping_favorite_symbols');
-      if (stored) {
+      const storedFavorites = localStorage.getItem('scalping_favorite_symbols_stars');
+      if (storedFavorites) {
         try {
-          const parsed = JSON.parse(stored);
+          setFavorites(JSON.parse(storedFavorites));
+        } catch {
+          setFavorites([]);
+        }
+      }
+    }
+  }, []);
+
+  // Load presets from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedPresets = localStorage.getItem('scalping_favorite_symbols');
+      if (storedPresets) {
+        try {
+          const parsed = JSON.parse(storedPresets);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setFavorites(parsed);
+            setPresets(parsed);
           } else {
-            setFavorites(DEFAULT_FAVORITES);
-            localStorage.setItem('scalping_favorite_symbols', JSON.stringify(DEFAULT_FAVORITES));
+            setPresets(DEFAULT_PRESETS);
+            localStorage.setItem('scalping_favorite_symbols', JSON.stringify(DEFAULT_PRESETS));
           }
         } catch {
-          setFavorites(DEFAULT_FAVORITES);
-          localStorage.setItem('scalping_favorite_symbols', JSON.stringify(DEFAULT_FAVORITES));
+          setPresets(DEFAULT_PRESETS);
+          localStorage.setItem('scalping_favorite_symbols', JSON.stringify(DEFAULT_PRESETS));
         }
       } else {
-        setFavorites(DEFAULT_FAVORITES);
-        localStorage.setItem('scalping_favorite_symbols', JSON.stringify(DEFAULT_FAVORITES));
+        setPresets(DEFAULT_PRESETS);
+        localStorage.setItem('scalping_favorite_symbols', JSON.stringify(DEFAULT_PRESETS));
       }
     }
   }, []);
 
   // Save favorites to localStorage
   const saveFavorites = (newFavorites: string[]) => {
-    const uniqueFavorites = Array.from(new Set(newFavorites));
-    setFavorites(uniqueFavorites);
-    localStorage.setItem('scalping_favorite_symbols', JSON.stringify(uniqueFavorites));
+    const unique = Array.from(new Set(newFavorites));
+    setFavorites(unique);
+    localStorage.setItem('scalping_favorite_symbols_stars', JSON.stringify(unique));
+  };
+
+  // Save presets to localStorage
+  const savePresets = (newPresets: string[]) => {
+    const unique = Array.from(new Set(newPresets));
+    setPresets(unique);
+    localStorage.setItem('scalping_favorite_symbols', JSON.stringify(unique));
     window.dispatchEvent(new Event('favoritesUpdated'));
   };
 
-  // Toggle favorite (add/remove with star click)
+  // Toggle favorite (star) - unlimited
   const toggleFavorite = (symbol: string) => {
     if (favorites.includes(symbol)) {
-      // Remove from favorites
       saveFavorites(favorites.filter(s => s !== symbol));
     } else {
-      // Add to favorites (max 10)
-      if (favorites.length >= MAX_FAVORITES) {
-        alert(`⚠️ Maximum ${MAX_FAVORITES} presets reached.Remove one first.`);
-        return;
-      }
       saveFavorites([...favorites, symbol]);
     }
   };
 
-  // Reset to default presets
-  const handleResetPresets = () => {
-    if (confirm('🔄 Reset Quick Access Presets to default (BTC, ETH, BNB)?')) {
-      saveFavorites(DEFAULT_FAVORITES);
+  // Add to presets (max 10)
+  const addPreset = (symbol: string) => {
+    if (presets.includes(symbol)) {
+      return; // Already added
     }
+    if (presets.length >= MAX_PRESETS) {
+      setToast({ message: `Maximum ${MAX_PRESETS} presets reached`, type: 'warning' });
+      return;
+    }
+    savePresets([...presets, symbol]);
+    setToast({ message: `${symbol} added to Quick Access`, type: 'success' });
+  };
+
+  // Remove from presets
+  const removePreset = (symbol: string) => {
+    savePresets(presets.filter(s => s !== symbol));
+    setToast({ message: `${symbol} removed from Quick Access`, type: 'info' });
+  };
+
+  // Reset presets to default
+  const handleResetPresets = () => {
+    setShowResetConfirm(true);
+  };
+
+  const confirmReset = () => {
+    savePresets(DEFAULT_PRESETS);
+    setShowResetConfirm(false);
+    setToast({ message: 'Presets reset to defaults', type: 'success' });
   };
 
   // Filter and sort symbols
@@ -143,6 +190,12 @@ export default function SymbolSearchModal({
           const bFav = favorites.includes(b.symbol) ? 1 : 0;
           comparison = bFav - aFav;
           break;
+        case 'presets':
+          // Presets first
+          const aPreset = presets.includes(a.symbol) ? 1 : 0;
+          const bPreset = presets.includes(b.symbol) ? 1 : 0;
+          comparison = bPreset - aPreset;
+          break;
         case 'name':
           comparison = a.symbol.localeCompare(b.symbol);
           break;
@@ -161,17 +214,12 @@ export default function SymbolSearchModal({
     });
 
     return filtered;
-  }, [search, sortBy, sortOrder, favorites]);
+  }, [search, sortBy, sortOrder, favorites, presets]);
 
-  // Get favorite symbols data
-  const favoriteSymbols = useMemo(() => {
-    return BINANCE_SYMBOLS.filter(s => favorites.includes(s.symbol));
-  }, [favorites]);
-
-  // Remove favorite from preset cards
-  const handleRemoveFavorite = (symbol: string) => {
-    saveFavorites(favorites.filter(s => s !== symbol));
-  };
+  // Get preset symbols data
+  const presetSymbols = useMemo(() => {
+    return BINANCE_SYMBOLS.filter(s => presets.includes(s.symbol));
+  }, [presets]);
 
   // Handle symbol selection
   const handleSelect = (symbol: string) => {
@@ -185,7 +233,7 @@ export default function SymbolSearchModal({
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(newSortBy);
-      setSortOrder(newSortBy === 'favorites' ? 'desc' : 'desc');
+      setSortOrder('desc');
     }
   };
 
@@ -227,7 +275,7 @@ export default function SymbolSearchModal({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="🔎 Search symbols...(e.g.BTC, ETH, SOL)"
+              placeholder="🔎 Search symbols... (e.g. BTC, ETH, SOL)"
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus: border-blue-500 text-lg"
               autoFocus
             />
@@ -237,7 +285,7 @@ export default function SymbolSearchModal({
           <div className="p-4 border-b border-gray-800 bg-gray-800/50">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm text-gray-300 font-semibold">
-                Quick Access Presets ({favorites.length}/{MAX_FAVORITES})
+                Quick Access Presets ({presets.length}/{MAX_PRESETS})
               </h3>
               <button
                 onClick={handleResetPresets}
@@ -248,9 +296,9 @@ export default function SymbolSearchModal({
               </button>
             </div>
 
-            {favorites.length > 0 ?  (
+            {presets.length > 0 ?  (
               <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                {favoriteSymbols.map(symbolData => (
+                {presetSymbols.map(symbolData => (
                   <div
                     key={symbolData.symbol}
                     className="relative group"
@@ -274,7 +322,7 @@ export default function SymbolSearchModal({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleRemoveFavorite(symbolData.symbol);
+                        removePreset(symbolData.symbol);
                       }}
                       className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs"
                       title="Remove from presets"
@@ -286,7 +334,7 @@ export default function SymbolSearchModal({
               </div>
             ) : (
               <div className="text-center py-4 text-gray-500 text-sm">
-                No presets.Click on stars (⭐) below to add symbols or click &quot;🔄 Reset&quot; for defaults.
+                No presets.Click "+ Add Preset" below or click "🔄 Reset" for defaults.
               </div>
             )}
           </div>
@@ -301,6 +349,13 @@ export default function SymbolSearchModal({
                 active={sortBy === 'favorites'}
                 order={sortBy === 'favorites' ? sortOrder : null}
                 onClick={() => handleSort('favorites')}
+              />
+
+              <SortButton
+                label="🔘 Presets"
+                active={sortBy === 'presets'}
+                order={sortBy === 'presets' ? sortOrder : null}
+                onClick={() => handleSort('presets')}
               />
 
               <SortButton
@@ -347,9 +402,12 @@ export default function SymbolSearchModal({
                     symbolData={symbolData}
                     isActive={symbolData.symbol === currentSymbol}
                     isFavorite={favorites.includes(symbolData.symbol)}
+                    isPreset={presets.includes(symbolData.symbol)}
                     onSelect={handleSelect}
                     onToggleFavorite={toggleFavorite}
-                    favoritesCount={favorites.length}
+                    onAddPreset={addPreset}
+                    onRemovePreset={removePreset}
+                    presetsCount={presets.length}
                   />
                 ))}
               </div>
@@ -364,7 +422,7 @@ export default function SymbolSearchModal({
           {/* Footer */}
           <div className="p-4 border-t border-gray-800 bg-gray-800/50 text-xs text-gray-400 flex items-center justify-between">
             <div>
-              Click ⭐ to add/remove from Quick Access • Click symbol name to select
+              ⭐ = Favorite (click to toggle) • "+ Add Preset" = Quick Access • Click symbol to select
             </div>
             <div className="text-blue-400 font-mono">
               Current: {currentSymbol}
@@ -372,7 +430,49 @@ export default function SymbolSearchModal({
           </div>
 
         </Dialog.Panel>
+
+        {/* Custom Reset Confirmation Dialog */}
+        {showResetConfirm && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
+            <div className="bg-gray-800 rounded-lg border border-gray-600 p-6 max-w-md mx-4 shadow-2xl">
+              <div className="text-center mb-4">
+                <div className="text-5xl mb-3">🔄</div>
+                <h3 className="text-xl font-bold text-white mb-2">Reset Quick Access Presets? </h3>
+                <p className="text-gray-400 text-sm">
+                  This will restore default presets:  <br />
+                  <span className="font-mono text-blue-400">BTCEUR, ETHEUR, BNBEUR</span>
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  className="flex-1 px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmReset}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors"
+                >
+                  ✓ Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          duration={3000}
+          onClose={() => setToast(null)}
+        />
+      )}
     </Dialog>
   );
 }
@@ -405,43 +505,49 @@ function SortButton({ label, active, order, onClick }: SortButtonProps) {
   );
 }
 
-// Symbol Row Component - Compact 1-line layout
+// Symbol Row Component
 interface SymbolRowProps {
   symbolData: SymbolData;
   isActive: boolean;
   isFavorite: boolean;
+  isPreset: boolean;
   onSelect: (symbol: string) => void;
   onToggleFavorite: (symbol: string) => void;
-  favoritesCount: number;
+  onAddPreset: (symbol: string) => void;
+  onRemovePreset: (symbol: string) => void;
+  presetsCount: number;
 }
 
-function SymbolRow({ symbolData, isActive, isFavorite, onSelect, onToggleFavorite, favoritesCount }: SymbolRowProps) {
+function SymbolRow({
+  symbolData,
+  isActive,
+  isFavorite,
+  isPreset,
+  onSelect,
+  onToggleFavorite,
+  onAddPreset,
+  onRemovePreset,
+  presetsCount
+}: SymbolRowProps) {
   const { symbol, price, change24h, volume24h } = symbolData;
   const changeColor = (change24h || 0) >= 0 ? 'text-bull' : 'text-bear';
   const changeIcon = (change24h || 0) >= 0 ? '▲' : '▼';
-
-  const canAddMore = ! isFavorite && favoritesCount < MAX_FAVORITES;
 
   return (
     <div
       className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all ${
         isActive
           ?  'bg-blue-600 text-white ring-2 ring-blue-400'
-          :  'bg-gray-800/50 hover:bg-gray-700 text-gray-300'
+          : 'bg-gray-800/50 hover:bg-gray-700 text-gray-300'
       }`}
     >
       {/* Star - Clickable to toggle favorite */}
       <button
         onClick={() => onToggleFavorite(symbol)}
-        disabled={! canAddMore && ! isFavorite}
-        className={`text-2xl w-8 transition-transform hover:scale-110 ${
-          isFavorite
-            ? 'text-yellow-400 cursor-pointer'
-            : canAddMore
-            ? 'text-gray-600 hover:text-yellow-400 cursor-pointer'
-            : 'text-gray-700 cursor-not-allowed'
+        className={`text-2xl w-8 transition-transform hover:scale-125 cursor-pointer ${
+          isFavorite ? 'text-yellow-400' : 'text-gray-600 hover:text-yellow-300'
         }`}
-        title={isFavorite ? 'Remove from presets' : canAddMore ? 'Add to presets' : 'Max presets reached'}
+        title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
       >
         {isFavorite ? '⭐' : '☆'}
       </button>
@@ -461,12 +567,44 @@ function SymbolRow({ symbolData, isActive, isFavorite, onSelect, onToggleFavorit
 
       {/* Change % */}
       <div className={`font-mono font-semibold text-base w-28 text-right ${changeColor}`}>
-        {changeIcon} {change24h !== undefined ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '---'}
+        {changeIcon} {change24h !== undefined ?  `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '---'}
       </div>
 
       {/* Volume */}
-      <div className="font-mono text-sm text-gray-400 w-24 text-right ml-auto">
-        {volume24h ?  `€${(volume24h / 1000000).toFixed(0)}M` : '---'}
+      <div className="font-mono text-sm text-gray-400 w-24 text-right">
+        {volume24h ? `€${(volume24h / 1000000).toFixed(0)}M` : '---'}
+      </div>
+
+      {/* Add/Remove Preset Button */}
+      <div className="ml-auto">
+        {isPreset ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemovePreset(symbol);
+            }}
+            className="px-3 py-1.5 rounded text-sm font-medium bg-red-600 hover:bg-red-700 text-white transition-colors"
+            title="Remove from Quick Access"
+          >
+            ✕ Remove
+          </button>
+        ) : (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddPreset(symbol);
+            }}
+            disabled={presetsCount >= MAX_PRESETS}
+            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+              presetsCount >= MAX_PRESETS
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
+            title={presetsCount >= MAX_PRESETS ? 'Max 10 presets reached' : 'Add to Quick Access'}
+          >
+            + Add Preset
+          </button>
+        )}
       </div>
     </div>
   );

@@ -5,11 +5,11 @@ import { Timeframe } from '@/lib/types';
 import { formatCurrency, formatPercentage } from '@/lib/formatters';
 
 interface UnifiedPriceHeaderProps {
-  symbol: string;
+  symbol:  string;
   price: number;
-  priceChangePercent:  number;
-  timeframe:  Timeframe;
-  onTimeframeChange: (tf: Timeframe) => void;
+  priceChangePercent:   number;
+  timeframe:   Timeframe;
+  onTimeframeChange: (tf:  Timeframe) => void;
   onSymbolClick?:  () => void;
   onSymbolSelect:  (symbol: string) => void;
   emaPeriods?:  [number, number, number, number];
@@ -37,56 +37,52 @@ export default function UnifiedPriceHeader({
   const [favorites, setFavorites] = useState<string[]>([]);
 
   // Load favorites from localStorage
-  useEffect(() => {
+  const loadFavorites = () => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('scalping_favorite_symbols');
       if (stored) {
         try {
-          setFavorites(JSON.parse(stored));
-        } catch {
-          setFavorites(['BTCEUR', 'ETHEUR', 'BNBEUR']);
-        }
-      } else {
-        setFavorites(['BTCEUR', 'ETHEUR', 'BNBEUR']);
-      }
-    }
-  }, []);
-
-  // Listen for localStorage changes (from modal)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const stored = localStorage.getItem('scalping_favorite_symbols');
-      if (stored) {
-        try {
-          setFavorites(JSON.parse(stored));
-        } catch {
-          // Ignore
-        }
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    // Poll for changes (since same-window storage events don't fire)
-    const interval = setInterval(() => {
-      const stored = localStorage.getItem('scalping_favorite_symbols');
-      if (stored) {
-        try {
           const parsed = JSON.parse(stored);
-          if (JSON.stringify(parsed) !== JSON.stringify(favorites)) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             setFavorites(parsed);
+          } else {
+            // Default if empty
+            const defaults = ['BTCEUR', 'ETHEUR', 'BNBEUR'];
+            setFavorites(defaults);
+            localStorage.setItem('scalping_favorite_symbols', JSON.stringify(defaults));
           }
         } catch {
-          // Ignore
+          const defaults = ['BTCEUR', 'ETHEUR', 'BNBEUR'];
+          setFavorites(defaults);
+          localStorage.setItem('scalping_favorite_symbols', JSON.stringify(defaults));
         }
+      } else {
+        // First time
+        const defaults = ['BTCEUR', 'ETHEUR', 'BNBEUR'];
+        setFavorites(defaults);
+        localStorage.setItem('scalping_favorite_symbols', JSON.stringify(defaults));
       }
-    }, 1000);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    loadFavorites();
+  }, []);
+
+  // Listen for custom event from modal
+  useEffect(() => {
+    const handleFavoritesUpdate = () => {
+      loadFavorites();
+    };
+
+    window.addEventListener('favoritesUpdated', handleFavoritesUpdate);
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
+      window.removeEventListener('favoritesUpdated', handleFavoritesUpdate);
     };
-  }, [favorites]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="bg-gray-900 rounded-lg border border-gray-800 p-4 space-y-3">
@@ -130,18 +126,18 @@ export default function UnifiedPriceHeader({
         {/* Quick Access Preset Buttons */}
         {favorites.length > 0 && (
           <div className="flex gap-2 flex-wrap">
-            {favorites.slice(0, 10).map((favSymbol) => (
+            {Array.from(new Set(favorites)).slice(0, 10).map((favSymbol) => (
               <button
                 key={favSymbol}
                 onClick={() => onSymbolSelect(favSymbol)}
                 className={`px-3 py-1.5 rounded text-sm font-mono font-semibold transition-all ${
-                  favSymbol === symbol
+                  favSymbol.toUpperCase() === symbol.toUpperCase()
                     ? 'bg-blue-600 text-white ring-2 ring-blue-400'
                     : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
                 title={`Switch to ${favSymbol}`}
               >
-                ⭐ {favSymbol}
+                {favSymbol}
               </button>
             ))}
           </div>
@@ -184,11 +180,11 @@ export default function UnifiedPriceHeader({
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
                   emaEnabled[index]
                     ? 'text-white shadow-lg'
-                    : 'bg-gray-800 text-gray-500 hover:bg-gray-700'
+                    :  'bg-gray-800 text-gray-500 hover: bg-gray-700'
                 }`}
                 style={emaEnabled[index] ? {
                   backgroundColor: EMA_COLORS[index],
-                } : undefined}
+                } :  undefined}
                 title={`EMA ${period} - Click to ${emaEnabled[index] ? 'disable' : 'enable'}`}
               >
                 EMA{period}
