@@ -20,6 +20,9 @@ interface MarketState {
   bids: OrderbookLevel[];
   asks: OrderbookLevel[];
   lastUpdateTime: number;
+  
+  // Connection status
+  connectionStatus: 'FULL' | 'PARTIAL' | 'OFFLINE';
 
   // Actions
   setSymbol: (symbol: string) => void;
@@ -28,6 +31,7 @@ interface MarketState {
   updateCandle: (candle: ChartDataPoint) => void;
   setInitialData: (data: ChartDataPoint[]) => void;
   updateOrderbook: (bids: OrderbookLevel[], asks: OrderbookLevel[]) => void;
+  setConnectionStatus: (status: 'FULL' | 'PARTIAL' | 'OFFLINE') => void;
   reset: () => void;
 }
 
@@ -40,6 +44,7 @@ const initialState = {
   bids: [],
   asks: [],
   lastUpdateTime: 0,
+  connectionStatus: 'OFFLINE' as const,
 };
 
 /**
@@ -154,6 +159,10 @@ export const useMarketStore = create<MarketState>((set, get) => ({
 
   updateOrderbook: (bids: OrderbookLevel[], asks: OrderbookLevel[]) => {
     set({ bids, asks });
+  },
+
+  setConnectionStatus: (status: 'FULL' | 'PARTIAL' | 'OFFLINE') => {
+    set({ connectionStatus: status });
   },
 
   reset: () => set(initialState),

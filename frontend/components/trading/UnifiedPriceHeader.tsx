@@ -36,14 +36,6 @@ export default function UnifiedPriceHeader({
   const priceColor = priceChangePercent >= 0 ? 'text-bull' : 'text-bear';
   const priceIcon = priceChangePercent >= 0 ? '▲' : '▼';
 
-  const statusColor = {
-    FULL: 'bg-bull',
-    PARTIAL: 'bg-yellow-500',
-    OFFLINE: 'bg-bear'
-  }[connectionStatus];
-
-  const statusDot = isConnected ? 'animate-pulse' : '';
-
   return (
     <>
       <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
@@ -90,7 +82,7 @@ export default function UnifiedPriceHeader({
             </div>
           </div>
 
-          {/* Right: Timeframes + Status */}
+          {/* Right: Timeframes */}
           <div className="flex items-center gap-4">
 
             {/* Timeframe Selector */}
@@ -108,12 +100,6 @@ export default function UnifiedPriceHeader({
                   {tf}
                 </button>
               ))}
-            </div>
-
-            {/* Connection Status */}
-            <div className="flex items-center gap-2 bg-gray-800 px-3 py-2 rounded">
-              <div className={`w-2 h-2 rounded-full ${statusColor} ${statusDot}`} />
-              <span className="text-sm text-gray-300 font-medium">{connectionStatus}</span>
             </div>
           </div>
 
