@@ -12,9 +12,6 @@ interface UnifiedPriceHeaderProps {
   timeframe: Timeframe;
   onSymbolChange: (symbol: string) => void;
   onTimeframeChange: (tf: Timeframe) => void;
-  isConnected: boolean;
-  connectionStatus: 'FULL' | 'PARTIAL' | 'OFFLINE';
-  tradingMode: 'paper' | 'real';
   onSymbolClick?:  () => void;
   emaPeriods?: [number, number, number, number];
   emaEnabled?: [boolean, boolean, boolean, boolean];

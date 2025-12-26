@@ -313,9 +313,6 @@ export default function Dashboard() {
           timeframe={timeframe}
           onSymbolChange={handleSymbolChange}
           onTimeframeChange={handleTimeframeChange}
-          isConnected={isConnected}
-          connectionStatus={isRealtimeConnected ? 'FULL' : isConnected ? 'PARTIAL' : 'OFFLINE'}
-          tradingMode="paper"
           emaPeriods={emaPeriods}
           emaEnabled={emaEnabled}
           onEmaToggle={toggleEma}
