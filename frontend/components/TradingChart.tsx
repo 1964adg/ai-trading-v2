@@ -360,6 +360,23 @@ function TradingChartComponent({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Chart initialization should only run once on mount, dependencies intentionally omitted
+useEffect(() => {
+    console.log('[TradingChart] EMA config changed:', { emaPeriods, emaEnabled });
+
+    // Update refs
+    emaPeriodsRef.current = emaPeriods;
+    emaEnabledRef.current = emaEnabled;
+
+    // Recreate series
+    if (chartRef.current) {
+      createEmaSeries();
+
+      // Re-apply data if available
+      if (dataRef.current.length > 0) {
+        updateEmaData(dataRef.current);
+      }
+    }
+  }, [emaPeriods, emaEnabled, createEmaSeries, updateEmaData]);
 
   // Handle data updates with viewport preservation and buffering
   // FIXED: More robust error handling and validation

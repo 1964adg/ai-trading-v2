@@ -1,6 +1,7 @@
 'use client';
 
 import UnifiedPriceHeader from '@/components/trading/UnifiedPriceHeader';
+import EmaConfigModal from '@/components/modals/EmaConfigModal';  // ← NEW
 import { useRealTrading } from '@/hooks/useRealTrading';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import useSWR from 'swr';
@@ -26,7 +27,7 @@ export default function Dashboard() {
   const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-
+const [showEmaConfig, setShowEmaConfig] = useState(false);  // ← NEW
   // Use refs to prevent callback recreation
   const viewportRangeRef = useRef<{ from:  number; to: number } | null>(null);
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
@@ -44,13 +45,14 @@ export default function Dashboard() {
 
   // Use Zustand store for trading state
   const { addPosition, emaPeriods, emaEnabled, toggleEma } = useTradingStore();
+const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
 
   // Market store for price updates and sync
   const { setSymbol: setGlobalSymbol, updatePrice, setConnectionStatus } = useMarketStore();
 
   // Listen for symbol changes from other windows
   useEffect(() => {
-    const unsubscribe = syncManager.on(SyncEvent. SYMBOL_CHANGE, (data:  unknown) => {
+    const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (data:  unknown) => {
       const newSymbol = data as string;
       if (newSymbol !== symbol) {
         setSymbol(newSymbol);
@@ -84,7 +86,7 @@ export default function Dashboard() {
   }, []);
 
   const handlePortfolioUpdate = useCallback((data: { portfolio?: unknown }) => {
-    console.log('[Dashboard] Portfolio update:', data. portfolio);
+    console.log('[Dashboard] Portfolio update:', data.portfolio);
   }, []);
 
   const handleOrderUpdate = useCallback((data: { orderType?:  string }) => {
@@ -133,7 +135,7 @@ export default function Dashboard() {
       const newPoint: ChartDataPoint = {
         time: timestamp as ChartDataPoint['time'],
         open: klineData.open,
-        high: klineData. high,
+        high: klineData.high,
         low: klineData.low,
         close: klineData.close,
       };
@@ -144,7 +146,7 @@ export default function Dashboard() {
         const lastTime = lastPoint.time as number;
         const newTime = newPoint.time as number;
         if (newTime < lastTime) return prev;
-        if (lastTime === newTime) return [...prev. slice(0, -1), newPoint];
+        if (lastTime === newTime) return [...prev.slice(0, -1), newPoint];
         return [...prev, newPoint];
       });
     }
@@ -168,19 +170,19 @@ export default function Dashboard() {
 
   // Initialize chartData from API
   useEffect(() => {
-    if (data?. success && data.data. length > 0) {
+    if (data?.success && data.data.length > 0) {
       setChartData((prev) => {
         const apiData = transformKlinesToChartData(data.data);
         if (prev.length === 0) {
-          return apiData. sort((a, b) => Number(a.time) - Number(b.time));
+          return apiData.sort((a, b) => Number(a.time) - Number(b.time));
         }
         const lastPrevTime = prev[prev.length - 1]?.time || 0;
-        const lastApiTime = apiData[apiData. length - 1]?.time || 0;
+        const lastApiTime = apiData[apiData.length - 1]?.time || 0;
         if (lastApiTime <= lastPrevTime) return prev;
         const recentCount = 5;
         const baseData = prev.slice(0, -recentCount);
         const recentData = apiData.slice(-recentCount);
-        return [... baseData, ...recentData];
+        return [...baseData, ...recentData];
       });
     }
   }, [data]);
@@ -256,7 +258,7 @@ export default function Dashboard() {
       leverage: 1,
       unrealizedPnL: 0,
       realizedPnL: 0,
-      openTime: Date. now(),
+      openTime: Date.now(),
     };
     addPosition(position);
   }, [addPosition]);
@@ -289,14 +291,18 @@ export default function Dashboard() {
 
       {/* Unified Header - Only Timeframes + EMA */}
       <div className="max-w-full mx-auto mb-4">
-        <UnifiedPriceHeader
-          timeframe={timeframe}
-          onTimeframeChange={handleTimeframeChange}
-          emaPeriods={emaPeriods}
-          emaEnabled={emaEnabled}
-          onEmaToggle={toggleEma}
-          onEmaConfig={() => {/* TODO: Open EMA config modal */}}
-        />
+       <UnifiedPriceHeader
+  symbol={symbol}
+  price={currentPrice}
+  priceChangePercent={priceChangePercent24h}
+  timeframe={timeframe}
+  onTimeframeChange={handleTimeframeChange}
+  onSymbolClick={() => {/* TODO: Open symbol modal */}}
+  emaPeriods={emaPeriods}
+  emaEnabled={emaEnabled}
+  onEmaToggle={toggleEma}
+  onEmaConfig={() => setShowEmaConfig(true)}
+/>
       </div>
 
       {/* Main Grid Layout */}
@@ -365,8 +371,18 @@ export default function Dashboard() {
             onOrderSubmit={handleQuickTrade}
           />
         </div>
-
-      </div>
+         </div>
+    {/* EMA Config Modal */}
+      <EmaConfigModal
+        isOpen={showEmaConfig}
+        onClose={() => setShowEmaConfig(false)}
+        emaPeriods={emaPeriods}
+        emaEnabled={emaEnabled}
+        onSave={(newPeriods, newEnabled) => {
+          setEmaPeriods(newPeriods);
+          setEmaEnabled(newEnabled);
+        }}
+      />
     </div>
   );
 }
