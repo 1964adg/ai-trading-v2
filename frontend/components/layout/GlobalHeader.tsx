@@ -10,7 +10,11 @@ import { useMarketStore } from '@/stores/marketStore';
  * Global Header Component
  * Sticky header with navigation and controls visible across all pages
  */
-export default function GlobalHeader() {
+interface GlobalHeaderProps {
+  tradingMode?: 'paper' | 'real';
+}
+
+export default function GlobalHeader({ tradingMode = 'paper' }: GlobalHeaderProps) {
   const pathname = usePathname();
   const { connectionStatus } = useMarketStore();
 
@@ -63,14 +67,15 @@ export default function GlobalHeader() {
         <div className="ml-auto flex items-center gap-4">
           
           {/* Connection Status Badge */}
-          <div className="flex items-center gap-2 px-3 py-1 bg-gray-800 rounded-lg">
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg h-10">
+            <span className="text-xs text-gray-400">Connection Status:</span>
             <div className={`w-2 h-2 rounded-full ${statusColor} ${statusDot}`} />
-            <span className="text-xs font-medium text-gray-300 uppercase">
+            <span className="text-xs font-medium text-white uppercase">
               {connectionStatus}
             </span>
           </div>
 
-          <BalanceDisplay />
+          <BalanceDisplay tradingMode={tradingMode} />
           <NotificationsBell />
         </div>
       </nav>

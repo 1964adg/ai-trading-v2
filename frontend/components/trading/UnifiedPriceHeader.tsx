@@ -12,10 +12,10 @@ interface UnifiedPriceHeaderProps {
   timeframe: Timeframe;
   onSymbolChange: (symbol: string) => void;
   onTimeframeChange: (tf: Timeframe) => void;
-  isConnected: boolean;
-  connectionStatus: 'FULL' | 'PARTIAL' | 'OFFLINE';
-  tradingMode: 'paper' | 'real';
   onSymbolClick?:  () => void;
+  emaPeriods?: [number, number, number, number];
+  emaEnabled?: [boolean, boolean, boolean, boolean];
+  onEmaToggle?: (index: number) => void;
 }
 
 const TIMEFRAMES:  Timeframe[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
@@ -27,9 +27,9 @@ export default function UnifiedPriceHeader({
   timeframe,
   onSymbolChange,
   onTimeframeChange,
-  isConnected,
-  connectionStatus,
-  tradingMode,
+  emaPeriods = [9, 21, 50, 200],
+  emaEnabled = [true, true, true, false],
+  onEmaToggle,
 }:  UnifiedPriceHeaderProps) {
   const [showModal, setShowModal] = useState(false);
 
@@ -41,7 +41,7 @@ export default function UnifiedPriceHeader({
       <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
         <div className="flex items-center justify-between gap-6 flex-wrap">
 
-          {/* Left:  Symbol + Price */}
+          {/* Left:  Symbol + Price + Timeframes + EMAs */}
           <div className="flex items-center gap-4">
 
             {/* Symbol Selector Button */}
@@ -72,35 +72,43 @@ export default function UnifiedPriceHeader({
               </div>
             </div>
 
-            {/* Trading Mode Badge */}
-            <div className={`px-3 py-1 rounded text-sm font-medium ${
-              tradingMode === 'paper'
-                ? 'bg-blue-500/20 text-blue-400'
-                : 'bg-green-500/20 text-green-400'
-            }`}>
-              {tradingMode === 'paper' ? '📄 Paper Trading' : '💰 Live Trading'}
-            </div>
-          </div>
-
-          {/* Right: Timeframes */}
-          <div className="flex items-center gap-4">
-
             {/* Timeframe Selector */}
             <div className="flex gap-1">
               {TIMEFRAMES.map((tf) => (
                 <button
                   key={tf}
                   onClick={() => onTimeframeChange(tf)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                  className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                     timeframe === tf
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
+                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                   }`}
                 >
                   {tf}
                 </button>
               ))}
             </div>
+
+            {/* EMA Toggle Buttons */}
+            {onEmaToggle && (
+              <div className="flex gap-1 ml-2 pl-2 border-l border-gray-700">
+                {emaPeriods.map((period, index) => (
+                  <button
+                    key={period}
+                    onClick={() => onEmaToggle(index)}
+                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                      emaEnabled[index]
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-800 text-gray-500 hover:bg-gray-700'
+                    }`}
+                    title={`EMA ${period} - Click to ${emaEnabled[index] ? 'disable' : 'enable'}`}
+                    aria-label={`Toggle EMA ${period} indicator, currently ${emaEnabled[index] ? 'enabled' : 'disabled'}`}
+                  >
+                    EMA{period} {emaEnabled[index] ? '✓' : '✗'}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>
