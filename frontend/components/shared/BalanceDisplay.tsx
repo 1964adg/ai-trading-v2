@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { useRealBalanceStore } from '@/stores/realBalanceStore';
-import { useTradingModeStore } from '@/stores/tradingModeStore';
 import { syncManager, SyncEvent } from '@/lib/syncManager';
+
+interface BalanceDisplayProps {
+  tradingMode?: 'paper' | 'real';
+}
 
 /**
  * Balance Display Component
  * Shows available balance in the global header
  */
-export default function BalanceDisplay() {
+export default function BalanceDisplay({ tradingMode = 'paper' }: BalanceDisplayProps) {
   const { availableBalance } = useRealBalanceStore();
-  const { currentMode } = useTradingModeStore();
   const [displayBalance, setDisplayBalance] = useState(availableBalance);
 
   // Listen for balance updates from other windows
@@ -42,25 +44,12 @@ export default function BalanceDisplay() {
   };
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-gray-800 rounded-lg border border-gray-700">
-      <div className="flex flex-col">
-        <span className="text-gray-400 text-xs">Balance</span>
-        <div className="flex items-center gap-2">
-          <span className="text-white font-bold text-lg">
-            ${formatBalance(displayBalance)}
-          </span>
-          {currentMode === 'paper' && (
-            <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">
-              PAPER
-            </span>
-          )}
-          {currentMode === 'real' && (
-            <span className="text-xs bg-green-600 text-white px-2 py-0.5 rounded">
-              LIVE
-            </span>
-          )}
-        </div>
-      </div>
+    <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg h-10">
+      <span className="text-xs text-gray-400">Balance:</span>
+      <span className="text-sm font-bold text-white">${formatBalance(displayBalance)}</span>
+      <span className={`text-xs font-semibold ${tradingMode === 'paper' ? 'text-green-400' : 'text-red-400'}`}>
+        {tradingMode === 'paper' ? 'PAPER' : 'REAL'}
+      </span>
     </div>
   );
 }

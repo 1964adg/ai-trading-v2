@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <GlobalHeader />
+        <GlobalHeader tradingMode="paper" />
         {children}
         <Toaster position="top-right" richColors />
       </body>

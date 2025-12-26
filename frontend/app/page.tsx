@@ -43,7 +43,7 @@ export default function Dashboard() {
   useRealTrading({ enabled: true, refreshInterval:  5000 });
 
   // Use Zustand store for trading state
-  const { addPosition } = useTradingStore();
+  const { addPosition, emaPeriods, emaEnabled, toggleEma } = useTradingStore();
 
   // Market store for price updates and sync
   const { setSymbol: setGlobalSymbol, updatePrice, setConnectionStatus } = useMarketStore();
@@ -316,6 +316,9 @@ export default function Dashboard() {
           isConnected={isConnected}
           connectionStatus={isRealtimeConnected ? 'FULL' : isConnected ? 'PARTIAL' : 'OFFLINE'}
           tradingMode="paper"
+          emaPeriods={emaPeriods}
+          emaEnabled={emaEnabled}
+          onEmaToggle={toggleEma}
         />
       </div>
 
@@ -341,11 +344,7 @@ export default function Dashboard() {
           />
 
           {/* Stats Footer */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
-              <div className="text-xs text-gray-400 mb-1">Candles</div>
-              <div className="text-xl font-bold text-white font-mono">{chartData.length}</div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
               <div className="text-xs text-gray-400 mb-1">Timeframe</div>
