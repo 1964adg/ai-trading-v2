@@ -2,24 +2,14 @@
 
 import { useEffect, useRef, useCallback, memo } from 'react';
 import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData } from 'lightweight-charts';
-import { ChartDataPoint, Timeframe } from '@/lib/types';
+import { ChartDataPoint } from '@/lib/types';
 import { formatCurrency, formatNumber, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
 
 interface TradingChartProps {
   data: ChartDataPoint[];
-  symbol?: string;
-  timeframe?: Timeframe;
-  onTimeframeChange?: (timeframe: Timeframe) => void;
   emaPeriods?: [number, number, number, number];
   emaEnabled?:  [boolean, boolean, boolean, boolean];
-  patterns?: unknown[];
-  vwapConfig?:  unknown;
-  volumeProfileConfig?: unknown;
-  // NEW: Price info for header
-  price?: number;
-  priceChangePercent?: number;
-  onSymbolClick?: () => void;
 }
 
 const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
