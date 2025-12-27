@@ -173,14 +173,11 @@ export default function UnifiedPriceHeader({
             {emaPeriods.map((period, index) => (
               <button
                 key={period}
-                onClick={() => {
-                  console.log(`[EMA] Toggling EMA${period}, current state: `, emaEnabled[index]);
-                  onEmaToggle(index);
-                }}
+                onClick={() => onEmaToggle(index)}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
                   emaEnabled[index]
                     ? 'text-white shadow-lg'
-                    :  'bg-gray-800 text-gray-500 hover: bg-gray-700'
+                    :  'bg-gray-800 text-gray-500 hover:bg-gray-700'
                 }`}
                 style={emaEnabled[index] ? {
                   backgroundColor: EMA_COLORS[index],

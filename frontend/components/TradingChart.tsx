@@ -1,38 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useCallback, memo, useMemo } from 'react';
+import { useEffect, useRef, useCallback, memo } from 'react';
 import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData } from 'lightweight-charts';
-import { ChartDataPoint, Timeframe } from '@/lib/types';
-import { formatCurrency, formatNumber, formatPercentage, isValidUnixTimestamp } from '@/lib/formatters';
+import { ChartDataPoint } from '@/lib/types';
+import { formatCurrency, formatNumber, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
-import { DetectedPattern } from '@/types/patterns';
-import { usePatternMarkers } from '@/components/charts/PatternOverlay';
-import { VWAPConfig, VolumeProfileConfig } from '@/types/indicators';
-import VWAPOverlay from '@/components/charts/VWAPOverlay';
-import VolumeProfileOverlay from '@/components/charts/VolumeProfileOverlay';
-import { useVWAP } from '@/hooks/useVWAP';
-import { useVolumeProfile } from '@/hooks/useVolumeProfile';
 
 interface TradingChartProps {
   data: ChartDataPoint[];
-  symbol: string;
-  timeframe?: Timeframe;
-  onTimeframeChange?: (timeframe: Timeframe) => void;
   emaPeriods?: [number, number, number, number];
   emaEnabled?:  [boolean, boolean, boolean, boolean];
-  patterns?: DetectedPattern[];
-  vwapConfig?:  VWAPConfig;
-  volumeProfileConfig?: VolumeProfileConfig;
-  // NEW: Price info for header
-  price?: number;
-  priceChangePercent?: number;
-  onSymbolClick?: () => void;
 }
 
-const TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w'];
 const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
 const UPDATE_BUFFER_MS = 16; // 16ms for 60 FPS updates
-const MAX_DISPLAYED_PATTERNS = 3; // Number of patterns to display in overlay
 
 /**
  * Normalize a candle's timestamp to Unix seconds for lightweight-charts
@@ -95,29 +76,13 @@ function normalizeChartData(data: ChartDataPoint[]): ChartDataPoint[] {
     })
     .sort((a, b) => (a.time as number) - (b.time as number));
 
-  console.log('[TradingChart] Normalized data:', {
-    original: data.length,
-    normalized: normalized.length,
-    sampleTime: normalized[0]?.time,
-    sampleTimeType: typeof normalized[0]?.time
-  });
-
   return normalized;
 }
 
 function TradingChartComponent({
   data,
-  symbol,
-  timeframe = '15m',
-  onTimeframeChange,
   emaPeriods = [9, 21, 50, 200],
   emaEnabled = [true, true, true, true],
-  patterns = [],
-  vwapConfig,
-  volumeProfileConfig,
-  price = 0,
-  priceChangePercent = 0,
-  onSymbolClick,
 }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -137,38 +102,6 @@ function TradingChartComponent({
     emaPeriodsRef.current = emaPeriods;
     emaEnabledRef.current = emaEnabled;
   }, [emaPeriods, emaEnabled]);
-
-  // Calculate session start (for today's trading session)
-  const sessionStart = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return Math.floor(todayStart.getTime() / 1000);
-  }, []);
-
-  // Calculate VWAP data
-   /*
-  const { vwapData } = useVWAP({
-    candles: data,
-    config: vwapConfig || { enabled: false, period: 'session', source: 'hlc3', bands: [1, 2], showBands: true, color: '#4ECDC4', bandColor: '#95E1D3' },
-    sessionStart,
-    enabled: vwapConfig?.enabled || false,
-  });
-
-  // Calculate Volume Profile data
-  const { profileData } = useVolumeProfile({
-    candles: data,
-    config: volumeProfileConfig || { enabled: false, bins: 50, valueAreaPercent: 70, period: 'session', showPOC: true, showValueArea: true, showNodes: true, opacity: 0.6, position: 'right', color: '#88D8C0', pocColor: '#FFD93D', valueAreaColor: '#A8E6CF' },
-    sessionStart,
-    sessionEnd: Math.floor(Date.now() / 1000),
-    enabled: volumeProfileConfig?.enabled || false,
-  });
-
-  // Generate pattern markers
-  const { markers } = usePatternMarkers(patterns, { showMarkers: true });
- */
-  const handleTimeframeClick = useCallback((tf: Timeframe) => {
-    onTimeframeChange?.(tf);
-  }, [onTimeframeChange]);
 
   // Preserve viewport before data updates
   const preserveViewport = useCallback(() => {
@@ -360,9 +293,8 @@ function TradingChartComponent({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Chart initialization should only run once on mount, dependencies intentionally omitted
-useEffect(() => {
-    console.log('[TradingChart] EMA config changed:', { emaPeriods, emaEnabled });
-
+  
+  useEffect(() => {
     // Update refs
     emaPeriodsRef.current = emaPeriods;
     emaEnabledRef.current = emaEnabled;
@@ -380,14 +312,8 @@ useEffect(() => {
 
   // Handle data updates with viewport preservation and buffering
   // FIXED: More robust error handling and validation
-    // Handle data updates with viewport preservation and buffering
-    // Handle data updates with viewport preservation and buffering
-    // Handle data updates with viewport preservation and buffering
   useEffect(() => {
-    console.log('[TradingChart] useEffect triggered - data.length:', data.length);
-
     if (!seriesRef.current || data.length === 0) {
-      console.log('[TradingChart] Early return - seriesRef or data missing');
       return;
     }
 
@@ -399,12 +325,9 @@ useEffect(() => {
     // Buffer the update to prevent rapid re-renders
     updateBufferRef.current = setTimeout(() => {
       const series = seriesRef.current;
-      if (!  series) {
-        console.log('[TradingChart] Series ref lost during timeout');
+      if (!series) {
         return;
       }
-
-      console.log('[TradingChart] === START DATA UPDATE ===');
 
       // Normalize all data to ensure timestamps are valid Unix seconds
       const normalizedData = normalizeChartData(data);
@@ -415,30 +338,13 @@ useEffect(() => {
 
       // Preserve current viewport BEFORE updating data
       const viewportRange = preserveViewport();
-      console.log('[TradingChart] Preserved viewport:', viewportRange);
 
       // Calculate if user zoomed in (viewing less than 80% of data)
       const oldDataLength = dataRef.current?.length || normalizedData.length;
       const visibleRange = viewportRange ? (viewportRange.to - viewportRange.from) : oldDataLength;
       const wasUserZoomed = viewportRange && visibleRange < oldDataLength * 0.8;
 
-      console.log('[TradingChart] 📊 Viewport Analysis:', {
-        oldDataLength,
-        newDataLength: normalizedData.length,
-        visibleRange:  Math.round(visibleRange),
-        threshold: Math.round(oldDataLength * 0.8),
-        wasUserZoomed,
-        viewportFrom: viewportRange?.from?.toFixed(2),
-        viewportTo: viewportRange?.to?.toFixed(2),
-      });
-
       try {
-        console.log('[TradingChart] Setting chart data:', {
-          dataLength: normalizedData.length,
-          firstTime: normalizedData[0]?.time,
-          lastTime: normalizedData[normalizedData.length - 1]?.time,
-        });
-
         // Store OLD viewport range before setData
         const savedViewport = viewportRange;
 
@@ -446,13 +352,9 @@ useEffect(() => {
         dataRef.current = normalizedData;
         updateEmaData(normalizedData);
 
-        console.log('[TradingChart] ✅ Data set complete');
-
         // Restore viewport after update
         if (wasUserZoomed && savedViewport) {
           // User had zoomed in → preserve zoom level proportionally
-          console.log('[TradingChart] 🔍 Restoring user zoom...');
-
           // Calculate zoom percentage from OLD data
           const zoomPercentage = visibleRange / oldDataLength;
 
@@ -463,28 +365,16 @@ useEffect(() => {
           const newTo = normalizedData.length - 1;
           const newFrom = Math.max(0, newTo - newVisibleRange);
 
-          console.log('[TradingChart] 📐 Zoom calculation:', {
-            zoomPercentage:  (zoomPercentage * 100).toFixed(1) + '%',
-            oldVisible: Math.round(visibleRange),
-            newVisible:  newVisibleRange,
-            newFrom,
-            newTo,
-          });
-
           setTimeout(() => {
             if (chartRef.current) {
-              console.log('[TradingChart] 🎯 Applying zoom restore...');
               try {
                 chartRef.current.timeScale().setVisibleLogicalRange({
                   from: newFrom,
                   to: newTo,
                 });
-                console.log('[TradingChart] ✅ Zoom restored successfully');
               } catch (e) {
-                console.error('[TradingChart] ❌ Failed to restore zoom:', e);
+                console.error('[TradingChart] Failed to restore zoom:', e);
               }
-            } else {
-              console.error('[TradingChart] ❌ chartRef.current is null');
             }
           }, 100);
 
@@ -492,39 +382,28 @@ useEffect(() => {
           // User was viewing older data → try to restore position
           const isNearEnd = savedViewport.to >= oldDataLength - 5;
 
-          console.log('[TradingChart] 📍 User viewport state:', {
-            isNearEnd,
-            viewportTo: savedViewport.to,
-            oldDataLength,
-          });
-
           if (isNearEnd) {
-            console.log('[TradingChart] User was near end, scrolling to real-time');
             setTimeout(() => {
               chartRef.current?.timeScale().scrollToRealTime();
             }, 50);
           } else {
-            console.log('[TradingChart] Restoring viewport position');
             setTimeout(() => restoreViewport(savedViewport), 50);
           }
         } else {
           // First load → fit all content
-          console.log('[TradingChart] 🆕 First load, fitting content');
           setTimeout(() => {
             chartRef.current?.timeScale().fitContent();
           }, 100);
         }
 
-        console.log('[TradingChart] === END DATA UPDATE ===');
-
       } catch (error) {
-        console.error('[TradingChart] ❌ Chart setData error:', error);
-        console.error('[TradingChart] Problematic data sample:', normalizedData.slice(0, 3));
+        console.error('[TradingChart] Chart setData error:', error);
       }
     }, UPDATE_BUFFER_MS);
   }, [data, preserveViewport, restoreViewport, updateEmaData]);
 
   // Handle pattern markers update
+  /* Commented out - markers not enabled
   useEffect(() => {
     const series = seriesRef.current;
     if (!series || !patterns || patterns.length === 0) {
@@ -546,6 +425,7 @@ useEffect(() => {
       console.error('[TradingChart] Error setting pattern markers:', error);
     }
   }, [patterns]);
+  */
 
   return (
     <div className="w-full">
@@ -558,7 +438,8 @@ useEffect(() => {
           style={{ display: 'none' }}
         />
 
-        {/* VWAP & Volume Profile overlays */}
+        {/* VWAP & Volume Profile overlays - Commented out */}
+        {/* 
         {vwapConfig && (
           <VWAPOverlay
             chart={chartRef.current}
@@ -574,6 +455,7 @@ useEffect(() => {
             config={volumeProfileConfig}
           />
         )}
+        */}
       </div>
     </div>
   );
