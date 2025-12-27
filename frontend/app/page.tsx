@@ -1,10 +1,16 @@
 'use client';
 
 import UnifiedPriceHeader from '@/components/trading/UnifiedPriceHeader';
-import EmaConfigModal from '@/components/modals/EmaConfigModal';  // ← NEW
-import SymbolSearchModal from '@/components/modals/SymbolSearchModal';  // ← NEW
+import EmaConfigModal from '@/components/modals/EmaConfigModal';
+import SymbolSearchModal from '@/components/modals/SymbolSearchModal';
+import ExecuteOrderConfirmation from '@/components/modals/ExecuteOrderConfirmation';
+import IndicatorSummary from '@/components/trading/IndicatorSummary';
+import QuickInfoPanel from '@/components/trading/QuickInfoPanel';
+import PresetOrdersPanel from '@/components/trading/PresetOrdersPanel';
 import { useRealTrading } from '@/hooks/useRealTrading';
+import { usePatternRecognition } from '@/hooks/usePatternRecognition';
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import TradingChart from '@/components/TradingChart';
 import LiveOrderbook from '@/components/trading/LiveOrderbook';
@@ -16,20 +22,27 @@ import { useSymbolTicker } from '@/hooks/useSymbolData';
 import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
 import { Timeframe, ChartDataPoint } from '@/lib/types';
 import { toUnixTimestamp, isValidUnixTimestamp } from '@/lib/formatters';
+import { calculateEMATrend } from '@/lib/indicators';
 import { useTradingStore } from '@/stores/tradingStore';
 import { Position } from '@/stores/tradingStore';
 import { useMarketStore } from '@/stores/marketStore';
 import { syncManager, SyncEvent } from '@/lib/syncManager';
+import { EnhancedOrder } from '@/types/enhanced-orders';
 
 const DEFAULT_SYMBOL = 'BTCEUR';
 const DEFAULT_TIMEFRAME:  Timeframe = '1m';
 
 export default function Dashboard() {
+  const router = useRouter();
   const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-const [showEmaConfig, setShowEmaConfig] = useState(false);
-const [showSymbolSelector, setShowSymbolSelector] = useState(false);  // ← NEW
+  const [showEmaConfig, setShowEmaConfig] = useState(false);
+  const [showSymbolSelector, setShowSymbolSelector] = useState(false);
+  const [patternConfidenceThreshold, setPatternConfidenceThreshold] = useState(70);
+  const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<EnhancedOrder | null>(null);
+  
   // Use refs to prevent callback recreation
   const viewportRangeRef = useRef<{ from:  number; to: number } | null>(null);
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
@@ -46,8 +59,26 @@ const [showSymbolSelector, setShowSymbolSelector] = useState(false);  // ← NEW
   useRealTrading({ enabled: true, refreshInterval:  5000 });
 
   // Use Zustand store for trading state
-  const { addPosition, emaPeriods, emaEnabled, toggleEma } = useTradingStore();
-const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
+  const { addPosition, emaPeriods, emaEnabled, toggleEma, setEmaPeriods, setEmaEnabled } = useTradingStore();
+
+  // Pattern Recognition
+  const { detectedPatterns } = usePatternRecognition({
+    enableRealTime: true,
+    initialSettings: {
+      minConfidence: patternConfidenceThreshold,
+    },
+  });
+
+  // Filter patterns by confidence threshold
+  const recentPatterns = detectedPatterns
+    .filter((p) => p.confidence >= patternConfidenceThreshold)
+    .slice(0, 5);
+
+  // Calculate EMA trends for indicator summary
+  const emaStatus = [9, 21, 50, 200].map((period) => ({
+    period,
+    trend: calculateEMATrend(chartData, period),
+  }));
 
   // Market store for price updates and sync
   const { setSymbol: setGlobalSymbol, updatePrice, setConnectionStatus } = useMarketStore();
@@ -69,6 +100,7 @@ const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
   const { priceChangePercent24h } = useSymbolTicker(symbol, 10000);
 
   // Real-time orderbook
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { isConnected:  isOrderbookConnected } = useOrderbook({
     symbol,
     enabled: true,
@@ -154,6 +186,7 @@ const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
     }
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { isConnected, lastUpdate } = useWebSocket({
     symbol,
     interval: timeframe,
@@ -225,6 +258,7 @@ const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
     console.log('[Orderbook] Price clicked:', price);
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleQuickTrade = useCallback(async (order: {
     side: 'BUY' | 'SELL';
     type: 'MARKET' | 'LIMIT';
@@ -235,6 +269,7 @@ const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
     alert(`✅ ${order.side} order submitted!\nType: ${order.type}\nQty: ${order.quantity}\nPrice: ${order.price || 'MARKET'}`);
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleBuy = useCallback((quantity: number, price: number) => {
     const position:  Position = {
       id: `pos_${Date.now()}`,
@@ -250,6 +285,7 @@ const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
     addPosition(position);
   }, [addPosition]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSell = useCallback((quantity: number, price: number) => {
     const position: Position = {
       id: `pos_${Date.now()}`,
@@ -264,6 +300,22 @@ const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
     };
     addPosition(position);
   }, [addPosition]);
+
+  // Handle order execution with confirmation
+  const handleExecuteOrder = useCallback((order: EnhancedOrder) => {
+    setSelectedOrder(order);
+    setShowOrderConfirmation(true);
+  }, []);
+
+  const handleConfirmExecution = useCallback(() => {
+    if (selectedOrder) {
+      console.log('[Order] Executing order:', selectedOrder);
+      // TODO: Call actual order execution API
+      alert(`✅ Order ${selectedOrder.id} executed!\nType: ${selectedOrder.type}\nSymbol: ${selectedOrder.symbol}`);
+    }
+    setShowOrderConfirmation(false);
+    setSelectedOrder(null);
+  }, [selectedOrder]);
 
   if (error) {
     return (
@@ -291,91 +343,83 @@ const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
   return (
     <div className="min-h-screen bg-black p-4">
 
-      {/* Unified Header - Only Timeframes + EMA */}
-      <div className="max-w-full mx-auto mb-4">
-       <UnifiedPriceHeader
-  symbol={symbol}
-  price={currentPrice}
-  priceChangePercent={priceChangePercent24h}
-  timeframe={timeframe}
-  onTimeframeChange={handleTimeframeChange}
-  onSymbolClick={() => setShowSymbolSelector(true)}  // ← CAMBIA QUI
-  onSymbolSelect={handleSymbolChange}  // ← AGGIUNGI QUESTA
-  emaPeriods={emaPeriods}
-  emaEnabled={emaEnabled}
-  onEmaToggle={toggleEma}
-  onEmaConfig={() => setShowEmaConfig(true)}
-/>
-      </div>
-
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg: grid-cols-12 gap-4">
-
-        {/* Main Trading Area - 8 columns */}
-        <div className="lg:col-span-8 space-y-4">
-
-          <TradingChart
+      {/* Unified Header with Pattern Confidence Selector */}
+      <div className="max-w-[1920px] mx-auto mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <UnifiedPriceHeader
             symbol={symbol}
-            timeframe={timeframe}
-            data={chartData}
             price={currentPrice}
             priceChangePercent={priceChangePercent24h}
-            onSymbolClick={() => {/* TODO: Open symbol modal */}}
+            timeframe={timeframe}
+            onTimeframeChange={handleTimeframeChange}
+            onSymbolClick={() => setShowSymbolSelector(true)}
+            onSymbolSelect={handleSymbolChange}
             emaPeriods={emaPeriods}
             emaEnabled={emaEnabled}
+            onEmaToggle={toggleEma}
+            onEmaConfig={() => setShowEmaConfig(true)}
           />
-
-          {/* Quick Trading Panel */}
-          <QuickTradePanel
-            symbol={symbol}
-            currentPrice={currentPrice}
-            onBuy={handleBuy}
-            onSell={handleSell}
-          />
-
-          {/* Stats Footer */}
-          <div className="grid grid-cols-1 md: grid-cols-3 gap-3">
-            <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
-              <div className="text-xs text-gray-400 mb-1">Timeframe</div>
-              <div className="text-xl font-bold text-blue-400 font-mono">{timeframe}</div>
-            </div>
-
-            <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
-              <div className="text-xs text-gray-400 mb-1">Status</div>
-              <div className={`text-xl font-bold ${isConnected ? 'text-bull' : 'text-bear'}`}>
-                {isConnected ? 'LIVE' : 'OFFLINE'}
-              </div>
-            </div>
-
-            <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
-              <div className="text-xs text-gray-400 mb-1">Orderbook</div>
-              <div className={`text-xl font-bold ${isOrderbookConnected ? 'text-bull' : 'text-bear'}`}>
-                {isOrderbookConnected ?  'LIVE' : 'OFFLINE'}
-              </div>
-            </div>
+          
+          {/* Pattern Confidence Threshold Selector */}
+          <div className="ml-4">
+            <select
+              value={patternConfidenceThreshold}
+              onChange={(e) => setPatternConfidenceThreshold(Number(e.target.value))}
+              className="bg-gray-800 text-white rounded px-3 py-2 text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+            >
+              <option value={50}>All Patterns (50%+)</option>
+              <option value={60}>Medium (60%+)</option>
+              <option value={70}>High (70%+)</option>
+              <option value={80}>Very High (80%+)</option>
+              <option value={90}>Extreme (90%+)</option>
+            </select>
           </div>
         </div>
+      </div>
 
-        {/* Right Sidebar - 4 columns */}
-        <div className="lg:col-span-4 space-y-4">
-
-          {/* Live Orderbook */}
+      {/* 3-Column Grid Layout */}
+      <div className="grid grid-cols-12 gap-4 max-w-[1920px] mx-auto">
+        
+        {/* LEFT COLUMN - Orderbook (25% = 3 cols) */}
+        <div className="col-span-12 lg:col-span-3 space-y-4">
           <LiveOrderbook
             symbol={symbol}
             maxLevels={10}
             onPriceClick={handleOrderbookPriceClick}
           />
+        </div>
 
-          {/* Quick Trade Panel */}
+        {/* CENTER COLUMN - Chart + Indicators (50% = 6 cols) */}
+        <div className="col-span-12 lg:col-span-6 space-y-4">
+          <TradingChart
+            data={chartData}
+            emaPeriods={emaPeriods}
+            emaEnabled={emaEnabled}
+            patterns={recentPatterns}
+            patternConfidenceThreshold={patternConfidenceThreshold}
+          />
+          
+          <IndicatorSummary
+            recentPatterns={recentPatterns}
+            emaStatus={emaStatus}
+            onViewAnalysis={() => router.push('/analysis')}
+          />
+        </div>
+
+        {/* RIGHT COLUMN - Trade + Info + Orders (25% = 3 cols) */}
+        <div className="col-span-12 lg:col-span-3 space-y-4">
           <QuickTradePanel
             symbol={symbol}
             currentPrice={currentPrice}
-            balance={1000}
-            onOrderSubmit={handleQuickTrade}
           />
+          
+          <QuickInfoPanel />
+          
+          <PresetOrdersPanel onExecuteOrder={handleExecuteOrder} />
         </div>
-         </div>
-          {/* EMA Config Modal */}
+      </div>
+
+      {/* Modals */}
       <EmaConfigModal
         isOpen={showEmaConfig}
         onClose={() => setShowEmaConfig(false)}
@@ -387,12 +431,18 @@ const { setEmaPeriods, setEmaEnabled } = useTradingStore();  // ← NEW
         }}
       />
 
-      {/* Symbol Search Modal */}
       <SymbolSearchModal
         isOpen={showSymbolSelector}
         onClose={() => setShowSymbolSelector(false)}
         currentSymbol={symbol}
         onSymbolSelect={handleSymbolChange}
+      />
+
+      <ExecuteOrderConfirmation
+        isOpen={showOrderConfirmation}
+        order={selectedOrder}
+        onConfirm={handleConfirmExecution}
+        onCancel={() => setShowOrderConfirmation(false)}
       />
     </div>
   );
