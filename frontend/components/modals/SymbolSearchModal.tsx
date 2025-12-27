@@ -124,15 +124,10 @@ export default function SymbolSearchModal({
 
   // Save presets to localStorage
   const savePresets = (newPresets: string[]) => {
-    console.log('[SymbolSearchModal] savePresets called with:', newPresets);
     const unique = Array.from(new Set(newPresets));
-    console.log('[SymbolSearchModal] After dedup:', unique);
-
     setPresets(unique);
     localStorage.setItem('scalping_favorite_symbols', JSON.stringify(unique));
     window.dispatchEvent(new Event('favoritesUpdated'));
-
-    console.log('[SymbolSearchModal] LocalStorage updated, presets:', unique);
   };
 
   // Toggle favorite (star) - unlimited
@@ -165,18 +160,11 @@ export default function SymbolSearchModal({
 
   // Reset presets to default
   const handleResetPresets = () => {
-    console.log('[SymbolSearchModal] Opening reset confirmation');
     setShowResetConfirm(true);
   };
 
   const confirmReset = () => {
-    console.log('[SymbolSearchModal] confirmReset START');
-    console.log('[SymbolSearchModal] Current presets:', presets);
-    console.log('[SymbolSearchModal] Resetting to:', DEFAULT_PRESETS);
-
     savePresets(DEFAULT_PRESETS);
-
-    console.log('[SymbolSearchModal] After savePresets, closing popup');
     setShowResetConfirm(false);
     setToast({ message: 'Presets reset to defaults', type:  'success' });
   };
@@ -289,7 +277,7 @@ export default function SymbolSearchModal({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="🔎 Search symbols...(e.g.BTC, ETH, SOL)"
+              placeholder="🔎 Search symbols...(e.g. BTC, ETH, SOL)"
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 text-lg"
               autoFocus
             />
@@ -348,7 +336,7 @@ export default function SymbolSearchModal({
               </div>
             ) : (
               <div className="text-center py-4 text-gray-500 text-sm">
-                No presets.Click "+ Add Preset" below or click "🔄 Reset" for defaults.
+                No presets. Click &quot;+ Add Preset&quot; below or click &quot;🔄 Reset&quot; for defaults.
               </div>
             )}
           </div>
@@ -436,7 +424,7 @@ export default function SymbolSearchModal({
           {/* Footer */}
           <div className="p-4 border-t border-gray-800 bg-gray-800/50 text-xs text-gray-400 flex items-center justify-between">
             <div>
-              ⭐ = Favorite (click to toggle) • "+ Add Preset" = Quick Access • Click symbol to select
+              ⭐ = Favorite (click to toggle) • &quot;+ Add Preset&quot; = Quick Access • Click symbol to select
             </div>
             <div className="text-blue-400 font-mono">
               Current: {currentSymbol}
@@ -448,7 +436,6 @@ export default function SymbolSearchModal({
             <div
               className="absolute inset-0 z-10 flex items-center justify-center bg-black/80 rounded-lg"
               onClick={() => {
-                console.log('[SymbolSearchModal] Backdrop clicked, closing popup');
                 setShowResetConfirm(false);
               }}
             >
@@ -469,7 +456,6 @@ export default function SymbolSearchModal({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log('[SymbolSearchModal] Cancel clicked');
                       setShowResetConfirm(false);
                     }}
                     className="flex-1 px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
@@ -479,10 +465,9 @@ export default function SymbolSearchModal({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log('[SymbolSearchModal] Reset button clicked');
                       confirmReset();
                     }}
-                    className="flex-1 px-4 py-2.5 bg-blue-600 hover: bg-blue-500 text-white font-semibold rounded-lg transition-colors"
+                    className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors"
                   >
                     ✓ Reset
                   </button>
