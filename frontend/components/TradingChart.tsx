@@ -459,10 +459,14 @@ function TradingChartComponent({
 
     const handleClick = () => {
       // On any chart click with patterns, navigate to analysis page
-      if (patterns && patterns.length > 0 && onPatternClick) {
-        router.push('/analysis');
-      } else if (patterns && patterns.length > 0) {
-        router.push('/analysis');
+      if (patterns && patterns.length > 0) {
+        if (onPatternClick) {
+          // If custom handler provided, use it
+          onPatternClick(patterns[0]);
+        } else {
+          // Default: navigate to analysis page
+          router.push('/analysis');
+        }
       }
     };
 

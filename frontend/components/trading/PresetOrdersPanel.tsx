@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTradingStore } from '@/stores/tradingStore';
 import { EnhancedOrder } from '@/types/enhanced-orders';
@@ -13,11 +13,21 @@ export default function PresetOrdersPanel({ onExecuteOrder }: PresetOrdersPanelP
   const router = useRouter();
   const { enhancedOrders } = useTradingStore();
   const [executingId, setExecutingId] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Filter to active orders only
   const activeOrders = enhancedOrders.filter(
     (order) => order.status === 'ACTIVE' || order.status === 'PENDING'
   );
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleExecute = (order: EnhancedOrder) => {
     setExecutingId(order.id);
@@ -25,7 +35,7 @@ export default function PresetOrdersPanel({ onExecuteOrder }: PresetOrdersPanelP
       onExecuteOrder(order);
     }
     // Reset after a short delay
-    setTimeout(() => setExecutingId(null), 1000);
+    timeoutRef.current = setTimeout(() => setExecutingId(null), 1000);
   };
 
   const getOrderTypeIcon = (type: string) => {

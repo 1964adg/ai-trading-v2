@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { DetectedPattern } from '@/types/patterns';
 
 interface IndicatorSummaryProps {
@@ -15,11 +16,13 @@ export default function IndicatorSummary({
 }: IndicatorSummaryProps) {
 
   // Calculate overall signal strength (average confidence of patterns)
-  const overallStrength = recentPatterns.length > 0
-    ? Math.round(
-        recentPatterns.reduce((sum, p) => sum + p.confidence, 0) / recentPatterns.length
-      )
-    : 0;
+  const overallStrength = useMemo(() => {
+    return recentPatterns.length > 0
+      ? Math.round(
+          recentPatterns.reduce((sum, p) => sum + p.confidence, 0) / recentPatterns.length
+        )
+      : 0;
+  }, [recentPatterns]);
 
   const getStrengthColor = (strength: number) => {
     if (strength >= 80) return 'text-green-400';
