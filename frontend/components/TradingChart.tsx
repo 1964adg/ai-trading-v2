@@ -381,8 +381,15 @@ useEffect(() => {
   // Handle data updates with viewport preservation and buffering
   // FIXED: More robust error handling and validation
     // Handle data updates with viewport preservation and buffering
+    // Handle data updates with viewport preservation and buffering
+    // Handle data updates with viewport preservation and buffering
   useEffect(() => {
-    if (!  seriesRef.current || data.length === 0) return;
+    console.log('[TradingChart] useEffect triggered - data.length:', data.length);
+
+    if (!seriesRef.current || data.length === 0) {
+      console.log('[TradingChart] Early return - seriesRef or data missing');
+      return;
+    }
 
     // Clear any pending buffer update
     if (updateBufferRef.current) {
@@ -392,7 +399,12 @@ useEffect(() => {
     // Buffer the update to prevent rapid re-renders
     updateBufferRef.current = setTimeout(() => {
       const series = seriesRef.current;
-      if (! series) return;
+      if (!  series) {
+        console.log('[TradingChart] Series ref lost during timeout');
+        return;
+      }
+
+      console.log('[TradingChart] === START DATA UPDATE ===');
 
       // Normalize all data to ensure timestamps are valid Unix seconds
       const normalizedData = normalizeChartData(data);
@@ -403,64 +415,110 @@ useEffect(() => {
 
       // Preserve current viewport BEFORE updating data
       const viewportRange = preserveViewport();
-      const wasUserZoomed = viewportRange && (viewportRange.to - viewportRange.from) < data.length * 0.8; // ← NEW: Detect if user zoomed in
+      console.log('[TradingChart] Preserved viewport:', viewportRange);
+
+      // Calculate if user zoomed in (viewing less than 80% of data)
+      const oldDataLength = dataRef.current?.length || normalizedData.length;
+      const visibleRange = viewportRange ? (viewportRange.to - viewportRange.from) : oldDataLength;
+      const wasUserZoomed = viewportRange && visibleRange < oldDataLength * 0.8;
+
+      console.log('[TradingChart] 📊 Viewport Analysis:', {
+        oldDataLength,
+        newDataLength: normalizedData.length,
+        visibleRange:  Math.round(visibleRange),
+        threshold: Math.round(oldDataLength * 0.8),
+        wasUserZoomed,
+        viewportFrom: viewportRange?.from?.toFixed(2),
+        viewportTo: viewportRange?.to?.toFixed(2),
+      });
 
       try {
         console.log('[TradingChart] Setting chart data:', {
           dataLength: normalizedData.length,
           firstTime: normalizedData[0]?.time,
           lastTime: normalizedData[normalizedData.length - 1]?.time,
-          timeType: typeof normalizedData[0]?.time,
-          wasUserZoomed, // ← NEW
         });
+
+        // Store OLD viewport range before setData
+        const savedViewport = viewportRange;
 
         series.setData(normalizedData);
         dataRef.current = normalizedData;
         updateEmaData(normalizedData);
 
+        console.log('[TradingChart] ✅ Data set complete');
+
         // Restore viewport after update
-        if (wasUserZoomed && viewportRange) {
+        if (wasUserZoomed && savedViewport) {
           // User had zoomed in → preserve zoom level proportionally
-          console.log('[TradingChart] Restoring user zoom');
-          const oldRange = viewportRange.to - viewportRange.from;
-          const oldDataLength = dataRef.current?.length || normalizedData.length;
-          const newDataLength = normalizedData.length;
+          console.log('[TradingChart] 🔍 Restoring user zoom...');
 
-          // Calculate proportional zoom
-          const zoomRatio = oldRange / oldDataLength;
-          const newRange = Math.max(10, Math.round(newDataLength * zoomRatio)); // Min 10 candles
+          // Calculate zoom percentage from OLD data
+          const zoomPercentage = visibleRange / oldDataLength;
 
-          // Center on the most recent data
-          const newTo = newDataLength;
-          const newFrom = Math.max(0, newTo - newRange);
+          // Apply same zoom percentage to NEW data
+          const newVisibleRange = Math.max(10, Math.round(normalizedData.length * zoomPercentage));
+
+          // Keep focused on most recent data
+          const newTo = normalizedData.length - 1;
+          const newFrom = Math.max(0, newTo - newVisibleRange);
+
+          console.log('[TradingChart] 📐 Zoom calculation:', {
+            zoomPercentage:  (zoomPercentage * 100).toFixed(1) + '%',
+            oldVisible: Math.round(visibleRange),
+            newVisible:  newVisibleRange,
+            newFrom,
+            newTo,
+          });
 
           setTimeout(() => {
-            chartRef.current?.timeScale().setVisibleLogicalRange({
-              from: newFrom,
-              to: newTo,
-            });
+            if (chartRef.current) {
+              console.log('[TradingChart] 🎯 Applying zoom restore...');
+              try {
+                chartRef.current.timeScale().setVisibleLogicalRange({
+                  from: newFrom,
+                  to: newTo,
+                });
+                console.log('[TradingChart] ✅ Zoom restored successfully');
+              } catch (e) {
+                console.error('[TradingChart] ❌ Failed to restore zoom:', e);
+              }
+            } else {
+              console.error('[TradingChart] ❌ chartRef.current is null');
+            }
           }, 100);
 
-        } else if (viewportRange) {
+        } else if (savedViewport) {
           // User was viewing older data → try to restore position
-          const isNearEnd = viewportRange.to >= (dataRef.current?.length || 0) - 5;
+          const isNearEnd = savedViewport.to >= oldDataLength - 5;
+
+          console.log('[TradingChart] 📍 User viewport state:', {
+            isNearEnd,
+            viewportTo: savedViewport.to,
+            oldDataLength,
+          });
 
           if (isNearEnd) {
+            console.log('[TradingChart] User was near end, scrolling to real-time');
             setTimeout(() => {
               chartRef.current?.timeScale().scrollToRealTime();
             }, 50);
           } else {
-            setTimeout(() => restoreViewport(viewportRange), 50);
+            console.log('[TradingChart] Restoring viewport position');
+            setTimeout(() => restoreViewport(savedViewport), 50);
           }
         } else {
           // First load → fit all content
+          console.log('[TradingChart] 🆕 First load, fitting content');
           setTimeout(() => {
             chartRef.current?.timeScale().fitContent();
           }, 100);
         }
 
+        console.log('[TradingChart] === END DATA UPDATE ===');
+
       } catch (error) {
-        console.error('[TradingChart] Chart setData error:', error);
+        console.error('[TradingChart] ❌ Chart setData error:', error);
         console.error('[TradingChart] Problematic data sample:', normalizedData.slice(0, 3));
       }
     }, UPDATE_BUFFER_MS);
