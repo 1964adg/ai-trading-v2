@@ -1,22 +1,18 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { DetectedPattern } from '@/types/patterns';
 
 interface IndicatorSummaryProps {
-  symbol: string;
   recentPatterns: DetectedPattern[];
   emaStatus: { period: number; trend: 'bullish' | 'bearish' | 'neutral' }[];
   onViewAnalysis: () => void;
 }
 
 export default function IndicatorSummary({
-  symbol,
   recentPatterns,
   emaStatus,
   onViewAnalysis,
 }: IndicatorSummaryProps) {
-  const router = useRouter();
 
   // Calculate overall signal strength (average confidence of patterns)
   const overallStrength = recentPatterns.length > 0
