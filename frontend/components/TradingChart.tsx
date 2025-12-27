@@ -1,15 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useCallback, memo } from 'react';
-import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData } from 'lightweight-charts';
+import { useRouter } from 'next/navigation';
+import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData, SeriesMarker } from 'lightweight-charts';
 import { ChartDataPoint } from '@/lib/types';
 import { formatCurrency, formatNumber, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
+import { DetectedPattern } from '@/types/patterns';
 
 interface TradingChartProps {
   data: ChartDataPoint[];
   emaPeriods?: [number, number, number, number];
   emaEnabled?:  [boolean, boolean, boolean, boolean];
+  patterns?: DetectedPattern[];
+  patternConfidenceThreshold?: number;
+  onPatternClick?: (pattern: DetectedPattern) => void;
 }
 
 const EMA_COLORS = ['#FFC107', '#FF9800', '#F44336', '#9C27B0'];
@@ -83,7 +88,11 @@ function TradingChartComponent({
   data,
   emaPeriods = [9, 21, 50, 200],
   emaEnabled = [true, true, true, true],
+  patterns = [],
+  patternConfidenceThreshold = 70,
+  onPatternClick,
 }: TradingChartProps) {
+  const router = useRouter();
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -96,12 +105,16 @@ function TradingChartComponent({
   // Use refs for props to prevent infinite loops
   const emaPeriodsRef = useRef(emaPeriods);
   const emaEnabledRef = useRef(emaEnabled);
+  const patternsRef = useRef(patterns);
+  const patternConfidenceThresholdRef = useRef(patternConfidenceThreshold);
 
   // Update refs when props change (only sync refs, no chart operations)
   useEffect(() => {
     emaPeriodsRef.current = emaPeriods;
     emaEnabledRef.current = emaEnabled;
-  }, [emaPeriods, emaEnabled]);
+    patternsRef.current = patterns;
+    patternConfidenceThresholdRef.current = patternConfidenceThreshold;
+  }, [emaPeriods, emaEnabled, patterns, patternConfidenceThreshold]);
 
   // Preserve viewport before data updates
   const preserveViewport = useCallback(() => {
@@ -403,29 +416,62 @@ function TradingChartComponent({
   }, [data, preserveViewport, restoreViewport, updateEmaData]);
 
   // Handle pattern markers update
-  /* Commented out - markers not enabled
   useEffect(() => {
     const series = seriesRef.current;
-    if (!series || !patterns || patterns.length === 0) {
+    if (!series) return;
+
+    if (!patterns || patterns.length === 0) {
       // Clear markers if no patterns
-      if (series) {
-        try {
-          series.setMarkers([]);
-        } catch (error) {
-          console.error('[TradingChart] Error clearing markers:', error);
-        }
+      try {
+        series.setMarkers([]);
+      } catch (error) {
+        console.error('[TradingChart] Error clearing markers:', error);
       }
       return;
     }
 
     try {
+      // Filter patterns by confidence threshold
+      const filteredPatterns = patterns.filter(
+        (p) => p.confidence >= patternConfidenceThreshold
+      );
+
+      // Convert patterns to chart markers
+      const markers: SeriesMarker<Time>[] = filteredPatterns.map((p) => ({
+        time: p.time,
+        position: p.signal === 'BULLISH' ? 'belowBar' : 'aboveBar',
+        color: p.signal === 'BULLISH' ? '#10b981' : '#ef4444',
+        shape: 'circle',
+        text: p.pattern.name.substring(0, 3).toUpperCase(),
+      }));
+
       // Set pattern markers on the chart
       series.setMarkers(markers);
     } catch (error) {
       console.error('[TradingChart] Error setting pattern markers:', error);
     }
-  }, [patterns]);
-  */
+  }, [patterns, patternConfidenceThreshold]);
+
+  // Handle pattern marker clicks
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const handleClick = () => {
+      // On any chart click with patterns, navigate to analysis page
+      if (patterns && patterns.length > 0 && onPatternClick) {
+        router.push('/analysis');
+      } else if (patterns && patterns.length > 0) {
+        router.push('/analysis');
+      }
+    };
+
+    chart.subscribeClick(handleClick);
+
+    return () => {
+      chart.unsubscribeClick(handleClick);
+    };
+  }, [patterns, onPatternClick, router]);
 
   return (
     <div className="w-full">

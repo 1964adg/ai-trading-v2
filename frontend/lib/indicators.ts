@@ -51,3 +51,27 @@ export function calculateMultipleEMA(
   }
   return result;
 }
+
+/**
+ * Calculate EMA trend direction
+ */
+export function calculateEMATrend(
+  chartData: { close: number }[], 
+  period: number
+): 'bullish' | 'bearish' | 'neutral' {
+  const closes = chartData.map(c => c.close);
+  const ema = calculateEMA(closes, period);
+  
+  if (ema.length < 2) return 'neutral';
+  
+  // Get last two non-null values
+  const nonNullValues = ema.filter(v => v !== null) as number[];
+  if (nonNullValues.length < 2) return 'neutral';
+  
+  const current = nonNullValues[nonNullValues.length - 1];
+  const previous = nonNullValues[nonNullValues.length - 2];
+  
+  if (current > previous) return 'bullish';
+  if (current < previous) return 'bearish';
+  return 'neutral';
+}
