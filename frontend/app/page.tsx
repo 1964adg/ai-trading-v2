@@ -258,6 +258,7 @@ export default function Dashboard() {
     console.log('[Orderbook] Price clicked:', price);
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleQuickTrade = useCallback(async (order: {
     side: 'BUY' | 'SELL';
     type: 'MARKET' | 'LIMIT';
@@ -410,8 +411,6 @@ export default function Dashboard() {
           <QuickTradePanel
             symbol={symbol}
             currentPrice={currentPrice}
-            balance={1000}
-            onOrderSubmit={handleQuickTrade}
           />
           
           <QuickInfoPanel />
