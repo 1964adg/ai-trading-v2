@@ -380,18 +380,19 @@ useEffect(() => {
 
   // Handle data updates with viewport preservation and buffering
   // FIXED: More robust error handling and validation
+    // Handle data updates with viewport preservation and buffering
   useEffect(() => {
-    if (!seriesRef.current || data.length === 0) return;
+    if (!  seriesRef.current || data.length === 0) return;
 
     // Clear any pending buffer update
     if (updateBufferRef.current) {
       clearTimeout(updateBufferRef.current);
     }
 
-    // Buffer updates for performance
+    // Buffer the update to prevent rapid re-renders
     updateBufferRef.current = setTimeout(() => {
       const series = seriesRef.current;
-      if (!series) return;
+      if (! series) return;
 
       // Normalize all data to ensure timestamps are valid Unix seconds
       const normalizedData = normalizeChartData(data);
@@ -400,44 +401,59 @@ useEffect(() => {
         return;
       }
 
-      // Preserve current viewport
+      // Preserve current viewport BEFORE updating data
       const viewportRange = preserveViewport();
+      const wasUserZoomed = viewportRange && (viewportRange.to - viewportRange.from) < data.length * 0.8; // ← NEW: Detect if user zoomed in
 
-      // Always use full setData for now to avoid timestamp ordering issues
       try {
         console.log('[TradingChart] Setting chart data:', {
           dataLength: normalizedData.length,
           firstTime: normalizedData[0]?.time,
           lastTime: normalizedData[normalizedData.length - 1]?.time,
-          timeType: typeof normalizedData[0]?.time
+          timeType: typeof normalizedData[0]?.time,
+          wasUserZoomed, // ← NEW
         });
 
         series.setData(normalizedData);
-
-        // Store reference to current data
         dataRef.current = normalizedData;
-
-        // Update EMA series
         updateEmaData(normalizedData);
 
         // Restore viewport after update
-                // Auto-scroll to latest candle if near right edge
-        if (viewportRange) {
-          const range = viewportRange.to - viewportRange.from;
-          const dataLength = normalizedData.length;
-          const isNearEnd = viewportRange.to >= dataLength - 5;
+        if (wasUserZoomed && viewportRange) {
+          // User had zoomed in → preserve zoom level proportionally
+          console.log('[TradingChart] Restoring user zoom');
+          const oldRange = viewportRange.to - viewportRange.from;
+          const oldDataLength = dataRef.current?.length || normalizedData.length;
+          const newDataLength = normalizedData.length;
+
+          // Calculate proportional zoom
+          const zoomRatio = oldRange / oldDataLength;
+          const newRange = Math.max(10, Math.round(newDataLength * zoomRatio)); // Min 10 candles
+
+          // Center on the most recent data
+          const newTo = newDataLength;
+          const newFrom = Math.max(0, newTo - newRange);
+
+          setTimeout(() => {
+            chartRef.current?.timeScale().setVisibleLogicalRange({
+              from: newFrom,
+              to: newTo,
+            });
+          }, 100);
+
+        } else if (viewportRange) {
+          // User was viewing older data → try to restore position
+          const isNearEnd = viewportRange.to >= (dataRef.current?.length || 0) - 5;
 
           if (isNearEnd) {
-            // Scroll to show latest data
             setTimeout(() => {
               chartRef.current?.timeScale().scrollToRealTime();
             }, 50);
           } else {
-            // Preserve viewport if user scrolled back
             setTimeout(() => restoreViewport(viewportRange), 50);
           }
         } else {
-          // First load - fit all content
+          // First load → fit all content
           setTimeout(() => {
             chartRef.current?.timeScale().fitContent();
           }, 100);
@@ -446,22 +462,6 @@ useEffect(() => {
       } catch (error) {
         console.error('[TradingChart] Chart setData error:', error);
         console.error('[TradingChart] Problematic data sample:', normalizedData.slice(0, 3));
-
-        // Last resort: create simple test data
-        const fallbackData = [{
-          time: Math.floor(Date.now() / 1000) as Time,
-          open: 50000,
-          high: 51000,
-          low: 49000,
-          close: 50500
-        }];
-
-        try {
-          series.setData(fallbackData);
-          console.log('[TradingChart] Using fallback data');
-        } catch (fallbackError) {
-          console.error('[TradingChart] Even fallback data failed:', fallbackError);
-        }
       }
     }, UPDATE_BUFFER_MS);
   }, [data, preserveViewport, restoreViewport, updateEmaData]);
