@@ -124,10 +124,15 @@ export default function SymbolSearchModal({
 
   // Save presets to localStorage
   const savePresets = (newPresets: string[]) => {
+    console.log('[SymbolSearchModal] savePresets called with:', newPresets);
     const unique = Array.from(new Set(newPresets));
+    console.log('[SymbolSearchModal] After dedup:', unique);
+
     setPresets(unique);
     localStorage.setItem('scalping_favorite_symbols', JSON.stringify(unique));
     window.dispatchEvent(new Event('favoritesUpdated'));
+
+    console.log('[SymbolSearchModal] LocalStorage updated, presets:', unique);
   };
 
   // Toggle favorite (star) - unlimited
@@ -160,13 +165,20 @@ export default function SymbolSearchModal({
 
   // Reset presets to default
   const handleResetPresets = () => {
+    console.log('[SymbolSearchModal] Opening reset confirmation');
     setShowResetConfirm(true);
   };
 
   const confirmReset = () => {
+    console.log('[SymbolSearchModal] confirmReset START');
+    console.log('[SymbolSearchModal] Current presets:', presets);
+    console.log('[SymbolSearchModal] Resetting to:', DEFAULT_PRESETS);
+
     savePresets(DEFAULT_PRESETS);
+
+    console.log('[SymbolSearchModal] After savePresets, closing popup');
     setShowResetConfirm(false);
-    setToast({ message: 'Presets reset to defaults', type: 'success' });
+    setToast({ message: 'Presets reset to defaults', type:  'success' });
   };
 
   // Filter and sort symbols
@@ -241,6 +253,8 @@ export default function SymbolSearchModal({
   useEffect(() => {
     if (! isOpen) {
       setSearch('');
+      setShowResetConfirm(false);
+      setToast(null);
     }
   }, [isOpen]);
 
@@ -251,7 +265,7 @@ export default function SymbolSearchModal({
 
       {/* Modal Container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel className="bg-gray-900 rounded-lg border border-gray-700 w-full max-w-5xl max-h-[90vh] flex flex-col">
+        <Dialog.Panel className="bg-gray-900 rounded-lg border border-gray-700 w-full max-w-5xl max-h-[90vh] flex flex-col relative">
 
           {/* Header */}
           <div className="p-4 border-b border-gray-800">
@@ -275,8 +289,8 @@ export default function SymbolSearchModal({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="🔎 Search symbols... (e.g. BTC, ETH, SOL)"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus: border-blue-500 text-lg"
+              placeholder="🔎 Search symbols...(e.g.BTC, ETH, SOL)"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 text-lg"
               autoFocus
             />
           </div>
@@ -296,7 +310,7 @@ export default function SymbolSearchModal({
               </button>
             </div>
 
-            {presets.length > 0 ?  (
+            {presets.length > 0 ? (
               <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
                 {presetSymbols.map(symbolData => (
                   <div
@@ -429,50 +443,67 @@ export default function SymbolSearchModal({
             </div>
           </div>
 
-        </Dialog.Panel>
+          {/* Custom Reset Confirmation Dialog - INSIDE Dialog.Panel */}
+          {showResetConfirm && (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center bg-black/80 rounded-lg"
+              onClick={() => {
+                console.log('[SymbolSearchModal] Backdrop clicked, closing popup');
+                setShowResetConfirm(false);
+              }}
+            >
+              <div
+                className="bg-gray-800 rounded-lg border border-gray-600 p-6 max-w-md mx-4 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center mb-4">
+                  <div className="text-5xl mb-3">🔄</div>
+                  <h3 className="text-xl font-bold text-white mb-2">Reset Quick Access Presets? </h3>
+                  <p className="text-gray-400 text-sm">
+                    This will restore default presets:  <br />
+                    <span className="font-mono text-blue-400">BTCEUR, ETHEUR, BNBEUR</span>
+                  </p>
+                </div>
 
-        {/* Custom Reset Confirmation Dialog */}
-        {showResetConfirm && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
-            <div className="bg-gray-800 rounded-lg border border-gray-600 p-6 max-w-md mx-4 shadow-2xl">
-              <div className="text-center mb-4">
-                <div className="text-5xl mb-3">🔄</div>
-                <h3 className="text-xl font-bold text-white mb-2">Reset Quick Access Presets? </h3>
-                <p className="text-gray-400 text-sm">
-                  This will restore default presets:  <br />
-                  <span className="font-mono text-blue-400">BTCEUR, ETHEUR, BNBEUR</span>
-                </p>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowResetConfirm(false)}
-                  className="flex-1 px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmReset}
-                  className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors"
-                >
-                  ✓ Reset
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('[SymbolSearchModal] Cancel clicked');
+                      setShowResetConfirm(false);
+                    }}
+                    className="flex-1 px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('[SymbolSearchModal] Reset button clicked');
+                      confirmReset();
+                    }}
+                    className="flex-1 px-4 py-2.5 bg-blue-600 hover: bg-blue-500 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    ✓ Reset
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+        </Dialog.Panel>
+
+        {/* Toast Notification - OUTSIDE Dialog */}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            duration={3000}
+            onClose={() => setToast(null)}
+          />
         )}
 
       </div>
-
-      {/* Toast Notification */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-        />
-      )}
     </Dialog>
   );
 }
@@ -537,7 +568,7 @@ function SymbolRow({
     <div
       className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all ${
         isActive
-          ?  'bg-blue-600 text-white ring-2 ring-blue-400'
+          ? 'bg-blue-600 text-white ring-2 ring-blue-400'
           : 'bg-gray-800/50 hover:bg-gray-700 text-gray-300'
       }`}
     >
@@ -577,7 +608,7 @@ function SymbolRow({
 
       {/* Add/Remove Preset Button */}
       <div className="ml-auto">
-        {isPreset ? (
+        {isPreset ?  (
           <button
             onClick={(e) => {
               e.stopPropagation();

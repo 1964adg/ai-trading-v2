@@ -31,8 +31,8 @@ export default function Toast({ message, type = 'info', duration = 3000, onClose
     warning: 'bg-yellow-600 border-yellow-500',
   };
 
-  return (
-    <div className="fixed top-4 right-4 z-[100] animate-slide-in">
+   return (
+    <div className="fixed top-4 right-4 z-[200] animate-slide-in"> {/* ← ERA z-[100] */}
       <div className={`${colors[type]} border-l-4 rounded-lg shadow-2xl px-6 py-4 flex items-center gap-3 min-w-[300px] max-w-md`}>
         <div className="text-3xl">{icons[type]}</div>
         <div className="flex-1">
