@@ -21,7 +21,6 @@ export default function WatchListPanel({
     watchedSymbols,
     symbolPrices,
     isLoading,
-    addSymbol,
     removeSymbol,
     updateSymbolPrice,
     setLoading,
