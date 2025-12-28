@@ -49,24 +49,24 @@ const FLAG_CONFIGS: FlagConfig[] = [
   },
 ];
 
-export default function FeatureFlagsPanel() {
-  const [flags, setFlags] = useState<Record<FeatureFlag, boolean>>(() => {
-    const initial: Partial<Record<FeatureFlag, boolean>> = {};
-    Object.keys(FEATURE_FLAGS).forEach(key => {
-      initial[key as FeatureFlag] = getFeatureFlag(key as FeatureFlag);
-    });
-    return initial as Record<FeatureFlag, boolean>;
+/**
+ * Helper function to load all feature flags from storage
+ */
+function loadFeatureFlags(): Record<FeatureFlag, boolean> {
+  const flags: Partial<Record<FeatureFlag, boolean>> = {};
+  Object.keys(FEATURE_FLAGS).forEach(key => {
+    flags[key as FeatureFlag] = getFeatureFlag(key as FeatureFlag);
   });
+  return flags as Record<FeatureFlag, boolean>;
+}
 
+export default function FeatureFlagsPanel() {
+  const [flags, setFlags] = useState<Record<FeatureFlag, boolean>>(loadFeatureFlags);
   const [needsReload, setNeedsReload] = useState(false);
 
   useEffect(() => {
-    // Initialize flags from localStorage
-    const loadedFlags: Partial<Record<FeatureFlag, boolean>> = {};
-    Object.keys(FEATURE_FLAGS).forEach(key => {
-      loadedFlags[key as FeatureFlag] = getFeatureFlag(key as FeatureFlag);
-    });
-    setFlags(loadedFlags as Record<FeatureFlag, boolean>);
+    // Refresh flags from localStorage when component mounts
+    setFlags(loadFeatureFlags());
   }, []);
 
   const handleToggle = (flag: FeatureFlag) => {

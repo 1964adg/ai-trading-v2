@@ -37,6 +37,7 @@ import { getFeatureFlag } from '@/lib/featureFlags';
 
 const DEFAULT_SYMBOL = 'BTCEUR';
 const DEFAULT_TIMEFRAME:  Timeframe = '1m';
+const MULTI_TIMEFRAME_INTERVALS: Timeframe[] = ['4h', '1h', '15m', '5m'];
 
 export default function Dashboard() {
   const router = useRouter();
@@ -436,7 +437,7 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
           {getFeatureFlag('ENABLE_MULTI_TIMEFRAME') && (
             <MultiTimeframePanel
               symbol={symbol}
-              timeframes={['4h', '1h', '15m', '5m']}
+              timeframes={MULTI_TIMEFRAME_INTERVALS}
             />
           )}
         </div>

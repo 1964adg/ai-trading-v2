@@ -29,6 +29,7 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 const CACHE_DURATION = 30000; // 30 seconds
+const DELAY_BETWEEN_REQUESTS_MS = 1000; // 1 second delay for rate limiting
 
 /**
  * Calculate trend based on EMA9
@@ -156,7 +157,7 @@ export function useMultiTimeframe(
       
       for (let i = 0; i < timeframes.length; i++) {
         const timeframe = timeframes[i];
-        const delay = i * 1000; // 1 second delay between requests
+        const delay = i * DELAY_BETWEEN_REQUESTS_MS; // Sequential delay to prevent rate limiting
         
         try {
           const chartData = await fetchTimeframeData(timeframe, delay);
