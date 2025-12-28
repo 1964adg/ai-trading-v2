@@ -22,6 +22,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useRealtimeWebSocket } from '@/hooks/useRealtimeWebSocket';
 import { useOrderbook } from '@/hooks/useOrderbook';
 import { useSymbolTicker } from '@/hooks/useSymbolData';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
 import { Timeframe, ChartDataPoint } from '@/lib/types';
 import { toUnixTimestamp, isValidUnixTimestamp } from '@/lib/formatters';
@@ -45,6 +46,10 @@ export default function Dashboard() {
   const [patternConfidenceThreshold, setPatternConfidenceThreshold] = useState(70);
   const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<EnhancedOrder | null>(null);
+  
+  // Debounce symbol and timeframe changes to optimize performance
+  const debouncedSymbol = useDebouncedValue(symbol, 300);
+  const debouncedTimeframe = useDebouncedValue(timeframe, 300);
   
   // Use refs to prevent callback recreation
   const viewportRangeRef = useRef<{ from:  number; to: number } | null>(null);
@@ -100,12 +105,12 @@ export default function Dashboard() {
   }, [symbol]);
 
   // Fetch 24h ticker data
-  const { priceChangePercent24h } = useSymbolTicker(symbol, 10000);
+  const { priceChangePercent24h } = useSymbolTicker(debouncedSymbol, 10000);
 
   // Real-time orderbook
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { isConnected:  isOrderbookConnected } = useOrderbook({
-    symbol,
+    symbol: debouncedSymbol,
     enabled: true,
     maxLevels: 20,
   });
@@ -145,10 +150,10 @@ export default function Dashboard() {
   // Subscribe to ticker
   useEffect(() => {
     if (isRealtimeConnected) {
-      subscribeTicker(symbol);
-      return () => unsubscribeTicker(symbol);
+      subscribeTicker(debouncedSymbol);
+      return () => unsubscribeTicker(debouncedSymbol);
     }
-  }, [symbol, isRealtimeConnected, subscribeTicker, unsubscribeTicker]);
+  }, [debouncedSymbol, isRealtimeConnected, subscribeTicker, unsubscribeTicker]);
 
   // WebSocket message handler
   const handleWebSocketMessage = useCallback((data: unknown) => {
@@ -191,18 +196,20 @@ export default function Dashboard() {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { isConnected, lastUpdate } = useWebSocket({
-    symbol,
-    interval: timeframe,
+    symbol: debouncedSymbol,
+    interval: debouncedTimeframe,
     onMessage: handleWebSocketMessage,
     enabled: true,
   });
 
   const { data, error, isLoading } = useSWR(
-    `/api/klines?symbol=${symbol}&timeframe=${timeframe}&limit=500`,
-    () => fetchKlines(symbol, timeframe, 500),
+    `/api/klines?symbol=${debouncedSymbol}&timeframe=${debouncedTimeframe}&limit=500`,
+    () => fetchKlines(debouncedSymbol, debouncedTimeframe, 500),
     {
       refreshInterval: 10000,
       revalidateOnFocus: false,
+      dedupingInterval: 2000,      // Evita fetch duplicati entro 2s
+      keepPreviousData: true,       // Mantiene dati durante transizione
     }
   );
 

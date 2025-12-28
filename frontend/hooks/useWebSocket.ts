@@ -64,81 +64,85 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
   const connect = useCallback((targetSymbol: string, targetInterval: string, connId: number) => {
     if (!enabled) return;
 
-    const wsUrl = `${WS_BASE_URL}/api/ws/klines/${targetSymbol}/${targetInterval}`;
-    console.log(`[WebSocket] Connecting to ${wsUrl}... (connId: ${connId})`);
+    // DISCONNECT OLD CONNECTION FIRST (prevent race condition)
+    if (wsRef.current) {
+      console.log(`[WebSocket] Disconnecting old connection before new one`);
+      wsRef.current.onopen = null;
+      wsRef.current.onmessage = null;
+      wsRef.current.onerror = null;
+      wsRef.current.onclose = null;
+      wsRef.current.close();
+      wsRef.current = null;
+    }
 
-    try {
-      const ws = new WebSocket(wsUrl);
+    // WAIT 100ms before connecting to new symbol (debounce)
+    setTimeout(() => {
+      if (connectionIdRef.current !== connId) {
+        console.log(`[WebSocket] Connection ${connId} cancelled (newer request)`);
+        return;
+      }
 
-      ws.onopen = () => {
-        // Verify this connection is still valid
-        if (connectionIdRef.current !== connId) {
-          console.log(`[WebSocket] Stale connection opened (connId: ${connId}), closing...`);
-          ws.close();
-          return;
-        }
-        console.log(`[WebSocket] Connected to ${targetSymbol}/${targetInterval}`);
-        setIsConnected(true);
-      };
+      const wsUrl = `${WS_BASE_URL}/api/ws/klines/${targetSymbol}/${targetInterval}`;
+      console.log(`[WebSocket] Connecting to ${wsUrl}... (connId: ${connId})`);
 
-      ws.onmessage = (event) => {
-        // Verify this connection is still valid and matches current symbol/interval
-        if (connectionIdRef.current !== connId) {
-          return;
-        }
-        
-        // Additional validation: ensure data is for current symbol
-        if (currentSymbolRef.current !== targetSymbol || currentIntervalRef.current !== targetInterval) {
-          console.log(`[WebSocket] Ignoring data for stale ${targetSymbol}/${targetInterval}`);
-          return;
-        }
-        
-        try {
-          const data = JSON.parse(event.data);
-          setLastUpdate(new Date());
-          onMessageRef.current(data);
-        } catch (error) {
-          console.error('[WebSocket] Error parsing message:', error);
-        }
-      };
+      try {
+        const ws = new WebSocket(wsUrl);
 
-      ws.onerror = (error) => {
-        if (connectionIdRef.current !== connId) return;
-        console.error('[WebSocket] Error:', error);
-      };
+        ws.onopen = () => {
+          if (connectionIdRef.current !== connId) {
+            console.log(`[WebSocket] Stale connection opened (connId: ${connId}), closing...`);
+            ws.close();
+            return;
+          }
+          console.log(`[WebSocket] Connected to ${targetSymbol}/${targetInterval}`);
+          setIsConnected(true);
+          wsRef.current = ws;
+        };
 
-      ws.onclose = (event) => {
-        // Only handle close for current connection
-        if (connectionIdRef.current !== connId) {
-          console.log(`[WebSocket] Stale connection closed (connId: ${connId})`);
-          return;
-        }
-        
-        console.log(`[WebSocket] Disconnected (code: ${event.code})`);
-        setIsConnected(false);
-        wsRef.current = null;
+        ws.onmessage = (event) => {
+          if (connectionIdRef.current !== connId) return;
+          if (currentSymbolRef.current !== targetSymbol || currentIntervalRef.current !== targetInterval) {
+            console.log(`[WebSocket] Ignoring data for stale ${targetSymbol}/${targetInterval}`);
+            return;
+          }
+          
+          try {
+            const data = JSON.parse(event.data);
+            setLastUpdate(new Date());
+            onMessageRef.current(data);
+          } catch (error) {
+            console.error('[WebSocket] Parse error:', error);
+          }
+        };
 
-        // Auto-reconnect after delay only if still enabled and same symbol/interval
-        if (enabled && 
-            currentSymbolRef.current === targetSymbol && 
-            currentIntervalRef.current === targetInterval) {
-          console.log(`[WebSocket] Reconnecting in ${RECONNECT_DELAY / 1000}s...`);
+        ws.onerror = (error) => {
+          if (connectionIdRef.current !== connId) return;
+          console.error('[WebSocket] Connection error:', error);
+          setIsConnected(false);
+        };
+
+        ws.onclose = () => {
+          if (connectionIdRef.current !== connId) return;
+          console.log('[WebSocket] Connection closed');
+          setIsConnected(false);
+          
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+          }
+          
           reconnectTimeoutRef.current = setTimeout(() => {
-            // Check if still valid before reconnecting
-            if (connectionIdRef.current === connId &&
-                currentSymbolRef.current === targetSymbol && 
-                currentIntervalRef.current === targetInterval) {
-              connect(targetSymbol, targetInterval, connId);
+            if (currentSymbolRef.current === targetSymbol && currentIntervalRef.current === targetInterval) {
+              console.log('[WebSocket] Attempting reconnect...');
+              connect(targetSymbol, targetInterval, connectionIdRef.current);
             }
           }, RECONNECT_DELAY);
-        }
-      };
+        };
 
-      wsRef.current = ws;
-    } catch (error) {
-      console.error('[WebSocket] Connection error:', error);
-      setIsConnected(false);
-    }
+      } catch (error) {
+        console.error('[WebSocket] Failed to create connection:', error);
+        setIsConnected(false);
+      }
+    }, 100);  // 100ms delay before reconnecting
   }, [enabled]);
 
   // Handle symbol/interval changes with debounce
