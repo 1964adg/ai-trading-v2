@@ -156,16 +156,16 @@ class BinanceService:
     @classmethod
     def stream_klines(cls, symbol: str, interval: str):
         """
-        Stream real-time klines via WebSocket.
-        Returns a WebSocket connection manager.
+        WebSocket streaming for klines - NOT IMPLEMENTED YET.
+        
+        The python-binance library requires BinanceSocketManager for async WebSocket.
+        This is a placeholder returning None to prevent crashes.
+        
+        TODO: Implement using BinanceSocketManager when WebSocket support is needed.
         """
-        try:
-            client = cls.get_client()
-            # Return websocket connection
-            return client.get_kline_socket(symbol=symbol, interval=interval)
-        except Exception as e:
-            print(f"[ERROR] Failed to stream klines for {symbol}/{interval}: {e}")
-            return None
+        print(f"[WARN] WebSocket klines streaming not implemented for {symbol}/{interval}")
+        print("[INFO] Use REST API polling or implement BinanceSocketManager")
+        return None
 
 # Singleton instance for backward compatibility
 class _BinanceServiceInstance:
@@ -184,7 +184,12 @@ class _BinanceServiceInstance:
         return BinanceService.get_orderbook(symbol, limit)
 
     def stream_klines(self, symbol: str, interval: str):
-        """WebSocket stream for real-time klines"""
+        """
+        WebSocket stream for real-time klines - NOT IMPLEMENTED YET.
+        
+        This method is currently a placeholder and returns None.
+        Use REST API polling for klines data.
+        """
         return BinanceService.stream_klines(symbol, interval)
 
 # Export singleton instance
