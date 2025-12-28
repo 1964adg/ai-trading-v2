@@ -1,6 +1,7 @@
 import { Time } from 'lightweight-charts';
 import { KlineData, ChartDataPoint, ApiResponse, Timeframe } from './types';
 import { toUnixTimestamp, isValidUnixTimestamp } from './formatters';
+import { getFeatureFlag } from './featureFlags';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -46,12 +47,16 @@ export async function fetchKlines(
 
     if (cached && now - cached.timestamp < CACHE_TTL) {
       const age = ((now - cached.timestamp) / 1000).toFixed(1);
-      console.log(`📦 [CACHE HIT] ${cacheKey} (age: ${age}s, saved 3-4s)`);
+      if (getFeatureFlag('ENABLE_DEBUG_LOGS')) {
+        console.log(`📦 [CACHE HIT] ${cacheKey} (age: ${age}s, saved 3-4s)`);
+      }
       return cached.data;
     }
 
     // ✅ CACHE MISS - Fetch from backend
-    console.log(`🌐 [API CALL] ${cacheKey} (expect 3-4s)`);
+    if (getFeatureFlag('ENABLE_DEBUG_LOGS')) {
+      console.log(`🌐 [API CALL] ${cacheKey} (expect 3-4s)`);
+    }
     const startTime = performance.now();
 
     const params = new URLSearchParams({
@@ -80,7 +85,9 @@ export async function fetchKlines(
     });
 
     const elapsed = performance.now() - startTime;
-    console.log(`✅ [API DONE] ${cacheKey} in ${(elapsed / 1000).toFixed(1)}s`);
+    if (getFeatureFlag('ENABLE_DEBUG_LOGS')) {
+      console.log(`✅ [API DONE] ${cacheKey} in ${(elapsed / 1000).toFixed(1)}s`);
+    }
 
     cleanupCache();
 
@@ -107,7 +114,9 @@ export async function fetchKlines(
  * Prefetch common timeframes for faster switching
  */
 export async function prefetchTimeframes(symbol: string, timeframes: Timeframe[]) {
-  console.log(`🔄 [PREFETCH] ${symbol} for ${timeframes.join(', ')}`);
+  if (getFeatureFlag('ENABLE_DEBUG_LOGS')) {
+    console.log(`🔄 [PREFETCH] ${symbol} for ${timeframes.join(', ')}`);
+  }
 
   const promises = timeframes.map(tf =>
     fetchKlines(symbol, tf, 500).catch(err => {
@@ -117,7 +126,9 @@ export async function prefetchTimeframes(symbol: string, timeframes: Timeframe[]
   );
 
   await Promise.all(promises);
-  console.log(`✅ [PREFETCH DONE] ${symbol}`);
+  if (getFeatureFlag('ENABLE_DEBUG_LOGS')) {
+    console.log(`✅ [PREFETCH DONE] ${symbol}`);
+  }
 }
 
 /**

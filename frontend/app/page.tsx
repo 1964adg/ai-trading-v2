@@ -10,6 +10,7 @@ import PresetOrdersPanel from '@/components/trading/PresetOrdersPanel';
 import WatchListPanel from '@/components/trading/WatchListPanel';
 import MultiTimeframePanel from '@/components/trading/MultiTimeframePanel';
 import PositionRiskGauge from '@/components/trading/PositionRiskGauge';
+import FeatureFlagsPanel from '@/components/settings/FeatureFlagsPanel';
 import { useRealTrading } from '@/hooks/useRealTrading';
 import { usePatternRecognition } from '@/hooks/usePatternRecognition';
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -32,9 +33,11 @@ import { Position } from '@/stores/tradingStore';
 import { useMarketStore } from '@/stores/marketStore';
 import { syncManager, SyncEvent } from '@/lib/syncManager';
 import { EnhancedOrder } from '@/types/enhanced-orders';
+import { getFeatureFlag } from '@/lib/featureFlags';
 
 const DEFAULT_SYMBOL = 'BTCEUR';
 const DEFAULT_TIMEFRAME:  Timeframe = '1m';
+const MULTI_TIMEFRAME_INTERVALS: Timeframe[] = ['4h', '1h', '15m', '5m'];
 
 export default function Dashboard() {
   const router = useRouter();
@@ -46,6 +49,7 @@ export default function Dashboard() {
   const [patternConfidenceThreshold, setPatternConfidenceThreshold] = useState(70);
   const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<EnhancedOrder | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Debounce symbol and timeframe changes to optimize performance
   const debouncedSymbol = useDebouncedValue(symbol, 300);
@@ -199,7 +203,7 @@ export default function Dashboard() {
     symbol: debouncedSymbol,
     interval: debouncedTimeframe,
     onMessage: handleWebSocketMessage,
-    enabled: true,
+    enabled: getFeatureFlag('ENABLE_WEBSOCKET_KLINES'),
   });
 
   const { data, error, isLoading, mutate } = useSWR(
@@ -270,7 +274,7 @@ useEffect(() => {
 
 // Prefetch common timeframes for faster switching
 useEffect(() => {
-  if (symbol && chartData.length > 0) {
+  if (symbol && chartData.length > 0 && getFeatureFlag('ENABLE_PREFETCH')) {
     prefetchTimeframes(symbol, ['5m', '15m']).catch(() => {
       // Ignore errors
     });
@@ -390,19 +394,30 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
             onEmaConfig={() => setShowEmaConfig(true)}
           />
 
-          {/* Pattern Confidence Threshold Selector */}
-          <div className="ml-4">
-            <select
-              value={patternConfidenceThreshold}
-              onChange={(e) => setPatternConfidenceThreshold(Number(e.target.value))}
-              className="bg-gray-800 text-white rounded px-3 py-2 text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+          <div className="flex items-center gap-2">
+            {/* Pattern Confidence Threshold Selector */}
+            <div>
+              <select
+                value={patternConfidenceThreshold}
+                onChange={(e) => setPatternConfidenceThreshold(Number(e.target.value))}
+                className="bg-gray-800 text-white rounded px-3 py-2 text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+              >
+                <option value={50}>All Patterns (50%+)</option>
+                <option value={60}>Medium (60%+)</option>
+                <option value={70}>High (70%+)</option>
+                <option value={80}>Very High (80%+)</option>
+                <option value={90}>Extreme (90%+)</option>
+              </select>
+            </div>
+
+            {/* Settings Button */}
+            <button
+              onClick={() => setShowSettings(true)}
+              className="px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded text-sm text-white border border-gray-700 transition-colors"
+              title="Settings"
             >
-              <option value={50}>All Patterns (50%+)</option>
-              <option value={60}>Medium (60%+)</option>
-              <option value={70}>High (70%+)</option>
-              <option value={80}>Very High (80%+)</option>
-              <option value={90}>Extreme (90%+)</option>
-            </select>
+              ⚙️ Settings
+            </button>
           </div>
         </div>
       </div>
@@ -418,11 +433,13 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
             onAddSymbol={() => setShowSymbolSelector(true)}
           />
 
-         // COMMENTA TEMPORANEAMENTE:
-          {/* <MultiTimeframePanel
-            symbol={symbol}
-            timeframes={['4h', '1h', '15m', '5m']}
-          /> */}
+          {/* Multi-Timeframe Panel (controlled by feature flag) */}
+          {getFeatureFlag('ENABLE_MULTI_TIMEFRAME') && (
+            <MultiTimeframePanel
+              symbol={symbol}
+              timeframes={MULTI_TIMEFRAME_INTERVALS}
+            />
+          )}
         </div>
 
         {/* CENTER COLUMN - Chart + Indicators (50% = 6 cols) */}
@@ -488,6 +505,24 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
         onConfirm={handleConfirmExecution}
         onCancel={() => setShowOrderConfirmation(false)}
       />
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">Settings</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="text-gray-400 hover:text-white text-2xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <FeatureFlagsPanel />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Timeframe, ChartDataPoint } from '@/lib/types';
 import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
 import { calculateEMA } from '@/lib/indicators';
+import { getFeatureFlag } from '@/lib/featureFlags';
 
 export interface TimeframeTrend {
   timeframe: Timeframe;
@@ -28,6 +29,7 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 const CACHE_DURATION = 30000; // 30 seconds
+const DELAY_BETWEEN_REQUESTS_MS = 1000; // 1 second delay for rate limiting
 
 /**
  * Calculate trend based on EMA9
@@ -104,16 +106,28 @@ export function useMultiTimeframe(
   const [error, setError] = useState<string | null>(null);
 
   const fetchTimeframeData = useCallback(
-    async (timeframe: Timeframe): Promise<ChartDataPoint[]> => {
+    async (timeframe: Timeframe, delayMs: number = 0): Promise<ChartDataPoint[]> => {
+      // Add delay to prevent simultaneous requests
+      if (delayMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+      
       const cacheKey = `${symbol}_${timeframe}`;
       const cached = cache.get(cacheKey);
 
       // Return cached data if valid
       if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        if (getFeatureFlag('ENABLE_DEBUG_LOGS')) {
+          console.log(`📦 [MTF CACHE HIT] ${cacheKey}`);
+        }
         return cached.data;
       }
 
       // Fetch fresh data
+      if (getFeatureFlag('ENABLE_DEBUG_LOGS')) {
+        console.log(`🌐 [MTF FETCH] ${cacheKey}`);
+      }
+      
       const response = await fetchKlines(symbol, timeframe, 50);
 
       if (!response.success || response.data.length === 0) {
@@ -138,10 +152,15 @@ export function useMultiTimeframe(
     setError(null);
 
     try {
-      // Fetch all timeframes in parallel
-      const results = await Promise.allSettled(
-        timeframes.map(async (timeframe) => {
-          const chartData = await fetchTimeframeData(timeframe);
+      // Sequential fetching with 1s delay between requests
+      const results: TimeframeTrend[] = [];
+      
+      for (let i = 0; i < timeframes.length; i++) {
+        const timeframe = timeframes[i];
+        const delay = i * DELAY_BETWEEN_REQUESTS_MS; // Sequential delay to prevent rate limiting
+        
+        try {
+          const chartData = await fetchTimeframeData(timeframe, delay);
 
           // Calculate EMA9
           const closes = chartData.map((d) => d.close);
@@ -160,31 +179,20 @@ export function useMultiTimeframe(
           // Get last candle
           const lastCandle = chartData.length > 0 ? chartData[chartData.length - 1] : null;
 
-          return {
+          results.push({
             timeframe,
             trend,
             ema9Value,
             lastCandle,
             confidence,
-          };
-        })
-      );
-
-      // Extract successful results
-      const successfulTrends = results
-        .filter((result): result is PromiseFulfilledResult<TimeframeTrend> => 
-          result.status === 'fulfilled'
-        )
-        .map((result) => result.value);
-
-      setTrends(successfulTrends);
-
-      // Log errors for failed fetches
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          console.error(`Failed to fetch ${timeframes[index]}:`, result.reason);
+          });
+        } catch (err) {
+          console.error(`Failed to fetch ${timeframe}:`, err);
+          // Continue with other timeframes even if one fails
         }
-      });
+      }
+
+      setTrends(results);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);

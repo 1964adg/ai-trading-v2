@@ -83,33 +83,28 @@ async def get_klines_path(
 
 @router.websocket("/ws/klines/{symbol}/{interval}")
 async def websocket_klines(websocket: WebSocket, symbol: str, interval: str):
-    """WebSocket endpoint for real-time kline updates."""
+    """
+    DEPRECATED: WebSocket klines streaming.
+    
+    This endpoint is currently disabled due to implementation issues.
+    Please use REST API with polling for klines data.
+    """
     await websocket.accept()
-    print(f"WebSocket connected: {symbol.upper()}/{interval}")
+    print(f"[WARN] WebSocket klines request for {symbol}/{interval} - feature not implemented")
     
     try:
+        # Send error message to client
         await websocket.send_json({
-            "type": "connection",
-            "status": "connected",
-            "symbol": symbol.upper(),
-            "interval": interval
+            "type": "error",
+            "message": "WebSocket klines streaming is currently disabled. Use REST API polling.",
+            "alternative": f"GET /api/klines?symbol={symbol}&timeframe={interval}&limit=500",
+            "status": "not_implemented"
         })
-        
-        async for kline_data in binance_service.stream_klines(symbol.upper(), interval):
-            try:
-                await websocket.send_json(kline_data)
-            except WebSocketDisconnect:
-                print(f"WebSocket disconnected: {symbol}/{interval}")
-                break
-            except Exception as e:
-                print(f"Error sending data: {e}")
-                break
-                
-    except WebSocketDisconnect:
-        print(f"Client disconnected: {symbol}/{interval}")
+        # Close the connection gracefully
+        await websocket.close(code=1000, reason="Feature not implemented")
     except Exception as e:
-        print(f"WebSocket error: {e}")
+        print(f"[ERROR] WebSocket klines error: {e}")
         try:
-            await websocket.close(code=1011, reason=str(e))
+            await websocket.close(code=1011, reason="Internal error")
         except:
             pass
