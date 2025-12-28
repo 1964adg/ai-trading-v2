@@ -61,7 +61,7 @@ export async function fetchKlines(
     });
 
     const response = await fetch(
-      `${API_BASE_URL}/api/klines? ${params}`,
+  `   ${API_BASE_URL}/api/klines?${params}`,
       {
         signal: AbortSignal.timeout(15000),
       }
