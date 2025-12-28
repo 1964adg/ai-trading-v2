@@ -7,6 +7,9 @@ import ExecuteOrderConfirmation from '@/components/modals/ExecuteOrderConfirmati
 import IndicatorSummary from '@/components/trading/IndicatorSummary';
 import QuickInfoPanel from '@/components/trading/QuickInfoPanel';
 import PresetOrdersPanel from '@/components/trading/PresetOrdersPanel';
+import WatchListPanel from '@/components/trading/WatchListPanel';
+import MultiTimeframePanel from '@/components/trading/MultiTimeframePanel';
+import PositionRiskGauge from '@/components/trading/PositionRiskGauge';
 import { useRealTrading } from '@/hooks/useRealTrading';
 import { usePatternRecognition } from '@/hooks/usePatternRecognition';
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -380,12 +383,17 @@ export default function Dashboard() {
       {/* 3-Column Grid Layout */}
       <div className="grid grid-cols-12 gap-4 max-w-[1920px] mx-auto">
         
-        {/* LEFT COLUMN - Orderbook (25% = 3 cols) */}
+        {/* LEFT COLUMN - Watch List + Multi-Timeframe (25% = 3 cols) */}
         <div className="col-span-12 lg:col-span-3 space-y-4">
-          <LiveOrderbook
+          <WatchListPanel
+            currentSymbol={symbol}
+            onSymbolSelect={handleSymbolChange}
+            onAddSymbol={() => setShowSymbolSelector(true)}
+          />
+          
+          <MultiTimeframePanel
             symbol={symbol}
-            maxLevels={10}
-            onPriceClick={handleOrderbookPriceClick}
+            timeframes={['4h', '1h', '15m', '5m']}
           />
         </div>
 
@@ -406,11 +414,19 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* RIGHT COLUMN - Trade + Info + Orders (25% = 3 cols) */}
+        {/* RIGHT COLUMN - Risk + Trade + Orderbook (25% = 3 cols) */}
         <div className="col-span-12 lg:col-span-3 space-y-4">
+          <PositionRiskGauge accountBalance={10000} maxRiskPercent={50} />
+          
           <QuickTradePanel
             symbol={symbol}
             currentPrice={currentPrice}
+          />
+          
+          <LiveOrderbook
+            symbol={symbol}
+            maxLevels={10}
+            onPriceClick={handleOrderbookPriceClick}
           />
           
           <QuickInfoPanel />
