@@ -418,10 +418,11 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
             onAddSymbol={() => setShowSymbolSelector(true)}
           />
 
-          <MultiTimeframePanel
+         // COMMENTA TEMPORANEAMENTE:
+          {/* <MultiTimeframePanel
             symbol={symbol}
             timeframes={['4h', '1h', '15m', '5m']}
-          />
+          /> */}
         </div>
 
         {/* CENTER COLUMN - Chart + Indicators (50% = 6 cols) */}

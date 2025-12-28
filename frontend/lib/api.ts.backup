@@ -11,7 +11,7 @@ interface CacheEntry {
 }
 
 const klineCache = new Map<string, CacheEntry>();
-const CACHE_TTL = 60000; // 60 seconds
+const CACHE_TTL = 60000; // 60 seconds (increase for more aggressive caching)
 const MAX_CACHE_SIZE = 100;
 
 /**
@@ -23,6 +23,7 @@ function cleanupCache() {
   const entries = Array.from(klineCache.entries());
   entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
 
+  // Remove oldest 20%
   const toRemove = Math.floor(entries.length * 0.2);
   for (let i = 0; i < toRemove; i++) {
     klineCache.delete(entries[i][0]);
@@ -35,7 +36,7 @@ function cleanupCache() {
 export async function fetchKlines(
   symbol: string,
   interval:  Timeframe,
-  limit:  number = 500
+  limit: number = 500
 ): Promise<ApiResponse<KlineData[]>> {
   const cacheKey = `${symbol}-${interval}-${limit}`;
 
@@ -46,24 +47,24 @@ export async function fetchKlines(
 
     if (cached && now - cached.timestamp < CACHE_TTL) {
       const age = ((now - cached.timestamp) / 1000).toFixed(1);
-      console.log(`📦 [CACHE HIT] ${cacheKey} (age: ${age}s, saved 3-4s)`);
+      console.log(`📦 [CACHE HIT] ${cacheKey} (age: ${age}s, saving ~7-12s)`);
       return cached.data;
     }
 
     // ✅ CACHE MISS - Fetch from backend
-    console.log(`🌐 [API CALL] ${cacheKey} (expect 3-4s)`);
+    console.log(`🌐 [API CALL] ${cacheKey} (expect 7-12s due to Binance rate limit)`);
     const startTime = performance.now();
 
     const params = new URLSearchParams({
       symbol,
-      timeframe:  interval,
+      timeframe: interval,
       limit: limit.toString()
     });
 
     const response = await fetch(
-  `   ${API_BASE_URL}/api/klines?${params}`,
+      `${API_BASE_URL}/api/klines? ${params}`,
       {
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(15000), // 15s timeout
       }
     );
 
@@ -76,29 +77,30 @@ export async function fetchKlines(
     // ✅ CACHE THE RESPONSE
     klineCache.set(cacheKey, {
       data,
-      timestamp:  now
+      timestamp: now
     });
 
     const elapsed = performance.now() - startTime;
     console.log(`✅ [API DONE] ${cacheKey} in ${(elapsed / 1000).toFixed(1)}s`);
 
+    // Cleanup old entries
     cleanupCache();
 
     return data;
   } catch (error) {
     console.error(`❌ [API ERROR] ${cacheKey}:`, error);
 
-    // Return stale cache if available
+    // Return stale cache if available (better than nothing)
     const cached = klineCache.get(cacheKey);
     if (cached) {
-      console.warn(`⚠️ [STALE CACHE] Using old data for ${cacheKey}`);
+      console.warn(`⚠️  [STALE CACHE] Using old data for ${cacheKey}`);
       return cached.data;
     }
 
     return {
       success: false,
       data: [],
-      error:  error instanceof Error ? error.message :  'Unknown error',
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
@@ -129,7 +131,18 @@ export function clearKlineCache() {
 }
 
 /**
+ * Get cache stats
+ */
+export function getCacheStats() {
+  return {
+    size: klineCache.size,
+    entries: Array.from(klineCache.keys()),
+  };
+}
+
+/**
  * Transform KlineData from backend to ChartDataPoint for lightweight-charts.
+ * Ensures timestamps are valid Unix timestamps in seconds.
  */
 export function transformKlinesToChartData(klines: KlineData[]): ChartDataPoint[] {
   return klines
@@ -144,6 +157,6 @@ export function transformKlinesToChartData(klines: KlineData[]): ChartDataPoint[
         volume: kline.volume,
       };
     })
-    .filter(point => isValidUnixTimestamp(point.time as number) && !isNaN(point.open))
+    .filter(point => isValidUnixTimestamp(point.time as number) && ! isNaN(point.open))
     .sort((a, b) => (a.time as number) - (b.time as number));
 }
