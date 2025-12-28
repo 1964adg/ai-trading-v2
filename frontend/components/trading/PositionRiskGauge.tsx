@@ -75,8 +75,6 @@ export default function PositionRiskGauge({
   // Calculate background arc (full semicircle)
   const backgroundArc = () => {
     const radius = 80;
-    // const centerX = 100;
-    // const centerY = 100;
     return `M 20 100 A ${radius} ${radius} 0 0 1 180 100`;
   };
 

@@ -202,9 +202,10 @@ export function useMultiTimeframe(
   }, [refresh]);
 
   // Calculate confluence
-  const hasConfluence = trends.length >= 3 && 
+  const hasConfluence = trends.length >= 3 && (
     trends.filter((t) => t.trend === 'bullish').length >= 3 ||
-    trends.filter((t) => t.trend === 'bearish').length >= 3;
+    trends.filter((t) => t.trend === 'bearish').length >= 3
+  );
 
   const confluenceType: 'bullish' | 'bearish' | 'none' = hasConfluence
     ? trends.filter((t) => t.trend === 'bullish').length >= 3
