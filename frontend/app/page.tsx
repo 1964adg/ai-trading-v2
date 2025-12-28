@@ -23,7 +23,7 @@ import { useRealtimeWebSocket } from '@/hooks/useRealtimeWebSocket';
 import { useOrderbook } from '@/hooks/useOrderbook';
 import { useSymbolTicker } from '@/hooks/useSymbolData';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
+import { fetchKlines, transformKlinesToChartData, prefetchTimeframes } from '@/lib/api';
 import { Timeframe, ChartDataPoint } from '@/lib/types';
 import { toUnixTimestamp, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateEMATrend } from '@/lib/indicators';
@@ -46,11 +46,11 @@ export default function Dashboard() {
   const [patternConfidenceThreshold, setPatternConfidenceThreshold] = useState(70);
   const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<EnhancedOrder | null>(null);
-  
+
   // Debounce symbol and timeframe changes to optimize performance
   const debouncedSymbol = useDebouncedValue(symbol, 300);
   const debouncedTimeframe = useDebouncedValue(timeframe, 300);
-  
+
   // Use refs to prevent callback recreation
   const viewportRangeRef = useRef<{ from:  number; to: number } | null>(null);
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
@@ -202,16 +202,27 @@ export default function Dashboard() {
     enabled: true,
   });
 
-  const { data, error, isLoading } = useSWR(
-    `/api/klines?symbol=${debouncedSymbol}&timeframe=${debouncedTimeframe}&limit=500`,
-    () => fetchKlines(debouncedSymbol, debouncedTimeframe, 500),
-    {
-      refreshInterval: 10000,
-      revalidateOnFocus: false,
-      dedupingInterval: 2000,      // Evita fetch duplicati entro 2s
-      keepPreviousData: true,       // Mantiene dati durante transizione
-    }
-  );
+  const { data, error, isLoading, mutate } = useSWR(
+  `/api/klines?symbol=${debouncedSymbol}&timeframe=${debouncedTimeframe}&limit=500`,
+  () => fetchKlines(debouncedSymbol, debouncedTimeframe, 500),
+  {
+    refreshInterval: 10000,
+    revalidateOnFocus: false,
+    dedupingInterval: 500,           // ← RIDOTTO da 2000 a 500ms
+    keepPreviousData: true,
+    revalidateOnMount: true,         // ← NUOVO
+    revalidateIfStale: true,         // ← NUOVO
+    focusThrottleInterval: 2000,     // ← NUOVO
+  }
+);
+
+// ✅ AGGIUNGI SUBITO DOPO (prima degli useEffect esistenti):
+// Force revalidate when symbol/timeframe changes
+useEffect(() => {
+  if (debouncedSymbol && debouncedTimeframe) {
+    mutate();  // Trigger immediate refetch
+  }
+}, [debouncedSymbol, debouncedTimeframe, mutate]);
 
   // Initialize chartData from API
   useEffect(() => {
@@ -247,26 +258,35 @@ export default function Dashboard() {
     viewportRangeRef.current = null;
   }, [setGlobalSymbol]);
 
-  const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
+ const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close :  0;
 
-  // Update market store
-  useEffect(() => {
-    if (currentPrice > 0) {
-      updatePrice(currentPrice);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPrice]);
+// Update market store
+useEffect(() => {
+  if (currentPrice > 0) {
+    updatePrice(currentPrice);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [currentPrice]);
 
-  // Update connection status
-  useEffect(() => {
-    const status = isRealtimeConnected ?  'FULL' : isConnected ? 'PARTIAL' : 'OFFLINE';
-    setConnectionStatus(status);
-  }, [isConnected, isRealtimeConnected, setConnectionStatus]);
+// Prefetch common timeframes for faster switching
+useEffect(() => {
+  if (symbol && chartData.length > 0) {
+    prefetchTimeframes(symbol, ['5m', '15m']).catch(() => {
+      // Ignore errors
+    });
+  }
+}, [symbol, chartData.length]);
 
-  // Handlers
-  const handleOrderbookPriceClick = useCallback((price: number) => {
-    console.log('[Orderbook] Price clicked:', price);
-  }, []);
+// Update connection status
+useEffect(() => {
+  const status = isRealtimeConnected ? 'FULL' : isConnected ? 'PARTIAL' : 'OFFLINE';
+  setConnectionStatus(status);
+}, [isConnected, isRealtimeConnected, setConnectionStatus]);
+
+// Handlers
+const handleOrderbookPriceClick = useCallback((price: number) => {
+  console.log('[Orderbook] Price clicked:', price);
+}, []);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleQuickTrade = useCallback(async (order: {
@@ -369,7 +389,7 @@ export default function Dashboard() {
             onEmaToggle={toggleEma}
             onEmaConfig={() => setShowEmaConfig(true)}
           />
-          
+
           {/* Pattern Confidence Threshold Selector */}
           <div className="ml-4">
             <select
@@ -389,7 +409,7 @@ export default function Dashboard() {
 
       {/* 3-Column Grid Layout */}
       <div className="grid grid-cols-12 gap-4 max-w-[1920px] mx-auto">
-        
+
         {/* LEFT COLUMN - Watch List + Multi-Timeframe (25% = 3 cols) */}
         <div className="col-span-12 lg:col-span-3 space-y-4">
           <WatchListPanel
@@ -397,7 +417,7 @@ export default function Dashboard() {
             onSymbolSelect={handleSymbolChange}
             onAddSymbol={() => setShowSymbolSelector(true)}
           />
-          
+
           <MultiTimeframePanel
             symbol={symbol}
             timeframes={['4h', '1h', '15m', '5m']}
@@ -413,7 +433,7 @@ export default function Dashboard() {
             patterns={recentPatterns}
             patternConfidenceThreshold={patternConfidenceThreshold}
           />
-          
+
           <IndicatorSummary
             recentPatterns={recentPatterns}
             emaStatus={emaStatus}
@@ -424,20 +444,20 @@ export default function Dashboard() {
         {/* RIGHT COLUMN - Risk + Trade + Orderbook (25% = 3 cols) */}
         <div className="col-span-12 lg:col-span-3 space-y-4">
           <PositionRiskGauge accountBalance={10000} maxRiskPercent={50} />
-          
+
           <QuickTradePanel
             symbol={symbol}
             currentPrice={currentPrice}
           />
-          
+
           <LiveOrderbook
             symbol={symbol}
             maxLevels={10}
             onPriceClick={handleOrderbookPriceClick}
           />
-          
+
           <QuickInfoPanel />
-          
+
           <PresetOrdersPanel onExecuteOrder={handleExecuteOrder} />
         </div>
       </div>
