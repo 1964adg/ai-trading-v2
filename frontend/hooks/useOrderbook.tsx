@@ -23,6 +23,17 @@ export function useOrderbook(options: UseOrderbookOptions): UseOrderbookReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
+  // Internal debounce for symbol changes
+  const [debouncedSymbol, setDebouncedSymbol] = useState(symbol);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSymbol(symbol);
+    }, 300);  // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [symbol]);
+
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -135,8 +146,8 @@ export function useOrderbook(options: UseOrderbookOptions): UseOrderbookReturn {
 
   // Handle symbol changes with debounce
   useEffect(() => {
-    currentSymbolRef.current = symbol;
-    setSymbol(symbol);
+    currentSymbolRef.current = debouncedSymbol;
+    setSymbol(debouncedSymbol);
 
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
@@ -151,8 +162,8 @@ export function useOrderbook(options: UseOrderbookOptions): UseOrderbookReturn {
     const connId = connectionIdRef.current;
 
     debounceTimeoutRef.current = setTimeout(() => {
-      if (currentSymbolRef.current === symbol) {
-        connect(symbol, connId);
+      if (currentSymbolRef.current === debouncedSymbol) {
+        connect(debouncedSymbol, connId);
       }
     }, SYMBOL_SWITCH_DEBOUNCE_MS);
 
@@ -163,7 +174,7 @@ export function useOrderbook(options: UseOrderbookOptions): UseOrderbookReturn {
       }
       cleanup();
     };
-  }, [symbol, enabled, cleanup, connect, setSymbol]);
+  }, [debouncedSymbol, enabled, cleanup, connect, setSymbol]);
 
   // Cleanup on unmount
   useEffect(() => {
