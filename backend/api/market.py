@@ -8,6 +8,11 @@ from typing import List, Optional
 
 from services.binance_service import binance_service
 from lib.indicators import calculate_rsi, calculate_macd, calculate_bollinger_bands
+from lib.risk_calculator import (
+    calculate_position_size as calc_position_size,
+    calculate_risk_reward as calc_risk_reward,
+    calculate_portfolio_risk as calc_portfolio_risk
+)
 
 router = APIRouter()
 
@@ -352,4 +357,117 @@ async def get_bollinger(
         raise HTTPException(status_code=400, detail=f"Invalid request: {e.message}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+# ============================================================================
+# PHASE B: RISK MANAGEMENT ENDPOINTS
+# ============================================================================
+
+class PositionSizeRequest(BaseModel):
+    """Request model for position size calculation."""
+    account_balance: float
+    risk_percentage: float
+    entry_price: float
+    stop_loss_price: float
+    leverage: int = 1
+
+
+@router.post("/risk/position-size")
+async def calculate_position_size_endpoint(request: PositionSizeRequest):
+    """
+    Calculate optimal position size based on risk parameters.
+    
+    Args:
+        request: PositionSizeRequest with account balance, risk %, entry, stop-loss, leverage
+        
+    Returns:
+        Position size, quantity, risk amount, and safety warnings
+    """
+    try:
+        result = calc_position_size(
+            account_balance=request.account_balance,
+            risk_percentage=request.risk_percentage,
+            entry_price=request.entry_price,
+            stop_loss_price=request.stop_loss_price,
+            leverage=request.leverage
+        )
+        
+        return {
+            "success": True,
+            **result
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Calculation error: {str(e)}")
+
+
+class RiskRewardRequest(BaseModel):
+    """Request model for risk/reward calculation."""
+    entry_price: float
+    stop_loss_price: float
+    take_profit_price: float
+    position_size: Optional[float] = None
+
+
+@router.post("/risk/risk-reward")
+async def calculate_risk_reward_endpoint(request: RiskRewardRequest):
+    """
+    Calculate risk/reward ratio for a trade.
+    
+    Args:
+        request: RiskRewardRequest with entry, stop-loss, take-profit, optional position size
+        
+    Returns:
+        R:R ratio, direction, risk/reward percentages, potential P/L, recommendations
+    """
+    try:
+        result = calc_risk_reward(
+            entry_price=request.entry_price,
+            stop_loss_price=request.stop_loss_price,
+            take_profit_price=request.take_profit_price,
+            position_size=request.position_size
+        )
+        
+        return {
+            "success": True,
+            **result
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Calculation error: {str(e)}")
+
+
+class PortfolioRiskRequest(BaseModel):
+    """Request model for portfolio risk calculation."""
+    account_balance: float
+    positions: List[dict]
+    max_risk_pct: float = 10.0
+
+
+@router.post("/risk/portfolio")
+async def calculate_portfolio_risk_endpoint(request: PortfolioRiskRequest):
+    """
+    Calculate aggregate risk across multiple positions.
+    
+    Args:
+        request: PortfolioRiskRequest with account balance, positions list, max risk %
+        
+    Returns:
+        Total exposure, risk percentage, positions analyzed, warnings
+    """
+    try:
+        result = calc_portfolio_risk(
+            account_balance=request.account_balance,
+            positions=request.positions,
+            max_risk_pct=request.max_risk_pct
+        )
+        
+        return {
+            "success": True,
+            **result
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Calculation error: {str(e)}")
+
 
