@@ -438,6 +438,7 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
             <MultiTimeframePanel
               symbol={symbol}
               timeframes={MULTI_TIMEFRAME_INTERVALS}
+              onTimeframeClick={handleTimeframeChange} // ✅ AGGIUNGI
             />
           )}
         </div>

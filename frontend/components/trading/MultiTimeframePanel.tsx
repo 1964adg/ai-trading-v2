@@ -2,28 +2,57 @@
 
 import { useMultiTimeframe } from '@/hooks/useMultiTimeframe';
 import { Timeframe } from '@/lib/types';
+import { useState, useEffect } from 'react';
 
 interface MultiTimeframePanelProps {
   symbol: string;
   timeframes: Timeframe[];
   compact?: boolean;
+  onTimeframeClick?: (timeframe: Timeframe) => void; // ✅ NUOVO
 }
 
 export default function MultiTimeframePanel({
   symbol,
   timeframes,
   compact = false,
+  onTimeframeClick, // ✅ NUOVO
 }: MultiTimeframePanelProps) {
-  const { trends, isLoading, hasConfluence, confluenceType, error } =
+
+  // ✅ AUTO-REFRESH STATE
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const { trends, isLoading, hasConfluence, confluenceType, error, refetch } =
     useMultiTimeframe(symbol, timeframes);
 
-  // Get trend icon
-  const getTrendIcon = (trend: 'bullish' | 'bearish' | 'neutral') => {
+  // ✅ HELPER FUNCTIONS - Confidence color coding
+  const getConfidenceColor = (confidence: number): string => {
+    if (confidence >= 70) return 'text-green-400 font-semibold';
+    if (confidence >= 40) return 'text-yellow-400 font-medium';
+    return 'text-red-400';
+  };
+
+  const getConfidenceBadge = (confidence: number): string => {
+    if (confidence >= 70) return '🟢';
+    if (confidence >= 40) return '🟡';
+    return '🔴';
+  };
+
+  const getConfidenceLabel = (confidence: number): string => {
+    if (confidence >= 70) return 'Strong';
+    if (confidence >= 40) return 'Moderate';
+    return 'Weak';
+  };
+
+  // ✅ Enhanced trend icons (different for strong vs weak)
+  const getTrendIcon = (trend: 'bullish' | 'bearish' | 'neutral', confidence: number = 50) => {
+    const isStrong = confidence >= 70;
+
     switch (trend) {
       case 'bullish':
-        return '📈';
+        return isStrong ? '📈' :  '↗️';
       case 'bearish':
-        return '📉';
+        return isStrong ? '📉' : '↘️';
       case 'neutral':
         return '➡️';
     }
@@ -52,6 +81,29 @@ export default function MultiTimeframePanel({
     return value.toFixed(2);
   };
 
+  // ✅ AUTO-REFRESH:  Refetch trends every 60 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      console.log('[MULTI-TF] Auto-refreshing trends...');
+      setIsRefreshing(true);
+      try {
+        await refetch();
+        setLastUpdate(new Date());
+      } finally {
+        setIsRefreshing(false);
+      }
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
+  }, [refetch]);
+
+  // Update lastUpdate when data loads initially
+  useEffect(() => {
+    if (! isLoading && trends.length > 0) {
+      setLastUpdate(new Date());
+    }
+  }, [isLoading, trends.length]);
+
   // Check if higher and lower timeframes conflict
   const hasConflict =
     trends.length >= 2 &&
@@ -59,12 +111,13 @@ export default function MultiTimeframePanel({
     trends[trends.length - 1].trend !== 'neutral' &&
     trends[0].trend !== trends[trends.length - 1].trend;
 
+  // ✅ COMPACT MODE (unchanged but uses enhanced icons)
   if (compact) {
     return (
       <div className="bg-gray-900 border border-gray-800 rounded-lg p-2">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-gray-400">⏱️</span>
-          {isLoading && (
+          {(isLoading || isRefreshing) && (
             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500"></div>
           )}
         </div>
@@ -72,11 +125,14 @@ export default function MultiTimeframePanel({
           {trends.map((t) => (
             <div
               key={t.timeframe}
-              className="flex items-center justify-between text-xs"
-              title={`${t.timeframe.toUpperCase()}: EMA9 ${formatEma(t.ema9Value)}`}
+              className="flex items-center justify-between text-xs cursor-pointer hover:bg-gray-800/50 px-1 py-0.5 rounded transition-colors"
+              onClick={() => onTimeframeClick?.(t.timeframe as Timeframe)}
+              title={`${t.timeframe.toUpperCase()}: EMA9 ${formatEma(t.ema9Value)} - Click to switch`}
             >
               <span className="text-gray-400">{t.timeframe}</span>
-              <span className={getTrendColor(t.trend)}>{getTrendIcon(t.trend)}</span>
+              <span className={getTrendColor(t.trend)}>
+                {getTrendIcon(t.trend, t.confidence)}
+              </span>
             </div>
           ))}
         </div>
@@ -87,7 +143,7 @@ export default function MultiTimeframePanel({
                 confluenceType === 'bullish' ? 'text-green-400' : 'text-red-400'
               }`}
             >
-              ✅ {confluenceType === 'bullish' ? '↗' : '↘'}
+              ✅ {confluenceType === 'bullish' ? '🚀' : '⚠️'}
             </div>
           </div>
         )}
@@ -95,17 +151,24 @@ export default function MultiTimeframePanel({
     );
   }
 
+  // ✅ FULL MODE with all enhancements
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg">
-      {/* Header */}
+      {/* ✅ Enhanced Header with refresh indicator and timestamp */}
       <div className="p-4 border-b border-gray-800">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2">
             ⏱️ Multi-Timeframe Trend
+            {(isLoading || isRefreshing) && (
+              <span className="animate-spin text-blue-400 text-sm">⟳</span>
+            )}
           </h3>
-          {isLoading && (
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-          )}
+          <span
+            className="text-xs text-gray-500"
+            title="Last update time"
+          >
+            {lastUpdate.toLocaleTimeString()}
+          </span>
         </div>
       </div>
 
@@ -116,7 +179,7 @@ export default function MultiTimeframePanel({
         </div>
       )}
 
-      {/* Timeframe Trends */}
+      {/* ✅ Timeframe Trends with click-to-switch and enhanced visuals */}
       <div className="divide-y divide-gray-800">
         {trends.length === 0 && !isLoading ? (
           <div className="p-4 text-center text-gray-500 text-sm">
@@ -126,29 +189,51 @@ export default function MultiTimeframePanel({
           trends.map((trend) => (
             <div
               key={trend.timeframe}
-              className="p-4 hover:bg-gray-800/50 transition-colors cursor-help"
-              title={`EMA9: ${formatEma(trend.ema9Value)} | Confidence: ${trend.confidence}%`}
+              className="p-4 hover:bg-gray-800/50 transition-all duration-200 cursor-pointer group"
+              onClick={() => onTimeframeClick?.(trend.timeframe as Timeframe)}
+              title={`Click to switch chart to ${trend.timeframe} | EMA9: ${formatEma(trend.ema9Value)} | Confidence: ${trend.confidence}%`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-mono text-gray-400 uppercase w-8">
+                  {/* ✅ Hover indicator */}
+                  <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                    👉
+                  </span>
+
+                  <span className="text-sm font-mono text-gray-400 group-hover:text-white uppercase w-8 transition-colors">
                     {trend.timeframe}
                   </span>
-                  <span className="text-xl">{getTrendIcon(trend.trend)}</span>
+
+                  {/* ✅ Enhanced icon (changes based on confidence) */}
+                  <span className="text-xl">
+                    {getTrendIcon(trend.trend, trend.confidence)}
+                  </span>
+
                   <span
                     className={`text-sm font-semibold ${getTrendColor(trend.trend)}`}
                   >
                     {getTrendLabel(trend.trend)}
                   </span>
                 </div>
+
+                {/* ✅ Enhanced confidence display with color coding and badge */}
                 {trend.trend !== 'neutral' && (
-                  <div className="text-xs text-gray-500">
-                    {trend.confidence}%
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-sm ${getConfidenceColor(trend.confidence)}`}>
+                      {trend.confidence}%
+                    </span>
+                    <span
+                      className="text-xs"
+                      title={getConfidenceLabel(trend.confidence)}
+                    >
+                      {getConfidenceBadge(trend.confidence)}
+                    </span>
                   </div>
                 )}
               </div>
+
               {trend.ema9Value !== null && (
-                <div className="mt-1 text-xs text-gray-500">
+                <div className="mt-1 ml-11 text-xs text-gray-500">
                   EMA9: {formatEma(trend.ema9Value)}
                 </div>
               )}
@@ -157,27 +242,33 @@ export default function MultiTimeframePanel({
         )}
       </div>
 
-      {/* Confluence or Conflict Alert */}
+      {/* ✅ Enhanced Confluence/Conflict Alert with better visuals */}
       {!isLoading && trends.length > 0 && (
         <div className="p-4 border-t border-gray-800">
           {hasConfluence ? (
             <div
-              className={`rounded-lg p-3 ${
+              className={`rounded-lg p-3 animate-pulse ${
                 confluenceType === 'bullish'
-                  ? 'bg-green-900/20 border border-green-800/50'
-                  : 'bg-red-900/20 border border-red-800/50'
+                  ? 'bg-green-900/20 border-2 border-green-500'
+                  : 'bg-red-900/20 border-2 border-red-500'
               }`}
             >
-              <div
-                className={`flex items-center gap-2 font-semibold ${
-                  confluenceType === 'bullish' ? 'text-green-400' : 'text-red-400'
-                }`}
-              >
-                <span>✅</span>
-                <span>STRONG CONFLUENCE</span>
-              </div>
-              <div className="text-xs text-gray-400 mt-1">
-                All timeframes {confluenceType}
+              <div className="flex items-center gap-2">
+                <span className="text-xl">
+                  {confluenceType === 'bullish' ? '🚀' :  '⚠️'}
+                </span>
+                <div>
+                  <div
+                    className={`text-sm font-bold ${
+                      confluenceType === 'bullish' ? 'text-green-400' : 'text-red-400'
+                    }`}
+                  >
+                    {confluenceType === 'bullish' ? '✅ STRONG BULLISH' : '⚠️ STRONG BEARISH'} CONFLUENCE
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    All timeframes {confluenceType} - High probability setup
+                  </div>
+                </div>
               </div>
             </div>
           ) : hasConflict ? (
@@ -190,13 +281,13 @@ export default function MultiTimeframePanel({
                 <div>
                   Higher TF:{' '}
                   <span className={getTrendColor(trends[0].trend)}>
-                    {getTrendLabel(trends[0].trend)}
+                    {getTrendLabel(trends[0].trend)} {getTrendIcon(trends[0].trend, trends[0].confidence)}
                   </span>
                 </div>
                 <div>
                   Lower TF:{' '}
                   <span className={getTrendColor(trends[trends.length - 1].trend)}>
-                    {getTrendLabel(trends[trends.length - 1].trend)}
+                    {getTrendLabel(trends[trends.length - 1].trend)} {getTrendIcon(trends[trends.length - 1].trend, trends[trends.length - 1].confidence)}
                   </span>
                 </div>
               </div>
