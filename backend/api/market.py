@@ -1,6 +1,7 @@
 """Market data API endpoints."""
 
 import numpy as np
+import pandas as pd
 from binance.exceptions import BinanceAPIException
 from fastapi import APIRouter, HTTPException, Path, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -471,3 +472,169 @@ async def calculate_portfolio_risk_endpoint(request: PortfolioRiskRequest):
         raise HTTPException(status_code=500, detail=f"Calculation error: {str(e)}")
 
 
+
+# ============================================================================
+# PHASE C: BACKTESTING ENDPOINT
+# ============================================================================
+
+class BacktestRequest(BaseModel):
+    """Request model for backtesting."""
+    symbol: str
+    timeframe: str
+    strategy: str  # 'ma_cross' or 'rsi'
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    initial_capital: float = 10000
+    position_size_pct: float = 100
+    allow_shorts: bool = True
+    # Strategy parameters
+    fast_period: int = 9
+    slow_period: int = 21
+    rsi_period: int = 14
+    rsi_oversold: int = 30
+    rsi_overbought: int = 70
+    stop_loss_pct: float = 2.0
+    take_profit_pct: float = 4.0
+
+
+@router.post("/backtest")
+async def run_backtest(request: BacktestRequest):
+    """
+    Run a backtest on historical data with specified strategy.
+    
+    Args:
+        request: BacktestRequest with symbol, timeframe, strategy, and parameters
+        
+    Returns:
+        Comprehensive backtest results with trades, metrics, and equity curve
+    """
+    try:
+        from lib.backtester import Backtester, SimpleMAStrategy, RSIStrategy
+        
+        print(f"[BACKTEST] Starting backtest for {request.symbol} {request.timeframe}")
+        
+        # Fetch historical data
+        klines = binance_service.get_klines_data(
+            symbol=request.symbol.upper(),
+            interval=request.timeframe,
+            limit=1000
+        )
+        
+        # Convert to DataFrame if not already
+        if not isinstance(klines, pd.DataFrame):
+            klines = pd.DataFrame(klines)
+        
+        print(f"[BACKTEST] Got {len(klines)} candles")
+        
+        # Ensure we have the required columns
+        if 'close' not in klines.columns:
+            raise HTTPException(status_code=400, detail="Data missing 'close' column")
+        
+        # Convert timestamp to datetime index if needed
+        if 'timestamp' in klines.columns:
+            klines['timestamp'] = pd.to_datetime(klines['timestamp'])
+            klines.set_index('timestamp', inplace=True)
+        elif 'time' in klines.columns:
+            klines['time'] = pd.to_datetime(klines['time'])
+            klines.set_index('time', inplace=True)
+        
+        # Filter by date range if provided
+        if request.start_date:
+            start_dt = pd.to_datetime(request.start_date)
+            klines = klines[klines.index >= start_dt]
+        
+        if request.end_date:
+            end_dt = pd.to_datetime(request.end_date)
+            klines = klines[klines.index <= end_dt]
+        
+        print(f"[BACKTEST] Date range: {klines.index[0]} to {klines.index[-1]}")
+        
+        if len(klines) < 50:
+            raise HTTPException(status_code=400, detail="Not enough data for backtesting (need at least 50 candles)")
+        
+        # Create strategy based on request
+        if request.strategy == 'ma_cross':
+            strategy = SimpleMAStrategy(
+                fast_period=request.fast_period,
+                slow_period=request.slow_period,
+                stop_loss_pct=request.stop_loss_pct,
+                take_profit_pct=request.take_profit_pct
+            )
+        elif request.strategy == 'rsi':
+            strategy = RSIStrategy(
+                rsi_period=request.rsi_period,
+                oversold=request.rsi_oversold,
+                overbought=request.rsi_overbought,
+                stop_loss_pct=request.stop_loss_pct,
+                take_profit_pct=request.take_profit_pct
+            )
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown strategy: {request.strategy}")
+        
+        # Create backtester
+        backtester = Backtester(
+            data=klines,
+            strategy=strategy,
+            initial_capital=request.initial_capital,
+            position_size_pct=request.position_size_pct,
+            fee_pct=0.1,
+            allow_shorts=request.allow_shorts
+        )
+        
+        # Run backtest
+        result = backtester.run()
+        
+        print(f"[BACKTEST] ✅ Backtest complete: {result.total_trades} trades")
+        
+        # Convert trades to dicts for JSON serialization
+        trades_data = [
+            {
+                "entry_time": t.entry_time,
+                "exit_time": t.exit_time,
+                "entry_price": t.entry_price,
+                "exit_price": t.exit_price,
+                "quantity": t.quantity,
+                "side": t.side,
+                "pnl": t.pnl,
+                "pnl_percent": t.pnl_percent,
+                "fees": t.fees,
+                "result": t.result
+            }
+            for t in result.trades
+        ]
+        
+        return {
+            "success": True,
+            "symbol": request.symbol.upper(),
+            "timeframe": request.timeframe,
+            "strategy": request.strategy,
+            "total_trades": result.total_trades,
+            "winning_trades": result.winning_trades,
+            "losing_trades": result.losing_trades,
+            "win_rate": result.win_rate,
+            "total_pnl": result.total_pnl,
+            "total_pnl_percent": result.total_pnl_percent,
+            "avg_win": result.avg_win,
+            "avg_loss": result.avg_loss,
+            "largest_win": result.largest_win,
+            "largest_loss": result.largest_loss,
+            "profit_factor": result.profit_factor,
+            "sharpe_ratio": result.sharpe_ratio,
+            "max_drawdown": result.max_drawdown,
+            "max_drawdown_percent": result.max_drawdown_percent,
+            "total_fees": result.total_fees,
+            "initial_capital": result.initial_capital,
+            "final_capital": result.final_capital,
+            "start_date": result.start_date,
+            "end_date": result.end_date,
+            "equity_curve": result.equity_curve,
+            "trades": trades_data
+        }
+        
+    except BinanceAPIException as e:
+        raise HTTPException(status_code=400, detail=f"Invalid request: {e.message}")
+    except Exception as e:
+        import traceback
+        print(f"[BACKTEST] ❌ Error: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Backtest error: {str(e)}")

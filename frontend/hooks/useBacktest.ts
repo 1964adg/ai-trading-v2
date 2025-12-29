@@ -34,7 +34,112 @@ export function useBacktest() {
       cancelledRef.current = false;
       startBacktestStore(config);
 
-      // Fetch historical data
+      // Toggle for backend/frontend (use backend by default)
+      const useBackend = true;
+
+      if (useBackend) {
+        try {
+          // Try backend API first
+          setProgress(10);
+          
+          const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+          
+          // Map frontend config to backend request
+          const backendRequest = {
+            symbol: config.symbol,
+            timeframe: config.timeframes[0], // Use first timeframe
+            strategy: config.strategy.name === 'MA Cross' ? 'ma_cross' : 'rsi',
+            start_date: config.startDate,
+            end_date: config.endDate,
+            initial_capital: config.initialCapital,
+            position_size_pct: config.positionSizing.percentage,
+            allow_shorts: config.allowShorts || true,
+            fast_period: config.strategy.params?.fastPeriod || 9,
+            slow_period: config.strategy.params?.slowPeriod || 21,
+            rsi_period: config.strategy.params?.period || 14,
+            rsi_oversold: config.strategy.params?.oversold || 30,
+            rsi_overbought: config.strategy.params?.overbought || 70,
+            stop_loss_pct: config.strategy.params?.stopLoss || 2.0,
+            take_profit_pct: config.strategy.params?.takeProfit || 4.0,
+          };
+
+          setProgress(30);
+
+          const response = await fetch(`${API_BASE}/backtest`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(backendRequest),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Backend API error: ${response.status}`);
+          }
+
+          setProgress(70);
+
+          const backendResult = await response.json();
+
+          if (cancelledRef.current) {
+            return null;
+          }
+
+          // Convert backend response to frontend BacktestResult format
+          const result: BacktestResult = {
+            config,
+            metrics: {
+              totalReturn: backendResult.total_pnl_percent,
+              totalReturnDollar: backendResult.total_pnl,
+              sharpeRatio: backendResult.sharpe_ratio,
+              maxDrawdown: backendResult.max_drawdown_percent,
+              maxDrawdownDollar: backendResult.max_drawdown,
+              winRate: backendResult.win_rate,
+              profitFactor: backendResult.profit_factor,
+              totalTrades: backendResult.total_trades,
+              winningTrades: backendResult.winning_trades,
+              losingTrades: backendResult.losing_trades,
+              averageWin: backendResult.avg_win,
+              averageLoss: backendResult.avg_loss,
+              largestWin: backendResult.largest_win,
+              largestLoss: backendResult.largest_loss,
+              averageTradeDuration: 0,
+              expectancy: backendResult.total_pnl / backendResult.total_trades,
+            },
+            trades: backendResult.trades.map((t: any) => ({
+              entryTime: new Date(t.entry_time).getTime(),
+              exitTime: new Date(t.exit_time).getTime(),
+              type: t.side.toLowerCase(),
+              entryPrice: t.entry_price,
+              exitPrice: t.exit_price,
+              quantity: t.quantity,
+              pnl: t.pnl,
+              pnlPercent: t.pnl_percent,
+              fees: t.fees,
+              isWin: t.result === 'WIN',
+            })),
+            equityCurve: backendResult.equity_curve.map((e: any) => ({
+              time: new Date(e.time).getTime(),
+              equity: e.equity,
+              drawdown: e.drawdown,
+            })),
+            startTime: new Date(backendResult.start_date).getTime(),
+            endTime: new Date(backendResult.end_date).getTime(),
+            initialCapital: backendResult.initial_capital,
+            finalCapital: backendResult.final_capital,
+          };
+
+          setProgress(100);
+          setBacktestResult(result);
+          return result;
+
+        } catch (backendError) {
+          console.warn('Backend backtest failed, falling back to frontend:', backendError);
+          // Fall through to frontend implementation
+        }
+      }
+
+      // Fallback to frontend BacktestEngine
       setProgress(10);
       const data = await dataManager.fetchHistoricalData(
         config.symbol,
