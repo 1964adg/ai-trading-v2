@@ -9,7 +9,8 @@ import QuickInfoPanel from '@/components/trading/QuickInfoPanel';
 import PresetOrdersPanel from '@/components/trading/PresetOrdersPanel';
 import WatchListPanel from '@/components/trading/WatchListPanel';
 import MultiTimeframePanel from '@/components/trading/MultiTimeframePanel';
-import IndicatorPanel from '@/components/trading/IndicatorPanel'; // ✅ AGGIUNGI
+import IndicatorPanel from '@/components/trading/IndicatorPanel';
+import AdvancedRiskCalculator from '@/components/trading/AdvancedRiskCalculator'; // ✅ NUOVO
 import PositionRiskGauge from '@/components/trading/PositionRiskGauge';
 import FeatureFlagsPanel from '@/components/settings/FeatureFlagsPanel';
 import { useRealTrading } from '@/hooks/useRealTrading';
@@ -38,7 +39,7 @@ import { getFeatureFlag } from '@/lib/featureFlags';
 
 const DEFAULT_SYMBOL = 'BTCEUR';
 const DEFAULT_TIMEFRAME:  Timeframe = '1m';
-const MULTI_TIMEFRAME_INTERVALS: Timeframe[] = ['4h', '1h', '15m', '5m'];
+const MULTI_TIMEFRAME_INTERVALS:  Timeframe[] = ['4h', '1h', '15m', '5m'];
 
 export default function Dashboard() {
   const router = useRouter();
@@ -57,7 +58,7 @@ export default function Dashboard() {
   const debouncedTimeframe = useDebouncedValue(timeframe, 300);
 
   // Use refs to prevent callback recreation
-  const viewportRangeRef = useRef<{ from:  number; to: number } | null>(null);
+  const viewportRangeRef = useRef<{ from: number; to: number } | null>(null);
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
   const timeframeRef = useRef<Timeframe>(timeframe);
   const symbolRef = useRef<string>(symbol);
@@ -69,7 +70,7 @@ export default function Dashboard() {
   }, [timeframe, symbol]);
 
   // Real Trading Integration
-  useRealTrading({ enabled: true, refreshInterval:  5000 });
+  useRealTrading({ enabled: true, refreshInterval: 5000 });
 
   // Use Zustand store for trading state
   const { addPosition, emaPeriods, emaEnabled, toggleEma, setEmaPeriods, setEmaEnabled } = useTradingStore();
@@ -121,14 +122,14 @@ export default function Dashboard() {
   });
 
   // WebSocket handlers
-  const handleMarketUpdate = useCallback((data: { symbol:  string; price: number }) => {
+  const handleMarketUpdate = useCallback((data:  { symbol: string; price: number }) => {
     if (data.symbol === symbolRef.current) {
       updatePrice(data.price);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handlePositionUpdate = useCallback((data:  { positions?: unknown[] }) => {
+  const handlePositionUpdate = useCallback((data: { positions?:  unknown[] }) => {
     console.log('[Dashboard] Position update:', data.positions?.length);
   }, []);
 
@@ -149,7 +150,7 @@ export default function Dashboard() {
     onMarketUpdate: handleMarketUpdate,
     onPositionUpdate: handlePositionUpdate,
     onPortfolioUpdate: handlePortfolioUpdate,
-    onOrderUpdate: handleOrderUpdate,
+    onOrderUpdate:  handleOrderUpdate,
   });
 
   // Subscribe to ticker
@@ -213,19 +214,18 @@ export default function Dashboard() {
   {
     refreshInterval: 10000,
     revalidateOnFocus: false,
-    dedupingInterval: 500,           // ← RIDOTTO da 2000 a 500ms
+    dedupingInterval: 500,
     keepPreviousData: true,
-    revalidateOnMount: true,         // ← NUOVO
-    revalidateIfStale: true,         // ← NUOVO
-    focusThrottleInterval: 2000,     // ← NUOVO
+    revalidateOnMount: true,
+    revalidateIfStale: true,
+    focusThrottleInterval: 2000,
   }
 );
 
-// ✅ AGGIUNGI SUBITO DOPO (prima degli useEffect esistenti):
 // Force revalidate when symbol/timeframe changes
 useEffect(() => {
   if (debouncedSymbol && debouncedTimeframe) {
-    mutate();  // Trigger immediate refetch
+    mutate();
   }
 }, [debouncedSymbol, debouncedTimeframe, mutate]);
 
@@ -256,14 +256,14 @@ useEffect(() => {
   }, []);
 
   // Handle symbol change
-  const handleSymbolChange = useCallback((newSymbol:  string) => {
+  const handleSymbolChange = useCallback((newSymbol: string) => {
     setSymbol(newSymbol);
     setGlobalSymbol(newSymbol);
     setChartData([]);
     viewportRangeRef.current = null;
   }, [setGlobalSymbol]);
 
- const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close :  0;
+ const currentPrice = chartData.length > 0 ?  chartData[chartData.length - 1].close : 0;
 
 // Update market store
 useEffect(() => {
@@ -284,7 +284,7 @@ useEffect(() => {
 
 // Update connection status
 useEffect(() => {
-  const status = isRealtimeConnected ? 'FULL' : isConnected ? 'PARTIAL' : 'OFFLINE';
+  const status = isRealtimeConnected ?  'FULL' : isConnected ? 'PARTIAL' : 'OFFLINE';
   setConnectionStatus(status);
 }, [isConnected, isRealtimeConnected, setConnectionStatus]);
 
@@ -305,7 +305,7 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
   }, []);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleBuy = useCallback((quantity: number, price: number) => {
+  const handleBuy = useCallback((quantity: number, price:  number) => {
     const position:  Position = {
       id: `pos_${Date.now()}`,
       symbol: symbolRef.current,
@@ -321,12 +321,12 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
   }, [addPosition]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleSell = useCallback((quantity: number, price: number) => {
+  const handleSell = useCallback((quantity: number, price:  number) => {
     const position: Position = {
-      id: `pos_${Date.now()}`,
+      id:  `pos_${Date.now()}`,
       symbol: symbolRef.current,
       side: 'short',
-      entryPrice: price,
+      entryPrice:  price,
       quantity,
       leverage: 1,
       unrealizedPnL: 0,
@@ -439,12 +439,20 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
             <MultiTimeframePanel
               symbol={symbol}
               timeframes={MULTI_TIMEFRAME_INTERVALS}
-              onTimeframeClick={handleTimeframeChange} // ✅ AGGIUNGI
+              onTimeframeClick={handleTimeframeChange}
             />
           )}
+
+          {/* Technical Indicators Panel */}
           <IndicatorPanel
             symbol={symbol}
             interval={timeframe}
+          />
+
+          {/* ✅ NUOVO:  Advanced Risk Calculator */}
+          <AdvancedRiskCalculator
+            currentPrice={currentPrice}
+            symbol={symbol}
           />
         </div>
 
