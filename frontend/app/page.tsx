@@ -9,6 +9,7 @@ import QuickInfoPanel from '@/components/trading/QuickInfoPanel';
 import PresetOrdersPanel from '@/components/trading/PresetOrdersPanel';
 import WatchListPanel from '@/components/trading/WatchListPanel';
 import MultiTimeframePanel from '@/components/trading/MultiTimeframePanel';
+import IndicatorPanel from '@/components/trading/IndicatorPanel'; // ✅ AGGIUNGI
 import PositionRiskGauge from '@/components/trading/PositionRiskGauge';
 import FeatureFlagsPanel from '@/components/settings/FeatureFlagsPanel';
 import { useRealTrading } from '@/hooks/useRealTrading';
@@ -441,6 +442,10 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
               onTimeframeClick={handleTimeframeChange} // ✅ AGGIUNGI
             />
           )}
+          <IndicatorPanel
+            symbol={symbol}
+            interval={timeframe}
+          />
         </div>
 
         {/* CENTER COLUMN - Chart + Indicators (50% = 6 cols) */}
