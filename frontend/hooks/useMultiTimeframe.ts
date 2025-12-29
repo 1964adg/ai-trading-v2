@@ -111,7 +111,7 @@ export function useMultiTimeframe(
       if (delayMs > 0) {
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
-      
+
       const cacheKey = `${symbol}_${timeframe}`;
       const cached = cache.get(cacheKey);
 
@@ -127,7 +127,7 @@ export function useMultiTimeframe(
       if (getFeatureFlag('ENABLE_DEBUG_LOGS')) {
         console.log(`🌐 [MTF FETCH] ${cacheKey}`);
       }
-      
+
       const response = await fetchKlines(symbol, timeframe, 50);
 
       if (!response.success || response.data.length === 0) {
@@ -154,11 +154,11 @@ export function useMultiTimeframe(
     try {
       // Sequential fetching with 1s delay between requests
       const results: TimeframeTrend[] = [];
-      
+
       for (let i = 0; i < timeframes.length; i++) {
         const timeframe = timeframes[i];
         const delay = i * DELAY_BETWEEN_REQUESTS_MS; // Sequential delay to prevent rate limiting
-        
+
         try {
           const chartData = await fetchTimeframeData(timeframe, delay);
 
@@ -224,9 +224,9 @@ export function useMultiTimeframe(
   return {
     trends,
     isLoading,
+    error,
     hasConfluence,
     confluenceType,
-    refresh,
-    error,
+    refetch: refresh, // ✅ AGGIUNGI QUESTA RIGA
   };
 }
