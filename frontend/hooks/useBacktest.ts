@@ -26,6 +26,14 @@ export function useBacktest() {
   const cancelledRef = useRef(false);
 
   /**
+   * Helper function to extract strategy parameter value
+   */
+  const getStrategyParameter = (strategy: any, paramName: string, defaultValue: number): number => {
+    const param = strategy.parameters?.find((p: any) => p.name === paramName);
+    return param?.value ?? defaultValue;
+  };
+
+  /**
    * Run a backtest
    */
   const runBacktest = useCallback(async (config: BacktestConfig): Promise<BacktestResult | null> => {
@@ -53,14 +61,14 @@ export function useBacktest() {
             end_date: config.endDate,
             initial_capital: config.initialCapital,
             position_size_pct: config.positionSizing.value,
-            allow_shorts: config.allowShorts || true,
-            fast_period: (config.strategy as any).parameters?.find((p: any) => p.name === 'fastPeriod')?.value || 9,
-            slow_period: (config.strategy as any).parameters?.find((p: any) => p.name === 'slowPeriod')?.value || 21,
-            rsi_period: (config.strategy as any).parameters?.find((p: any) => p.name === 'period')?.value || 14,
-            rsi_oversold: (config.strategy as any).parameters?.find((p: any) => p.name === 'oversold')?.value || 30,
-            rsi_overbought: (config.strategy as any).parameters?.find((p: any) => p.name === 'overbought')?.value || 70,
-            stop_loss_pct: (config.strategy as any).parameters?.find((p: any) => p.name === 'stopLoss')?.value || 2.0,
-            take_profit_pct: (config.strategy as any).parameters?.find((p: any) => p.name === 'takeProfit')?.value || 4.0,
+            allow_shorts: config.allowShorts !== undefined ? config.allowShorts : true,
+            fast_period: getStrategyParameter(config.strategy, 'fastPeriod', 9),
+            slow_period: getStrategyParameter(config.strategy, 'slowPeriod', 21),
+            rsi_period: getStrategyParameter(config.strategy, 'period', 14),
+            rsi_oversold: getStrategyParameter(config.strategy, 'oversold', 30),
+            rsi_overbought: getStrategyParameter(config.strategy, 'overbought', 70),
+            stop_loss_pct: getStrategyParameter(config.strategy, 'stopLoss', 2.0),
+            take_profit_pct: getStrategyParameter(config.strategy, 'takeProfit', 4.0),
           };
 
           setProgress(30);

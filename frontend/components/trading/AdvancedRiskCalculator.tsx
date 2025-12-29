@@ -3,6 +3,30 @@
 import { useState, useEffect } from 'react';
 import { useRiskCalculator } from '@/hooks/useRiskCalculator';
 
+// Import types from the hook file
+type PositionSizeResult = {
+  success: boolean;
+  position_size: number;
+  quantity: number;
+  risk_amount: number;
+  sl_distance_pct: number;
+  position_pct: number;
+  safe: boolean;
+  warnings: string[];
+};
+
+type RiskRewardResult = {
+  success: boolean;
+  rr_ratio: number;
+  direction: string;
+  risk_pct: number;
+  reward_pct: number;
+  potential_loss: number | null;
+  potential_profit: number | null;
+  acceptable: boolean;
+  recommendations: string[];
+};
+
 interface AdvancedRiskCalculatorProps {
   currentPrice?: number;
   symbol?: string;
@@ -21,14 +45,14 @@ export default function AdvancedRiskCalculator({
   const [entryPrice, setEntryPrice] = useState(currentPrice || 0);
   const [stopLossPrice, setStopLossPrice] = useState(0);
   const [leverage, setLeverage] = useState(1);
-  const [positionResult, setPositionResult] = useState<any>(null);
+  const [positionResult, setPositionResult] = useState<PositionSizeResult | null>(null);
 
   // Risk/Reward Tab State
   const [rrEntryPrice, setRrEntryPrice] = useState(currentPrice || 0);
   const [rrStopLoss, setRrStopLoss] = useState(0);
   const [takeProfitPrice, setTakeProfitPrice] = useState(0);
   const [rrPositionSize, setRrPositionSize] = useState<number | undefined>(undefined);
-  const [riskRewardResult, setRiskRewardResult] = useState<any>(null);
+  const [riskRewardResult, setRiskRewardResult] = useState<RiskRewardResult | null>(null);
 
   // Update entry prices when currentPrice changes
   useEffect(() => {
