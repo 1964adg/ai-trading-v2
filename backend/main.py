@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
     """Lifespan event handler - displays startup info and manages services"""
     is_reloading = any('watchfiles' in arg.lower() for arg in sys.argv) or \
                    os.environ.get('RUN_MAIN') == 'true'
-    
+
     banner = """
 ============================================================
 AI TRADING BACKEND v2.0.0 - REAL-TIME WEBSOCKET EDITION
@@ -86,10 +86,10 @@ EXAMPLES:
   Intervals: 1m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w
 ============================================================
     """
-    
+
     cnn_status = "ENABLED" if TORCH_AVAILABLE else "DISABLED (install PyTorch)"
     lstm_status = "ENABLED" if TORCH_AVAILABLE else "DISABLED (install PyTorch)"
-    
+
     print(banner.format(
         timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         port=settings.PORT,
@@ -98,19 +98,19 @@ EXAMPLES:
         cnn_status=cnn_status,
         lstm_status=lstm_status
     ))
-    
+
     # Initialize cross-service connections
     from services.order_monitoring_service import order_monitoring_service
     order_monitoring_service.set_websocket_manager(websocket_manager)
     realtime_service.set_order_monitoring_service(order_monitoring_service)
-    
+
     # Start real-time service
     print("[Startup] Initializing real-time data service...")
     await realtime_service.start()
     print("[Startup] Real-time service ready")
-    
+
     yield
-    
+
     # Cleanup
     print("\n" + "="*60)
     print("AI Trading Backend shutting down...")
@@ -141,7 +141,6 @@ app.include_router(websocket_router, prefix="/api", tags=["websocket"])
 app.include_router(ml_router, prefix="/api", tags=["ml"])
 app.include_router(ml_training_router)
 app.include_router(scout_router)
-app.include_router(websocket_router)
 
 @app.get("/")
 async def root():

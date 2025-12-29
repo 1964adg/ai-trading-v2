@@ -25,7 +25,7 @@ class KlineCache:
                 del self._cache[key]
         return None
 
-    def set(self, key:  str, value: Any):
+    def set(self, key: str, value: Any):
         now = datetime.now().timestamp()
         self._cache[key] = (value, now)
 
@@ -57,7 +57,7 @@ class BinanceService:
                     api_key="",
                     api_secret="",
                     tld='com',
-                    requests_params={'timeout': 30}  # ← Aumentato a 30s
+                    requests_params={'timeout': 30}
                 )
                 print("[INFO] Binance client ready")
             except Exception as e:
@@ -66,14 +66,21 @@ class BinanceService:
         return cls._client
 
     @classmethod
-    def get_klines_data(cls, symbol: str, interval: str, limit: int):
-        """Fetch klines with caching and proper type conversion"""
+    def get_klines_data(cls, symbol:  str, interval: str, limit: int):
+        """Fetch klines with caching (caches dict for faster JSON serialization)"""
 
         cache_key = f"{symbol}_{interval}_{limit}"
 
         # Check cache first
         cached = kline_cache.get(cache_key)
         if cached is not None:
+            # Cached data is a dict, convert back to DataFrame
+            if isinstance(cached, dict):
+                df = pd.DataFrame(cached)
+                # ✅ Ensure data is clean when returning from cache
+                df = df.drop_duplicates(subset=['timestamp'], keep='last')
+                df = df.sort_values('timestamp', ascending=True)
+                return df.reset_index(drop=True)
             return cached
 
         # Cache miss - fetch from Binance
@@ -110,8 +117,20 @@ class BinanceService:
             # Select only required columns
             df_clean = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']].copy()
 
-            # Cache the cleaned DataFrame
-            kline_cache.set(cache_key, df_clean)
+            # ✅ Remove duplicates and ensure ascending order
+            df_clean = df_clean.drop_duplicates(subset=['timestamp'], keep='last')
+            df_clean = df_clean.sort_values('timestamp', ascending=True)
+            df_clean = df_clean.reset_index(drop=True)
+
+            # Validate data integrity
+            if len(df_clean) < limit * 0.9:  # Less than 90% of expected data
+                print(f"[WARN] {cache_key}:  Only {len(df_clean)}/{limit} candles after deduplication")
+
+            # Convert to dict for caching (faster JSON serialization)
+            data_dict = df_clean.to_dict('list')
+
+            # Cache the dict instead of DataFrame
+            kline_cache.set(cache_key, data_dict)
 
             print(f"[CACHE] Stored {cache_key} ({len(df_clean)} rows)")
 
@@ -130,7 +149,7 @@ class BinanceService:
             client = cls.get_client()
             return client.get_exchange_info()
         except Exception as e:
-            print(f"[ERROR] Failed to get exchange info: {e}")
+            print(f"[ERROR] Failed to get exchange info:  {e}")
             return None
 
     @classmethod
@@ -157,15 +176,16 @@ class BinanceService:
     def stream_klines(cls, symbol: str, interval: str):
         """
         WebSocket streaming for klines - NOT IMPLEMENTED YET.
-        
+
         The python-binance library requires BinanceSocketManager for async WebSocket.
         This is a placeholder returning None to prevent crashes.
-        
-        TODO: Implement using BinanceSocketManager when WebSocket support is needed.
+
+        TODO:  Implement using BinanceSocketManager when WebSocket support is needed.
         """
         print(f"[WARN] WebSocket klines streaming not implemented for {symbol}/{interval}")
         print("[INFO] Use REST API polling or implement BinanceSocketManager")
         return None
+
 
 # Singleton instance for backward compatibility
 class _BinanceServiceInstance:
@@ -180,17 +200,13 @@ class _BinanceServiceInstance:
     def get_symbol_ticker(self, symbol: str):
         return BinanceService.get_symbol_ticker(symbol)
 
-    def get_orderbook(self, symbol: str, limit: int = 20):
+    def get_orderbook(self, symbol:  str, limit: int = 20):
         return BinanceService.get_orderbook(symbol, limit)
 
     def stream_klines(self, symbol: str, interval: str):
-        """
-        WebSocket stream for real-time klines - NOT IMPLEMENTED YET.
-        
-        This method is currently a placeholder and returns None.
-        Use REST API polling for klines data.
-        """
+        """WebSocket stream for real-time klines (not implemented)"""
         return BinanceService.stream_klines(symbol, interval)
+
 
 # Export singleton instance
 binance_service = _BinanceServiceInstance()
