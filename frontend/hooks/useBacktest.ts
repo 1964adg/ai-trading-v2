@@ -26,6 +26,14 @@ export function useBacktest() {
   const cancelledRef = useRef(false);
 
   /**
+   * Helper function to extract strategy parameter value
+   */
+  const getStrategyParameter = (strategy: any, paramName: string, defaultValue: number): number => {
+    const param = strategy.parameters?.find((p: any) => p.name === paramName);
+    return param?.value ?? defaultValue;
+  };
+
+  /**
    * Run a backtest
    */
   const runBacktest = useCallback(async (config: BacktestConfig): Promise<BacktestResult | null> => {
@@ -34,7 +42,145 @@ export function useBacktest() {
       cancelledRef.current = false;
       startBacktestStore(config);
 
-      // Fetch historical data
+      // Toggle for backend/frontend (use backend by default)
+      const useBackend = true;
+
+      if (useBackend) {
+        try {
+          // Try backend API first
+          setProgress(10);
+          
+          const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+          
+          // Map frontend config to backend request
+          const backendRequest = {
+            symbol: config.symbol,
+            timeframe: config.timeframes[0], // Use first timeframe
+            strategy: config.strategy.name === 'MA Cross' ? 'ma_cross' : 'rsi',
+            start_date: config.startDate,
+            end_date: config.endDate,
+            initial_capital: config.initialCapital,
+            position_size_pct: config.positionSizing.value,
+            allow_shorts: config.allowShorts !== undefined ? config.allowShorts : true,
+            fast_period: getStrategyParameter(config.strategy, 'fastPeriod', 9),
+            slow_period: getStrategyParameter(config.strategy, 'slowPeriod', 21),
+            rsi_period: getStrategyParameter(config.strategy, 'period', 14),
+            rsi_oversold: getStrategyParameter(config.strategy, 'oversold', 30),
+            rsi_overbought: getStrategyParameter(config.strategy, 'overbought', 70),
+            stop_loss_pct: getStrategyParameter(config.strategy, 'stopLoss', 2.0),
+            take_profit_pct: getStrategyParameter(config.strategy, 'takeProfit', 4.0),
+          };
+
+          setProgress(30);
+
+          const response = await fetch(`${API_BASE}/backtest`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(backendRequest),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Backend API error: ${response.status}`);
+          }
+
+          setProgress(70);
+
+          const backendResult = await response.json();
+
+          if (cancelledRef.current) {
+            return null;
+          }
+
+          // Convert backend response to frontend BacktestResult format
+          const result: BacktestResult = {
+            config,
+            metrics: {
+              totalReturn: backendResult.total_pnl,
+              totalReturnPercent: backendResult.total_pnl_percent,
+              annualizedReturn: 0,
+              annualizedReturnPercent: 0,
+              sharpeRatio: backendResult.sharpe_ratio,
+              sortinoRatio: 0,
+              calmarRatio: 0,
+              omega: 0,
+              maxDrawdown: backendResult.max_drawdown,
+              maxDrawdownPercent: backendResult.max_drawdown_percent,
+              averageDrawdown: 0,
+              averageDrawdownPercent: 0,
+              maxDrawdownDuration: 0,
+              recoveryFactor: 0,
+              winRate: backendResult.win_rate,
+              lossRate: 100 - backendResult.win_rate,
+              winCount: backendResult.winning_trades,
+              lossCount: backendResult.losing_trades,
+              profitFactor: backendResult.profit_factor,
+              payoffRatio: 0,
+              averageWin: backendResult.avg_win,
+              averageLoss: backendResult.avg_loss,
+              largestWin: backendResult.largest_win,
+              largestLoss: backendResult.largest_loss,
+              totalTrades: backendResult.total_trades,
+              avgTradeReturn: backendResult.total_pnl / (backendResult.total_trades || 1),
+              avgTradeReturnPercent: backendResult.total_pnl_percent / (backendResult.total_trades || 1),
+              winningTrades: backendResult.winning_trades,
+              losingTrades: backendResult.losing_trades,
+              expectancy: backendResult.total_pnl / (backendResult.total_trades || 1),
+              avgTradeDuration: 0,
+              avgHoldingPeriod: 0,
+              avgWinDuration: 0,
+              avgLossDuration: 0,
+              maxConsecutiveWins: 0,
+              maxConsecutiveLosses: 0,
+              consecutiveWins: 0,
+              consecutiveLosses: 0,
+              exposureTime: 0,
+              ulcerIndex: 0,
+              kellyPercentage: 0,
+              rSquared: 0,
+            },
+            trades: backendResult.trades.map((t: any) => ({
+              id: `${t.entry_time}-${t.exit_time}`,
+              entryTime: new Date(t.entry_time).getTime(),
+              exitTime: new Date(t.exit_time).getTime(),
+              direction: t.side,
+              entryPrice: t.entry_price,
+              exitPrice: t.exit_price,
+              quantity: t.quantity,
+              commission: t.fees,
+              slippage: 0,
+              pnl: t.pnl,
+              pnlPercent: t.pnl_percent,
+              duration: new Date(t.exit_time).getTime() - new Date(t.entry_time).getTime(),
+              exitReason: 'SIGNAL' as const,
+              bars: 0,
+            })),
+            equityCurve: backendResult.equity_curve.map((e: any) => ({
+              timestamp: new Date(e.time).getTime(),
+              equity: e.equity,
+              drawdown: e.drawdown * e.equity / 100,
+              drawdownPercent: e.drawdown,
+            })),
+            drawdownPeriods: [],
+            startTime: new Date(backendResult.start_date).getTime(),
+            endTime: new Date(backendResult.end_date).getTime(),
+            duration: new Date(backendResult.end_date).getTime() - new Date(backendResult.start_date).getTime(),
+            initialCapital: backendResult.initial_capital,
+            finalCapital: backendResult.final_capital,
+          };
+
+          setProgress(100);
+          setBacktestResult(result);
+          return result;
+
+        } catch (backendError) {
+          console.warn('Backend backtest failed, falling back to frontend:', backendError);
+          // Fall through to frontend implementation
+        }
+      }
+
+      // Fallback to frontend BacktestEngine
       setProgress(10);
       const data = await dataManager.fetchHistoricalData(
         config.symbol,
