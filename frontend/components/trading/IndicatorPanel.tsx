@@ -71,18 +71,18 @@ export default function IndicatorPanel({ symbol, interval }: IndicatorPanelProps
           <div className="ml-6 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">Value: </span>
-              <span className={`text-sm font-semibold ${getSignalColor(rsi.signal.signal)}`}>
+              <span className={`text-sm font-semibold ${getSignalColor(rsi.signal?.signal || 'neutral')}`}>
                 {rsi.current_rsi?.toFixed(2) || 'N/A'}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">Signal:</span>
-              <span className={`text-xs font-medium ${getSignalColor(rsi.signal.signal)}`}>
-                {rsi.signal.signal.toUpperCase()}
+              <span className={`text-xs font-medium ${getSignalColor(rsi.signal?.signal || 'neutral')}`}>
+                {(rsi.signal?.signal || 'NEUTRAL').toUpperCase()}
               </span>
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              {rsi.signal.description}
+              {rsi.signal?.description || 'No signal data'}
             </div>
           </div>
         )}
@@ -112,29 +112,29 @@ export default function IndicatorPanel({ symbol, interval }: IndicatorPanelProps
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">MACD: </span>
               <span className="text-sm font-mono text-white">
-                {macd.current.macd?.toFixed(2) || 'N/A'}
+                {macd.current?.macd?.toFixed(2) || 'N/A'}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">Signal:</span>
               <span className="text-sm font-mono text-white">
-                {macd.current.signal?.toFixed(2) || 'N/A'}
+                {macd.current?.signal?.toFixed(2) || 'N/A'}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">Histogram:</span>
               <span className={`text-sm font-semibold ${
-                macd.current.histogram && macd.current.histogram > 0 ? 'text-green-400' : 'text-red-400'
+                macd.current?.histogram && macd.current.histogram > 0 ? 'text-green-400' : 'text-red-400'
               }`}>
-                {macd.current.histogram?.toFixed(2) || 'N/A'}
+                {macd.current?.histogram?.toFixed(2) || 'N/A'}
               </span>
             </div>
             <div className="flex items-center justify-between mt-1">
               <span className="text-xs text-gray-400">Trend:</span>
               <span className={`text-xs font-medium ${
-                macd.current.signal_type === 'bullish' ? 'text-green-400' : 'text-red-400'
+                macd.current?.signal_type === 'bullish' ? 'text-green-400' : 'text-red-400'
               }`}>
-                {macd.current.signal_type.toUpperCase()}
+                {(macd.current?.signal_type || 'neutral').toUpperCase()}
               </span>
             </div>
           </div>
@@ -165,31 +165,31 @@ export default function IndicatorPanel({ symbol, interval }: IndicatorPanelProps
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">Upper: </span>
               <span className="text-sm font-mono text-white">
-                {bollinger.current.upper?.toFixed(2) || 'N/A'}
+                {bollinger.current?.upper?.toFixed(2) || 'N/A'}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">Middle:</span>
               <span className="text-sm font-mono text-white">
-                {bollinger.current.middle?.toFixed(2) || 'N/A'}
+                {bollinger.current?.middle?.toFixed(2) || 'N/A'}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">Lower:</span>
               <span className="text-sm font-mono text-white">
-                {bollinger.current.lower?.toFixed(2) || 'N/A'}
+                {bollinger.current?.lower?.toFixed(2) || 'N/A'}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">Price:</span>
-              <span className={`text-sm font-semibold ${getSignalColor(bollinger.current.signal)}`}>
-                {bollinger.current.price?.toFixed(2) || 'N/A'}
+              <span className={`text-sm font-semibold ${getSignalColor(bollinger.current?.signal || 'neutral')}`}>
+                {bollinger.current?.price?.toFixed(2) || 'N/A'}
               </span>
             </div>
             <div className="flex items-center justify-between mt-1">
               <span className="text-xs text-gray-400">Position:</span>
-              <span className={`text-xs font-medium ${getSignalColor(bollinger.current.signal)}`}>
-                {bollinger.current.position.replace('_', ' ').toUpperCase()}
+              <span className={`text-xs font-medium ${getSignalColor(bollinger.current?.signal || 'neutral')}`}>
+                {(bollinger.current?.position || 'unknown').replace('_', ' ').toUpperCase()}
               </span>
             </div>
           </div>

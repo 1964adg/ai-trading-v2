@@ -1,13 +1,18 @@
+/**
+ * Risk Calculator Hook
+ * API integration for risk management calculations
+ */
+
 import { useState } from 'react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 interface PositionSizeParams {
-  accountBalance: number;
-  riskPercentage: number;
-  entryPrice: number;
-  stopLossPrice: number;
-  leverage?:  number;
+  account_balance: number;
+  risk_percentage: number;
+  entry_price: number;
+  stop_loss_price: number;
+  leverage: number;
 }
 
 interface PositionSizeResult {
@@ -15,34 +20,45 @@ interface PositionSizeResult {
   position_size: number;
   quantity: number;
   risk_amount: number;
-  max_loss: number;
   sl_distance_pct: number;
   position_pct: number;
-  leverage: number;
-  warnings: string[];
   safe: boolean;
+  warnings: string[];
 }
 
 interface RiskRewardParams {
-  entryPrice: number;
-  stopLossPrice:  number;
-  takeProfitPrice: number;
-  positionSize?:  number;
+  entry_price: number;
+  stop_loss_price: number;
+  take_profit_price: number;
+  position_size?: number;
 }
 
 interface RiskRewardResult {
-  success:  boolean;
+  success: boolean;
   rr_ratio: number;
+  direction: string;
   risk_pct: number;
   reward_pct: number;
-  risk_distance: number;
-  reward_distance: number;
-  direction: 'LONG' | 'SHORT';
-  potential_loss?:  number;
-  potential_profit?:  number;
-  net_expectation?: number;
-  recommendations: string[];
+  potential_loss: number | null;
+  potential_profit: number | null;
   acceptable: boolean;
+  recommendations: string[];
+}
+
+interface PortfolioRiskParams {
+  account_balance: number;
+  positions: Array<{ size: number; risk_pct: number }>;
+  max_risk_pct: number;
+}
+
+interface PortfolioRiskResult {
+  success: boolean;
+  total_exposure: number;
+  total_risk_amount: number;
+  total_risk_pct: number;
+  exposure_pct: number;
+  positions_analyzed: number;
+  warnings: string[];
 }
 
 export function useRiskCalculator() {
@@ -58,25 +74,21 @@ export function useRiskCalculator() {
     try {
       const response = await fetch(`${API_BASE}/risk/position-size`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          account_balance: params.accountBalance,
-          risk_percentage: params.riskPercentage,
-          entry_price: params.entryPrice,
-          stop_loss_price: params.stopLossPrice,
-          leverage:  params.leverage || 1,
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to calculate position size');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
       return data;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      setError(errorMsg);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage);
       return null;
     } finally {
       setLoading(false);
@@ -92,24 +104,51 @@ export function useRiskCalculator() {
     try {
       const response = await fetch(`${API_BASE}/risk/risk-reward`, {
         method: 'POST',
-        headers: { 'Content-Type':  'application/json' },
-        body: JSON.stringify({
-          entry_price: params.entryPrice,
-          stop_loss_price: params.stopLossPrice,
-          take_profit_price: params.takeProfitPrice,
-          position_size:  params.positionSize || null,
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to calculate risk/reward');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
       return data;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message :  'Unknown error';
-      setError(errorMsg);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculatePortfolio = async (
+    params: PortfolioRiskParams
+  ): Promise<PortfolioRiskResult | null> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/risk/portfolio`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage);
       return null;
     } finally {
       setLoading(false);
@@ -119,6 +158,7 @@ export function useRiskCalculator() {
   return {
     calculatePositionSize,
     calculateRiskReward,
+    calculatePortfolio,
     loading,
     error,
   };
