@@ -102,263 +102,136 @@ async def get_klines_path(
 
 @router.get("/indicators/rsi/{symbol}/{interval}")
 async def get_rsi(
-    symbol: str = Path(..., description="Trading pair symbol"),
-    interval: str = Path(..., description="Kline interval"),
-    period: int = Query(default=14, ge=2, le=100, description="RSI period"),
-    limit: int = Query(default=100, ge=1, le=1000, description="Number of klines")
+    symbol:  str = Path(..., description="Trading pair symbol"),
+    interval: str = Path(..., description="Timeframe"),
+    period: int = Query(14, description="RSI period", ge=2, le=100),
+    limit: int = Query(100, description="Number of candles", ge=10, le=500)
 ):
-    """
-    Calculate RSI indicator for a symbol.
-    
-    Args:
-        symbol: Trading pair (e.g., BTCEUR)
-        interval: Timeframe (e.g., 1h, 4h, 1d)
-        period: RSI period (default: 14)
-        limit: Number of candles to fetch
-        
-    Returns:
-        RSI value, signal, and historical data
-    """
+    """Calculate RSI indicator"""
     try:
-        # Fetch historical data
-        klines = binance_service.get_klines_data(
-            symbol=symbol.upper(),
-            interval=interval,
-            limit=limit
-        )
-        
-        # Convert to dict if DataFrame
-        if hasattr(klines, 'to_dict'):
-            klines = klines.to_dict('records')
-        
-        # Extract close prices
-        close_prices = np.array([float(k['close']) for k in klines])
-        
-        # Calculate RSI
-        rsi_result = calculate_rsi(close_prices, period=period)
-        
-        # Build response with historical data
-        rsi_data = []
-        for i, k in enumerate(klines):
-            if i >= period:
-                # Calculate RSI for each point
-                rsi_val = calculate_rsi(close_prices[:i+1], period=period)
-                rsi_data.append({
-                    "timestamp": k.get('timestamp', k.get('time', '')),
-                    "close": float(k['close']),
-                    "rsi": rsi_val.get('current_rsi')
-                })
-            else:
-                rsi_data.append({
-                    "timestamp": k.get('timestamp', k.get('time', '')),
-                    "close": float(k['close']),
-                    "rsi": None
-                })
-        
-        return {
-            "success": True,
-            "symbol": symbol.upper(),
-            "interval": interval,
-            "period": period,
-            "current_rsi": rsi_result['current_rsi'],
-            "signal": {
-                "signal": rsi_result['signal'],
-                "description": rsi_result['description'],
-                "color": "green" if rsi_result['signal'] == "BUY" else "red" if rsi_result['signal'] == "SELL" else "gray"
-            },
-            "data": rsi_data
-        }
-        
-    except BinanceAPIException as e:
-        raise HTTPException(status_code=400, detail=f"Invalid request: {e.message}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        print(f"[RSI] Request:  {symbol} {interval}, period={period}, limit={limit}")
 
+        # Fetch klines data
+        klines_response = await _fetch_klines_data(symbol, interval, limit)
+
+        if not klines_response['success']:
+            print(f"[RSI] ❌ Failed to fetch klines")
+            raise HTTPException(status_code=404, detail="No klines data")
+
+        print(f"[RSI] ✅ Got {len(klines_response['data'])} candles")
+
+        # Convert to DataFrame
+        df = pd. DataFrame(klines_response['data'])
+
+        print(f"[RSI] DataFrame columns:  {df.columns.tolist()}")
+        print(f"[RSI] DataFrame shape: {df.shape}")
+        print(f"[RSI] Close column dtype: {df['close'].dtype}")
+
+        # ✅ FIX: Convert close prices to float numpy array
+        closes = df['close'].astype(float).values
+
+        print(f"[RSI] Closes type: {type(closes)}")
+        print(f"[RSI] Closes dtype: {closes.dtype}")
+        print(f"[RSI] Closes shape: {closes.shape}")
+        print(f"[RSI] First 5 closes: {closes[: 5]}")
+
+        # Calculate RSI
+        result = calculate_rsi(closes, period)
+
+        print(f"[RSI] ✅ Result: {result}")
+
+        return {
+            "success":  True,
+            "symbol": symbol,
+            "interval": interval,
+            "indicator": "RSI",
+            "period": period,
+            **result
+        }
+    except Exception as e:
+        print(f"[RSI ERROR] {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/indicators/macd/{symbol}/{interval}")
 async def get_macd(
-    symbol: str = Path(..., description="Trading pair symbol"),
-    interval: str = Path(..., description="Kline interval"),
-    fast: int = Query(default=12, ge=2, le=50, description="Fast EMA period"),
-    slow: int = Query(default=26, ge=2, le=100, description="Slow EMA period"),
-    signal: int = Query(default=9, ge=2, le=50, description="Signal line period"),
-    limit: int = Query(default=100, ge=1, le=1000, description="Number of klines")
+    symbol: str = Path(...),
+    interval: str = Path(... ),
+    fast: int = Query(12, ge=2, le=50),
+    slow: int = Query(26, ge=2, le=100),
+    signal: int = Query(9, ge=2, le=50),
+    limit: int = Query(100, ge=20, le=500)
 ):
-    """
-    Calculate MACD indicator for a symbol.
-    
-    Args:
-        symbol: Trading pair (e.g., BTCEUR)
-        interval: Timeframe (e.g., 1h, 4h, 1d)
-        fast: Fast EMA period (default: 12)
-        slow: Slow EMA period (default: 26)
-        signal: Signal line period (default: 9)
-        limit: Number of candles to fetch
-        
-    Returns:
-        MACD line, signal line, histogram, and trading signal
-    """
+    """Calculate MACD indicator"""
     try:
-        # Fetch historical data
-        klines = binance_service.get_klines_data(
-            symbol=symbol.upper(),
-            interval=interval,
-            limit=limit
-        )
-        
-        # Convert to dict if DataFrame
-        if hasattr(klines, 'to_dict'):
-            klines = klines.to_dict('records')
-        
-        # Extract close prices
-        close_prices = np.array([float(k['close']) for k in klines])
-        
-        # Calculate MACD
-        macd_result = calculate_macd(close_prices, fast=fast, slow=slow, signal=signal)
-        
-        # Build response with historical data
-        macd_data = []
-        min_length = slow + signal
-        for i, k in enumerate(klines):
-            if i >= min_length - 1:
-                macd_val = calculate_macd(close_prices[:i+1], fast=fast, slow=slow, signal=signal)
-                macd_data.append({
-                    "timestamp": k.get('timestamp', k.get('time', '')),
-                    "close": float(k['close']),
-                    "macd": macd_val.get('macd'),
-                    "signal": macd_val.get('signal_line'),
-                    "histogram": macd_val.get('histogram')
-                })
-            else:
-                macd_data.append({
-                    "timestamp": k.get('timestamp', k.get('time', '')),
-                    "close": float(k['close']),
-                    "macd": None,
-                    "signal": None,
-                    "histogram": None
-                })
-        
+        print(f"[MACD] Request: {symbol} {interval}, fast={fast}, slow={slow}, signal={signal}")
+
+        klines_response = await _fetch_klines_data(symbol, interval, limit)
+
+        if not klines_response['success']:
+            raise HTTPException(status_code=404, detail="No klines data")
+
+        df = pd.DataFrame(klines_response['data'])
+
+        # ✅ FIX: Convert to float
+        closes = df['close'].astype(float).values
+
+        result = calculate_macd(closes, fast, slow, signal)
+
+        print(f"[MACD] ✅ Result: {result}")
+
         return {
             "success": True,
-            "symbol": symbol.upper(),
+            "symbol": symbol,
             "interval": interval,
-            "current": {
-                "macd": macd_result['macd'],
-                "signal": macd_result['signal_line'],
-                "histogram": macd_result['histogram'],
-                "signal_type": "bullish" if macd_result['signal'] == "BUY" else "bearish" if macd_result['signal'] == "SELL" else "neutral"
-            },
-            "signal": {
-                "signal": macd_result['signal'],
-                "description": macd_result['description']
-            },
-            "data": macd_data
+            "indicator": "MACD",
+            **result
         }
-        
-    except BinanceAPIException as e:
-        raise HTTPException(status_code=400, detail=f"Invalid request: {e.message}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
+        print(f"[MACD ERROR] {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/indicators/bollinger/{symbol}/{interval}")
 async def get_bollinger(
-    symbol: str = Path(..., description="Trading pair symbol"),
-    interval: str = Path(..., description="Kline interval"),
-    period: int = Query(default=20, ge=2, le=100, description="Moving average period"),
-    std_dev: float = Query(default=2.0, ge=0.5, le=5.0, description="Standard deviation multiplier"),
-    limit: int = Query(default=100, ge=1, le=1000, description="Number of klines")
+    symbol: str = Path(...),
+    interval: str = Path(...),
+    period: int = Query(20, ge=2, le=100),
+    std_dev: float = Query(2.0, ge=0.5, le=5.0),
+    limit: int = Query(100, ge=20, le=500)
 ):
-    """
-    Calculate Bollinger Bands indicator for a symbol.
-    
-    Args:
-        symbol: Trading pair (e.g., BTCEUR)
-        interval: Timeframe (e.g., 1h, 4h, 1d)
-        period: Moving average period (default: 20)
-        std_dev: Standard deviation multiplier (default: 2.0)
-        limit: Number of candles to fetch
-        
-    Returns:
-        Upper, middle, lower bands with signal
-    """
+    """Calculate Bollinger Bands"""
     try:
-        # Fetch historical data
-        klines = binance_service.get_klines_data(
-            symbol=symbol.upper(),
-            interval=interval,
-            limit=limit
-        )
-        
-        # Convert to dict if DataFrame
-        if hasattr(klines, 'to_dict'):
-            klines = klines.to_dict('records')
-        
-        # Extract close prices
-        close_prices = np.array([float(k['close']) for k in klines])
-        
-        # Calculate Bollinger Bands
-        bb_result = calculate_bollinger_bands(close_prices, period=period, std_dev=std_dev)
-        
-        # Build response with historical data
-        bb_data = []
-        for i, k in enumerate(klines):
-            if i >= period - 1:
-                bb_val = calculate_bollinger_bands(close_prices[:i+1], period=period, std_dev=std_dev)
-                bb_data.append({
-                    "timestamp": k.get('timestamp', k.get('time', '')),
-                    "close": float(k['close']),
-                    "bb_upper": bb_val.get('upper'),
-                    "bb_middle": bb_val.get('middle'),
-                    "bb_lower": bb_val.get('lower'),
-                    "bb_bandwidth": bb_val.get('bandwidth')
-                })
-            else:
-                bb_data.append({
-                    "timestamp": k.get('timestamp', k.get('time', '')),
-                    "close": float(k['close']),
-                    "bb_upper": None,
-                    "bb_middle": None,
-                    "bb_lower": None,
-                    "bb_bandwidth": None
-                })
-        
-        # Determine position relative to bands
-        if bb_result['current_price'] and bb_result['lower'] and bb_result['upper']:
-            if bb_result['current_price'] < bb_result['lower']:
-                position = "below_lower"
-            elif bb_result['current_price'] > bb_result['upper']:
-                position = "above_upper"
-            else:
-                position = "within_bands"
-        else:
-            position = "unknown"
-        
+        print(f"[BOLLINGER] Request: {symbol} {interval}, period={period}, std_dev={std_dev}")
+
+        klines_response = await _fetch_klines_data(symbol, interval, limit)
+
+        if not klines_response['success']:
+            raise HTTPException(status_code=404, detail="No klines data")
+
+        df = pd.DataFrame(klines_response['data'])
+
+        # ✅ FIX: Convert to float
+        closes = df['close'].astype(float).values
+
+        result = calculate_bollinger_bands(closes, period, std_dev)
+
+        print(f"[BOLLINGER] ✅ Result:  {result}")
+
         return {
             "success": True,
-            "symbol": symbol.upper(),
+            "symbol": symbol,
             "interval": interval,
-            "current": {
-                "price": bb_result['current_price'],
-                "upper": bb_result['upper'],
-                "middle": bb_result['middle'],
-                "lower": bb_result['lower'],
-                "bandwidth": bb_result['bandwidth'],
-                "position": position,
-                "signal": bb_result['signal'].lower()
-            },
-            "signal": {
-                "signal": bb_result['signal'],
-                "description": bb_result['description']
-            },
-            "data": bb_data
+            "indicator": "Bollinger Bands",
+            **result
         }
-        
-    except BinanceAPIException as e:
-        raise HTTPException(status_code=400, detail=f"Invalid request: {e.message}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
+        print(f"[BOLLINGER ERROR] {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================================================
 # PHASE B: RISK MANAGEMENT ENDPOINTS
@@ -377,10 +250,10 @@ class PositionSizeRequest(BaseModel):
 async def calculate_position_size_endpoint(request: PositionSizeRequest):
     """
     Calculate optimal position size based on risk parameters.
-    
+
     Args:
         request: PositionSizeRequest with account balance, risk %, entry, stop-loss, leverage
-        
+
     Returns:
         Position size, quantity, risk amount, and safety warnings
     """
@@ -392,12 +265,12 @@ async def calculate_position_size_endpoint(request: PositionSizeRequest):
             stop_loss_price=request.stop_loss_price,
             leverage=request.leverage
         )
-        
+
         return {
             "success": True,
             **result
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Calculation error: {str(e)}")
 
@@ -414,10 +287,10 @@ class RiskRewardRequest(BaseModel):
 async def calculate_risk_reward_endpoint(request: RiskRewardRequest):
     """
     Calculate risk/reward ratio for a trade.
-    
+
     Args:
         request: RiskRewardRequest with entry, stop-loss, take-profit, optional position size
-        
+
     Returns:
         R:R ratio, direction, risk/reward percentages, potential P/L, recommendations
     """
@@ -428,12 +301,12 @@ async def calculate_risk_reward_endpoint(request: RiskRewardRequest):
             take_profit_price=request.take_profit_price,
             position_size=request.position_size
         )
-        
+
         return {
             "success": True,
             **result
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Calculation error: {str(e)}")
 
@@ -449,10 +322,10 @@ class PortfolioRiskRequest(BaseModel):
 async def calculate_portfolio_risk_endpoint(request: PortfolioRiskRequest):
     """
     Calculate aggregate risk across multiple positions.
-    
+
     Args:
         request: PortfolioRiskRequest with account balance, positions list, max risk %
-        
+
     Returns:
         Total exposure, risk percentage, positions analyzed, warnings
     """
@@ -462,12 +335,12 @@ async def calculate_portfolio_risk_endpoint(request: PortfolioRiskRequest):
             positions=request.positions,
             max_risk_pct=request.max_risk_pct
         )
-        
+
         return {
             "success": True,
             **result
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Calculation error: {str(e)}")
 
@@ -501,35 +374,35 @@ class BacktestRequest(BaseModel):
 async def run_backtest(request: BacktestRequest):
     """
     Run a backtest on historical data with specified strategy.
-    
+
     Args:
         request: BacktestRequest with symbol, timeframe, strategy, and parameters
-        
+
     Returns:
         Comprehensive backtest results with trades, metrics, and equity curve
     """
     try:
         from lib.backtester import Backtester, SimpleMAStrategy, RSIStrategy
-        
+
         print(f"[BACKTEST] Starting backtest for {request.symbol} {request.timeframe}")
-        
+
         # Fetch historical data
         klines = binance_service.get_klines_data(
             symbol=request.symbol.upper(),
             interval=request.timeframe,
             limit=1000
         )
-        
+
         # Convert to DataFrame if not already
         if not isinstance(klines, pd.DataFrame):
             klines = pd.DataFrame(klines)
-        
+
         print(f"[BACKTEST] Got {len(klines)} candles")
-        
+
         # Ensure we have the required columns
         if 'close' not in klines.columns:
             raise HTTPException(status_code=400, detail="Data missing 'close' column")
-        
+
         # Convert timestamp to datetime index if needed
         if 'timestamp' in klines.columns:
             klines['timestamp'] = pd.to_datetime(klines['timestamp'])
@@ -537,21 +410,21 @@ async def run_backtest(request: BacktestRequest):
         elif 'time' in klines.columns:
             klines['time'] = pd.to_datetime(klines['time'])
             klines.set_index('time', inplace=True)
-        
+
         # Filter by date range if provided
         if request.start_date:
             start_dt = pd.to_datetime(request.start_date)
             klines = klines[klines.index >= start_dt]
-        
+
         if request.end_date:
             end_dt = pd.to_datetime(request.end_date)
             klines = klines[klines.index <= end_dt]
-        
+
         print(f"[BACKTEST] Date range: {klines.index[0]} to {klines.index[-1]}")
-        
+
         if len(klines) < 50:
             raise HTTPException(status_code=400, detail="Not enough data for backtesting (need at least 50 candles)")
-        
+
         # Create strategy based on request
         if request.strategy == 'ma_cross':
             strategy = SimpleMAStrategy(
@@ -570,7 +443,7 @@ async def run_backtest(request: BacktestRequest):
             )
         else:
             raise HTTPException(status_code=400, detail=f"Unknown strategy: {request.strategy}")
-        
+
         # Create backtester
         backtester = Backtester(
             data=klines,
@@ -580,12 +453,12 @@ async def run_backtest(request: BacktestRequest):
             fee_pct=0.1,
             allow_shorts=request.allow_shorts
         )
-        
+
         # Run backtest
         result = backtester.run()
-        
+
         print(f"[BACKTEST] ✅ Backtest complete: {result.total_trades} trades")
-        
+
         # Convert trades to dicts for JSON serialization
         trades_data = [
             {
@@ -602,7 +475,7 @@ async def run_backtest(request: BacktestRequest):
             }
             for t in result.trades
         ]
-        
+
         return {
             "success": True,
             "symbol": request.symbol.upper(),
@@ -630,7 +503,7 @@ async def run_backtest(request: BacktestRequest):
             "equity_curve": result.equity_curve,
             "trades": trades_data
         }
-        
+
     except BinanceAPIException as e:
         raise HTTPException(status_code=400, detail=f"Invalid request: {e.message}")
     except Exception as e:
