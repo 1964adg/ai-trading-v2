@@ -138,6 +138,10 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env.local
 .envrc
 .venv
 env/
@@ -234,6 +238,16 @@ infrastructure/nginx/ssl/*.crt
 *.sql.gz
 *.dump
 backup.sql
+
+# Backup files
+*_BACKUP_*.ts
+*_backup.ts
+*_old_backup.ts
+*.backup
+
+# Cleanup script backups
+cleanup_backup_*/
+docs_backup_*/
 
 # ML Models and Training Data
 infrastructure/ml/model_storage/*.pkl

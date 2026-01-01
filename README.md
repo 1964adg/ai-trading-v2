@@ -33,10 +33,16 @@ For detailed Docker setup and deployment instructions, see [DOCKER_README.md](./
 
 ## 📖 Documentation
 
-- [Docker Setup Guide](./DOCKER_README.md) - Containerization and deployment
-- [Keyboard Shortcuts](./KEYBOARD_SHORTCUTS.md) - F1/F2 shortcuts guide
-- [Backtesting Guide](./BACKTESTING_GUIDE.md) - Trading strategy backtesting
-- [Indicators Guide](./INDICATORS_GUIDE.md) - Technical indicators
+For complete documentation, see [📚 Documentation Hub](./docs/README.md)
+
+**Quick Links:**
+- [Docker Setup Guide](./docs/guides/docker.md) - Containerization and deployment
+- [Keyboard Shortcuts](./docs/guides/shortcuts.md) - F1/F2 shortcuts guide
+- [Backtesting Guide](./docs/guides/backtesting.md) - Trading strategy backtesting
+- [Indicators Guide](./docs/guides/indicators.md) - Technical indicators
+- [Testing Guide](./docs/guides/testing.md) - Test procedures
+- [API Documentation](./docs/api/) - API references
+- [Architecture](./docs/architecture/) - System architecture
 
 ## 🛠️ Development
 
@@ -51,6 +57,8 @@ docker-compose logs -f
 # Stop services
 docker-compose down
 ```
+
+For detailed instructions, see [Docker Guide](./docs/guides/docker.md).
 
 ### Without Docker (Traditional)
 
@@ -94,7 +102,7 @@ For production deployment with SSL and monitoring:
 ./scripts/prod-deploy.sh
 ```
 
-See [DOCKER_README.md](./DOCKER_README.md) for complete production setup instructions.
+See [Docker Guide](./docs/guides/docker.md) for complete production setup instructions.
 
 ## 🔄 Roadmap
 
