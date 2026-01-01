@@ -6,26 +6,20 @@
   "editor.detectIndentation": false,
   "editor.tabSize": 2,
   "editor.formatOnSave": true,
-  
   "[python]": {
     "editor.tabSize": 4,
     "editor.defaultFormatter": "ms-python.black-formatter"
   },
-  
   "[typescript]": {
     "editor. defaultFormatter": "esbenp.prettier-vscode"
   },
-  
   "[typescriptreact]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
-  
   "python.linting.enabled": true,
   "python.linting.pylintEnabled": false,
   "python.linting.flake8Enabled": true,
-  
   "typescript.validate.enable": true,
-  
   "search.exclude": {
     "**/__pycache__": true,
     "**/node_modules": true,

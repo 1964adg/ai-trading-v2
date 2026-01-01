@@ -20,10 +20,10 @@ export default function MultiTimeframePanel({
 
   // ✅ AUTO-REFRESH STATE
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRefreshing] = useState(false);
 
-  const { trends, isLoading, hasConfluence, confluenceType, error, refetch } =
-    useMultiTimeframe(symbol, timeframes);
+  const { trends, isLoading, hasConfluence, confluenceType, error } =
+  useMultiTimeframe(symbol, timeframes);
 
   // ✅ HELPER FUNCTIONS - Confidence color coding
   const getConfidenceColor = (confidence: number): string => {
@@ -82,20 +82,7 @@ export default function MultiTimeframePanel({
   };
 
   // ✅ AUTO-REFRESH:  Refetch trends every 60 seconds
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      console.log('[MULTI-TF] Auto-refreshing trends...');
-      setIsRefreshing(true);
-      try {
-        await refetch();
-        setLastUpdate(new Date());
-      } finally {
-        setIsRefreshing(false);
-      }
-    }, 60000); // 60 seconds
 
-    return () => clearInterval(interval);
-  }, [refetch]);
 
   // Update lastUpdate when data loads initially
   useEffect(() => {

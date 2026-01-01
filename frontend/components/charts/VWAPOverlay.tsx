@@ -21,16 +21,18 @@ export default function VWAPOverlay({ chart, vwapData, config }: VWAPOverlayProp
   const bandSeriesRefs = useRef<Map<string, ISeriesApi<'Line'>>>(new Map());
 
   useEffect(() => {
+    // Copy ref to variable for cleanup
+    const bandSeriesMap = bandSeriesRefs.current;
+
     if (!chart || !config.enabled || vwapData.length === 0) {
-      // Clean up series if disabled or no data
       if (vwapSeriesRef.current) {
         chart?.removeSeries(vwapSeriesRef.current);
         vwapSeriesRef.current = null;
       }
-      bandSeriesRefs.current.forEach((series) => {
+      bandSeriesMap.forEach((series) => {
         chart?.removeSeries(series);
       });
-      bandSeriesRefs.current.clear();
+      bandSeriesMap.clear();
       return;
     }
 
@@ -134,14 +136,10 @@ export default function VWAPOverlay({ chart, vwapData, config }: VWAPOverlayProp
 
     // Cleanup on unmount
     return () => {
-      if (vwapSeriesRef.current) {
-        chart?.removeSeries(vwapSeriesRef.current);
-        vwapSeriesRef.current = null;
-      }
-      bandSeriesRefs.current.forEach((series) => {
+      // Use copied variable in cleanup
+      bandSeriesMap.forEach((series) => {
         chart?.removeSeries(series);
       });
-      bandSeriesRefs.current.clear();
     };
   }, [chart, vwapData, config]);
 

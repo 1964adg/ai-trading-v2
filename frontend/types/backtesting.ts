@@ -77,7 +77,7 @@ export interface StrategyContext {
   bar: BarData;
   bars: BarData[];
   currentIndex: number;
-  
+
   // Account state
   equity: number;
   cash: number;
@@ -88,7 +88,7 @@ export interface StrategyContext {
     quantity: number;
     openTime: number;
   };
-  
+
   // Indicators (available if enabled in config)
   vwap?: number;
   vwapBands?: { upper: number[]; lower: number[] };
@@ -102,22 +102,22 @@ export interface StrategyContext {
     cumulativeDelta: number;
     imbalance: number;
   };
-  
+
   // EMAs (if configured)
   ema?: number[];
-  
+
   // Historical patterns
   patterns?: Array<{
     type: string;
     confidence: number;
     timestamp: number;
   }>;
-  
+
   // Trading functions
   buy: (quantity: number, stopLoss?: number, takeProfit?: number) => void;
   sell: (quantity: number, stopLoss?: number, takeProfit?: number) => void;
   closePosition: (reason?: string) => void;
-  
+
   // Utility functions
   log: (message: string, data?: unknown) => void;
 }
@@ -127,12 +127,12 @@ export interface TradingStrategy {
   description: string;
   version: string;
   parameters: StrategyParameter[];
-  
+
   // Lifecycle hooks
   initialize?(context: StrategyContext): void;
   onBar(context: StrategyContext, data: BarData): void;
   finalize?(context: StrategyContext): void;
-  
+
   // Optional validation
   validate?(parameters: StrategyParameter[]): boolean;
 }
@@ -145,13 +145,13 @@ export interface PerformanceMetrics {
   totalReturnPercent: number;
   annualizedReturn: number;
   annualizedReturnPercent: number;
-  
+
   // Risk-adjusted returns
   sharpeRatio: number;
   sortinoRatio: number;
   calmarRatio: number;
   omega: number;
-  
+
   // Drawdown metrics
   maxDrawdown: number;
   maxDrawdownPercent: number;
@@ -159,13 +159,15 @@ export interface PerformanceMetrics {
   averageDrawdownPercent: number;
   maxDrawdownDuration: number;
   recoveryFactor: number;
-  
+
   // Win/Loss metrics
   winRate: number;
   lossRate: number;
   winCount: number;
   lossCount: number;
-  
+  winningTrades: number;      // ✅ ADD
+  losingTrades: number;       // ✅ ADD
+
   // Profit metrics
   profitFactor: number;
   payoffRatio: number;
@@ -173,30 +175,43 @@ export interface PerformanceMetrics {
   averageLoss: number;
   largestWin: number;
   largestLoss: number;
-  
+
   // Trade statistics
   totalTrades: number;
   avgTradeReturn: number;
   avgTradeReturnPercent: number;
   avgTradeDuration: number;
+  avgHoldingPeriod: number;   // ✅ ADD
+  avgWinDuration: number;     // ✅ ADD
+  avgLossDuration: number;    // ✅ ADD
   avgBarsHeld: number;
-  
+
   // Consistency metrics
   consistencyScore: number;
   expectancy: number;
   profitPerBar: number;
-  
+    maxConsecutiveWins: number;
+  maxConsecutiveLosses: number;
+  consecutiveWins: number;
+  consecutiveLosses: number;
+
   // Risk metrics
   valueAtRisk95: number;
   valueAtRisk99: number;
   conditionalVaR95: number;
   conditionalVaR99: number;
-  
+
   // Additional metrics
   ulcerIndex: number;
   kRatio: number;
   stabilityRatio: number;
   gainToPainRatio: number;
+
+  // ✅ ADD Missing fields from useBacktest.ts
+  exposureTime: number;
+  kellyPercentage: number;
+  rSquared: number;
+
 }
 
 export interface TradeStatistics {
@@ -206,29 +221,29 @@ export interface TradeStatistics {
   longLosses: number;
   longWinRate: number;
   longProfitFactor: number;
-  
+
   // Short trades
   shortTrades: number;
   shortWins: number;
   shortLosses: number;
   shortWinRate: number;
   shortProfitFactor: number;
-  
+
   // Holding periods
   avgHoldingPeriod: number;
   minHoldingPeriod: number;
   maxHoldingPeriod: number;
-  
+
   // Consecutive trades
   maxConsecutiveWins: number;
   maxConsecutiveLosses: number;
   currentStreak: number;
-  
+
   // Time-based
   tradesPerDay: number;
   tradesPerWeek: number;
   tradesPerMonth: number;
-  
+
   // Entry/Exit analysis
   stopLossHits: number;
   takeProfitHits: number;
@@ -240,29 +255,29 @@ export interface TradeStatistics {
 export interface BacktestConfig {
   // Strategy
   strategy: TradingStrategy;
-  
+
   // Market data
   symbol: string;
   timeframes: Timeframe[];
   startDate: Date;
   endDate: Date;
-  
+
   // Account settings
   initialCapital: number;
   commission: number; // percentage (e.g., 0.001 for 0.1%)
   slippage: number; // percentage (e.g., 0.0005 for 0.05%)
-  
+
   // Position sizing
   positionSizing: {
     type: 'FIXED' | 'PERCENT' | 'RISK' | 'KELLY';
     value: number;
   };
-  
+
   // Risk management
   maxPositionSize: number; // percentage of equity
   maxDailyLoss?: number; // percentage
   maxDrawdown?: number; // percentage
-  
+
   // Indicator configuration (optional)
   indicators?: {
     vwap?: VWAPConfig;
@@ -270,17 +285,17 @@ export interface BacktestConfig {
     orderFlow?: OrderFlowConfig;
     ema?: number[];
   };
-  
+
   // Pattern recognition (optional)
   patterns?: {
     enabled: boolean;
     minConfidence: number;
     types: string[];
   };
-  
+
   // Execution settings
   allowShorts: boolean;
-  
+
   // Advanced options
   warmupBars?: number; // bars to skip before trading
   timezone?: string;
@@ -295,25 +310,25 @@ export interface BacktestResult {
   startDate: Date;
   endDate: Date;
   duration: number;
-  
+
   // Trades and equity
   trades: Trade[];
   equity: EquityPoint[];
   drawdowns: DrawdownPeriod[];
-  
+
   // Metrics
   metrics: PerformanceMetrics;
   statistics: TradeStatistics;
-  
+
   // Execution info
   totalBars: number;
   executionTime: number;
   barsPerSecond: number;
-  
+
   // Status
   status: 'COMPLETED' | 'FAILED' | 'CANCELLED';
   error?: string;
-  
+
   // Configuration snapshot
   config: BacktestConfig;
 }
@@ -335,21 +350,21 @@ export interface OptimizationConfig {
   parameters: OptimizationParameter[];
   objective: keyof PerformanceMetrics;
   maximize: boolean;
-  
+
   // Grid search
   exhaustive?: boolean;
-  
+
   // Genetic algorithm
   populationSize?: number;
   generations?: number;
   mutationRate?: number;
   crossoverRate?: number;
-  
+
   // Walk-forward
   trainingPeriod?: number; // days
   testingPeriod?: number; // days
   anchored?: boolean;
-  
+
   // Constraints
   minTrades?: number;
   maxDrawdown?: number;
@@ -463,7 +478,7 @@ export interface StrategyRule {
   conditions: StrategyCondition[];
   logic: 'AND' | 'OR';
   enabled: boolean;
-  
+
   // Risk management
   stopLoss?: {
     type: 'FIXED' | 'PERCENT' | 'ATR';
@@ -480,7 +495,7 @@ export interface VisualStrategy {
   name: string;
   description: string;
   rules: StrategyRule[];
-  
+
   // Convert to executable strategy
   toStrategy(): TradingStrategy;
 }

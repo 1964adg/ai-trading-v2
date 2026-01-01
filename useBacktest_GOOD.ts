@@ -49,9 +49,9 @@ export function useBacktest() {
         try {
           // Try backend API first
           setProgress(10);
-
+          
           const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-
+          
           // Map frontend config to backend request
           const backendRequest = {
             symbol: config.symbol,
@@ -95,107 +95,48 @@ export function useBacktest() {
 
           // Convert backend response to frontend BacktestResult format
           const result: BacktestResult = {
-            id: `backtest-${Date.now()}`,
-            strategyName: config.strategy.name,
-            symbol: config.symbol,
-            timeframe: config.timeframes[0],
-            totalBars: 0,
-            executionTime: 0,
-            barsPerSecond: 0,
-            status: 'COMPLETED',
-            statistics: {
-              longTrades: 0,
-              longWins: 0,
-              longLosses: 0,
-              longWinRate: 0,
-              longProfitFactor: 0,
-              shortTrades: 0,
-              shortWins: 0,
-              shortLosses: 0,
-              shortWinRate: 0,
-              shortProfitFactor: 0,
-              avgHoldingPeriod: 0,
-              minHoldingPeriod: 0,
-              maxHoldingPeriod: 0,
-              maxConsecutiveWins: 0,
-              maxConsecutiveLosses: 0,
-              currentStreak: 0,
-              tradesPerDay: 0,
-              tradesPerWeek: 0,
-              tradesPerMonth: 0,
-              stopLossHits: 0,
-              takeProfitHits: 0,
-              signalExits: 0,
-            },
             config,
             metrics: {
-              // Returns
               totalReturn: backendResult.total_pnl,
               totalReturnPercent: backendResult.total_pnl_percent,
               annualizedReturn: 0,
               annualizedReturnPercent: 0,
-
-              // Risk-adjusted returns
               sharpeRatio: backendResult.sharpe_ratio,
               sortinoRatio: 0,
               calmarRatio: 0,
               omega: 0,
-
-              // Drawdown metrics
               maxDrawdown: backendResult.max_drawdown,
               maxDrawdownPercent: backendResult.max_drawdown_percent,
               averageDrawdown: 0,
               averageDrawdownPercent: 0,
               maxDrawdownDuration: 0,
               recoveryFactor: 0,
-
-              // Win/Loss metrics
               winRate: backendResult.win_rate,
               lossRate: 100 - backendResult.win_rate,
               winCount: backendResult.winning_trades,
               lossCount: backendResult.losing_trades,
-              winningTrades: backendResult.winning_trades,
-              losingTrades: backendResult.losing_trades,
-
-              // Profit metrics
               profitFactor: backendResult.profit_factor,
-              payoffRatio: backendResult.avg_win / Math.abs(backendResult.avg_loss || 1),
+              payoffRatio: 0,
               averageWin: backendResult.avg_win,
               averageLoss: backendResult.avg_loss,
               largestWin: backendResult.largest_win,
               largestLoss: backendResult.largest_loss,
-
-              // Trade statistics
               totalTrades: backendResult.total_trades,
               avgTradeReturn: backendResult.total_pnl / (backendResult.total_trades || 1),
               avgTradeReturnPercent: backendResult.total_pnl_percent / (backendResult.total_trades || 1),
+              winningTrades: backendResult.winning_trades,
+              losingTrades: backendResult.losing_trades,
+              expectancy: backendResult.total_pnl / (backendResult.total_trades || 1),
               avgTradeDuration: 0,
               avgHoldingPeriod: 0,
               avgWinDuration: 0,
               avgLossDuration: 0,
-              avgBarsHeld: 0,
-
-              // Consistency metrics
-              consistencyScore: 0,
-              expectancy: backendResult.total_pnl / (backendResult.total_trades || 1),
-              profitPerBar: 0,
-              maxConsecutiveWins: 0,        // ✅ ADD
-              maxConsecutiveLosses: 0,      // ✅ ADD
-              consecutiveWins: 0,           // ✅ ADD
-              consecutiveLosses: 0,         // ✅ ADD
-
-              // Risk metrics
-              valueAtRisk95: 0,
-              valueAtRisk99: 0,
-              conditionalVaR95: 0,
-              conditionalVaR99: 0,
-
-              // Additional metrics
-              ulcerIndex: 0,
-              kRatio: 0,
-              stabilityRatio: 0,
-              gainToPainRatio: 0,
+              maxConsecutiveWins: 0,
+              maxConsecutiveLosses: 0,
+              consecutiveWins: 0,
+              consecutiveLosses: 0,
               exposureTime: 0,
+              ulcerIndex: 0,
               kellyPercentage: 0,
               rSquared: 0,
             },
@@ -215,16 +156,18 @@ export function useBacktest() {
               exitReason: 'SIGNAL' as const,
               bars: 0,
             })),
-            equity: backendResult.equity_curve.map((e: any) => ({
+            equityCurve: backendResult.equity_curve.map((e: any) => ({
               timestamp: new Date(e.time).getTime(),
               equity: e.equity,
               drawdown: e.drawdown * e.equity / 100,
               drawdownPercent: e.drawdown,
             })),
-            drawdowns: [],
-            startDate: new Date(backendResult.start_date),
-            endDate: new Date(backendResult.end_date),
-            duration: new Date(backendResult.end_date).getTime() - new Date(backendResult.start_date).getTime()
+            drawdownPeriods: [],
+            startTime: new Date(backendResult.start_date).getTime(),
+            endTime: new Date(backendResult.end_date).getTime(),
+            duration: new Date(backendResult.end_date).getTime() - new Date(backendResult.start_date).getTime(),
+            initialCapital: backendResult.initial_capital,
+            finalCapital: backendResult.final_capital,
           };
 
           setProgress(100);
@@ -259,7 +202,7 @@ export function useBacktest() {
 
       // Create engine and run backtest
       engineRef.current = new BacktestEngine();
-
+      
       // Simulate progress updates
       let currentProgress = 20;
       const progressInterval = setInterval(() => {
@@ -302,17 +245,17 @@ export function useBacktest() {
    */
   const compareBacktests = useCallback((backtestIds: string[]) => {
     const backtests = backtestHistory.filter(b => backtestIds.includes(b.id));
-
+    
     return {
       backtests,
       comparison: {
-        bestSharpe: backtests.reduce((best, b) =>
+        bestSharpe: backtests.reduce((best, b) => 
           b.metrics.sharpeRatio > best.metrics.sharpeRatio ? b : best
         ),
-        bestReturn: backtests.reduce((best, b) =>
+        bestReturn: backtests.reduce((best, b) => 
           b.metrics.totalReturnPercent > best.metrics.totalReturnPercent ? b : best
         ),
-        lowestDrawdown: backtests.reduce((best, b) =>
+        lowestDrawdown: backtests.reduce((best, b) => 
           b.metrics.maxDrawdownPercent < best.metrics.maxDrawdownPercent ? b : best
         ),
       },
@@ -337,7 +280,7 @@ export function useBacktest() {
       '',
       'Trades',
       'Entry Time,Exit Time,Direction,Entry Price,Exit Price,P&L,P&L %',
-      ...result.trades.map(t =>
+      ...result.trades.map(t => 
         `${new Date(t.entryTime).toISOString()},${new Date(t.exitTime).toISOString()},${t.direction},${t.entryPrice},${t.exitPrice},${t.pnl.toFixed(2)},${t.pnlPercent.toFixed(2)}`
       ),
     ].join('\n');
@@ -383,7 +326,7 @@ export function useBacktest() {
     progress,
     error,
     backtestHistory,
-
+    
     // Actions
     runBacktest,
     cancelBacktest,

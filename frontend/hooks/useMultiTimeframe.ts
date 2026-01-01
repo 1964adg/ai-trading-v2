@@ -227,6 +227,6 @@ export function useMultiTimeframe(
     error,
     hasConfluence,
     confluenceType,
-    refetch: refresh, // ✅ AGGIUNGI QUESTA RIGA
+    refresh,
   };
 }
