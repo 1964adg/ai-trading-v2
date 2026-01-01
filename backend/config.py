@@ -1,17 +1,17 @@
 """Configuration settings for the AI Trading Backend."""
 
 from pydantic_settings import BaseSettings
-from pydantic import field_validator
+from pydantic import field_validator, ConfigDict
 from typing import Optional, Union
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
-    
+
     # Server Configuration
     PORT: int = 8000
     CORS_ORIGINS: Union[str, list[str]] = ["http://localhost:3000"]
-    
+
     @field_validator('CORS_ORIGINS', mode='before')
     @classmethod
     def parse_cors_origins(cls, v: Union[str, list[str]]) -> list[str]:
@@ -19,22 +19,59 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(',') if origin.strip()]
         return v
-    
+
     # Trading Configuration
-    PAPER_TRADING: bool = True
-    
-    # Database Configuration (optional, for future use)
+    PAPER_TRADING:  bool = True
+
+    # Database Configuration
+    POSTGRES_DB: Optional[str] = None
+    POSTGRES_USER: Optional[str] = None
+    POSTGRES_PASSWORD: Optional[str] = None
     DATABASE_URL: Optional[str] = None
-    
-    # Redis Configuration (optional, for future use)
+
+    # Redis Configuration
+    REDIS_HOST: Optional[str] = None
+    REDIS_PORT: Optional[int] = None
     REDIS_URL: Optional[str] = None
-    
+
+    # Binance Configuration
+    BINANCE_BASE_URL: str = "https://api.binance.com"
+    BINANCE_API_KEY: Optional[str] = None
+    BINANCE_API_SECRET: Optional[str] = None
+
+    # Frontend Configuration
+    NODE_ENV: str = "development"
+    NEXT_PUBLIC_API_URL:  str = "http://localhost:8000"
+
+    # Security
+    JWT_SECRET_KEY:  Optional[str] = None
+    ENCRYPTION_KEY: Optional[str] = None
+
+    # Logging
+    LOG_LEVEL:  str = "INFO"
+
+    # Monitoring
+    ENABLE_METRICS: bool = False
+    PROMETHEUS_PORT: Optional[int] = None
+
+    # Feature Flags
+    ENABLE_MICROSERVICES: bool = False
+    ENABLE_AI_PREDICTIONS: bool = False
+    ENABLE_PATTERN_LEARNING: bool = True
+
+    # Docker
+    COMPOSE_PROJECT_NAME: str = "ai-trading-v2"
+    DOCKER_NETWORK: str = "trading-network"
+
     # Environment
     ENVIRONMENT: str = "development"
-    
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",  # ✅ CHIAVE:  Ignora variabili extra in .env
+        protected_namespaces=()  # ✅ FIX: Risolve warning "model_"
+    )
 
 
 settings = Settings()
