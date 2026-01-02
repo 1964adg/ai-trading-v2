@@ -33,7 +33,7 @@ jobs:
       - name: Run tests
         working-directory: ./backend
         env:
-          PYTHONPATH:  ${{ github.workspace }}/backend
+          PYTHONPATH: ${{ github.workspace }}/backend
         run: |
           python -m pytest -v --ignore=tests/test_api_backtest.py --ignore=tests/test_backtest.py
 
