@@ -17,3 +17,38 @@ import FDBKeyRange from 'fake-indexeddb/lib/FDBKeyRange';
 
 global.indexedDB = new FDBFactory();
 global.IDBKeyRange = FDBKeyRange;
+
+// ✅ ADD THIS:  Mock BroadcastChannel
+class BroadcastChannelMock {
+  name:  string;
+  onmessage: ((event: any) => void) | null = null;
+
+  constructor(name: string) {
+    this.name = name;
+  }
+
+  postMessage(data:  any) {
+    // Mock: trigger onmessage asynchronously
+    if (this.onmessage) {
+      setTimeout(() => {
+        this.onmessage?.({ data, type: 'message' });
+      }, 0);
+    }
+  }
+
+  close() {
+    // Mock: cleanup
+    this.onmessage = null;
+  }
+
+  addEventListener(_type: string, _listener: any) {
+    // Mock: do nothing
+  }
+
+  removeEventListener(_type: string, _listener: any) {
+    // Mock: do nothing
+  }
+}
+
+// @ts-ignore
+global.BroadcastChannel = BroadcastChannelMock;

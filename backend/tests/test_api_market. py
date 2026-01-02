@@ -1,0 +1,55 @@
+"""
+Tests for market API endpoints
+"""
+import pytest
+
+
+def test_health_check(client):
+    """Test health check endpoint"""
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "healthy"}
+
+
+def test_root_endpoint(client):
+    """Test root endpoint returns server info"""
+    response = client.get("/")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["status"] == "online"
+    assert data["version"] == "2.0.0"
+    assert data["mode"] == "paper_trading"
+    assert data["realtime"] is True
+    assert "timestamp" in data
+
+
+def test_klines_endpoint(client):
+    """Test klines endpoint"""
+    response = client.get("/api/klines/BTCUSDT/1h? limit=10")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert isinstance(data, list)
+
+    if len(data) > 0:
+        kline = data[0]
+        assert "timestamp" in kline
+        assert "open" in kline
+        assert "high" in kline
+        assert "low" in kline
+        assert "close" in kline
+        assert "volume" in kline
+
+
+def test_klines_invalid_symbol(client):
+    """Test klines with invalid symbol"""
+    response = client.get("/api/klines/INVALID/1h")
+    # Should return 400 or empty list depending on implementation
+    assert response.status_code in [200, 400]
+
+
+def test_klines_invalid_interval(client):
+    """Test klines with invalid interval"""
+    response = client.get("/api/klines/BTCUSDT/99z")
+    assert response.status_code in [200, 400]
