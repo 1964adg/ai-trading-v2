@@ -19,18 +19,26 @@ def init_database():
         return False
     
     try:
-        engine = create_engine(
-            settings.DATABASE_URL,
-            pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=10,
-            echo=False
-        )
+        # Configure engine parameters based on database type
+        engine_params = {
+            "pool_pre_ping": True,
+            "echo": False
+        }
+        
+        # Add pool parameters only for non-SQLite databases
+        if not settings.DATABASE_URL.startswith('sqlite'):
+            engine_params.update({
+                "pool_size": 5,
+                "max_overflow": 10
+            })
+        
+        engine = create_engine(settings.DATABASE_URL, **engine_params)
         SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
         
         # Test connection
+        from sqlalchemy import text
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
         
         logger.info("Database connection initialized")
         return True
