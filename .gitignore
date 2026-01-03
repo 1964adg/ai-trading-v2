@@ -17,6 +17,7 @@ eggs/
 lib/
 # Don't ignore frontend/lib (TypeScript source files)
 !frontend/lib/
+!backend/lib/
 lib64/
 parts/
 sdist/
