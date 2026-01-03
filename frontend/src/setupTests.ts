@@ -1,9 +1,19 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
+import { TextEncoder, TextDecoder } from 'util';
+
+// ============================================================================
+// POLYFILLS FOR NODE.JS TEST ENVIRONMENT
+// ============================================================================
+
+// Mock TextEncoder/TextDecoder (needed for encryption tests)
+global.TextEncoder = TextEncoder as any;
+global.TextDecoder = TextDecoder as any;
 
 // Mock BroadcastChannel
 class BroadcastChannelMock {
-  name:  string;
+  name: string;
   onmessage: ((event: MessageEvent) => void) | null = null;
   onmessageerror: ((event: MessageEvent) => void) | null = null;
 
@@ -35,21 +45,22 @@ class BroadcastChannelMock {
 // @ts-expect-error - BroadcastChannel is not available in jsdom
 global.BroadcastChannel = BroadcastChannelMock;
 
-// Mock Crypto API
+// ============================================================================
+// CRYPTO API POLYFILL (for encryption tests)
+// ============================================================================
+
+const { webcrypto } = require('crypto');
+
 Object.defineProperty(global, 'crypto', {
   value: {
+    // Basic crypto methods
     getRandomValues: (arr: Uint8Array) => {
-      for (let i = 0; i < arr.length; i++) {
-        arr[i] = Math.floor(Math.random() * 256);
-      }
-      return arr;
+      return webcrypto.getRandomValues(arr);
     },
     randomUUID: () => {
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-        const r = (Math.random() * 16) | 0;
-        const v = c === 'x' ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      });
+      return webcrypto.randomUUID();
     },
+    // Web Crypto API (subtle)
+    subtle: webcrypto.subtle,
   },
 });
