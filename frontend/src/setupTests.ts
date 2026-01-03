@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-require-imports */
 import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
 import { TextEncoder, TextDecoder } from 'util';
