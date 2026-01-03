@@ -1,54 +1,55 @@
 import '@testing-library/jest-dom';
-import { Crypto } from '@peculiar/webcrypto';
-import { TextEncoder, TextDecoder } from 'util';
+import 'fake-indexeddb/auto';
 
-// ✅ CRYPTO API REALE invece di mock
-Object.defineProperty(global, 'crypto', {
-  value: new Crypto()
-});
-
-// ✅ TextEncoder/TextDecoder polyfill
-global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder;
-
-// Mock IndexedDB
-import FDBFactory from 'fake-indexeddb/lib/FDBFactory';
-import FDBKeyRange from 'fake-indexeddb/lib/FDBKeyRange';
-
-global.indexedDB = new FDBFactory();
-global.IDBKeyRange = FDBKeyRange;
-
-// ✅ ADD THIS:  Mock BroadcastChannel
+// Mock BroadcastChannel
 class BroadcastChannelMock {
   name:  string;
-  onmessage: ((event: any) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onmessageerror: ((event: MessageEvent) => void) | null = null;
 
   constructor(name: string) {
     this.name = name;
   }
 
-  postMessage(data:  any) {
-    // Mock: trigger onmessage asynchronously
-    if (this.onmessage) {
-      setTimeout(() => {
-        this.onmessage?.({ data, type: 'message' });
-      }, 0);
-    }
+  postMessage(_message: unknown): void {
+    // Mock implementation
   }
 
-  close() {
-    // Mock: cleanup
-    this.onmessage = null;
+  close(): void {
+    // Mock implementation
   }
 
-  addEventListener(_type: string, _listener: any) {
-    // Mock: do nothing
+  addEventListener(_type: string, _listener: EventListener): void {
+    // Mock implementation
   }
 
-  removeEventListener(_type: string, _listener: any) {
-    // Mock: do nothing
+  removeEventListener(_type: string, _listener: EventListener): void {
+    // Mock implementation
+  }
+
+  dispatchEvent(_event: Event): boolean {
+    return true;
   }
 }
 
-// @ts-ignore
+// @ts-expect-error - BroadcastChannel is not available in jsdom
 global.BroadcastChannel = BroadcastChannelMock;
+
+// Mock Crypto API
+Object.defineProperty(global, 'crypto', {
+  value: {
+    getRandomValues: (arr: Uint8Array) => {
+      for (let i = 0; i < arr.length; i++) {
+        arr[i] = Math.floor(Math.random() * 256);
+      }
+      return arr;
+    },
+    randomUUID: () => {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    },
+  },
+});
