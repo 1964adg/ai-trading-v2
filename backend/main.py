@@ -24,6 +24,17 @@ async def lifespan(app: FastAPI):
     is_reloading = any('watchfiles' in arg.lower() for arg in sys.argv) or \
                    os.environ.get('RUN_MAIN') == 'true'
 
+    # Initialize database
+    from lib.database import init_database, create_tables
+    from services.paper_trading_service import paper_trading_service
+    
+    if init_database():
+        create_tables()
+        paper_trading_service.set_database(True)
+        print("[Startup] Database initialized and connected")
+    else:
+        print("[Startup] Database not available - using in-memory storage")
+
     banner = """
 ============================================================
 AI TRADING BACKEND v2.0.0 - REAL-TIME WEBSOCKET EDITION
@@ -100,6 +111,7 @@ EXAMPLES:
 
     # Initialize cross-service connections
     from services.order_monitoring_service import order_monitoring_service
+    from services.trailing_stop_service import trailing_stop_service
     order_monitoring_service.set_websocket_manager(websocket_manager)
     realtime_service.set_order_monitoring_service(order_monitoring_service)
 
@@ -107,6 +119,11 @@ EXAMPLES:
     print("[Startup] Initializing real-time data service...")
     await realtime_service.start()
     print("[Startup] Real-time service ready")
+    
+    # Start trailing stop service if database is enabled
+    if paper_trading_service.use_database:
+        await trailing_stop_service.start()
+        print("[Startup] Trailing stop service started")
 
     yield
 
@@ -116,6 +133,12 @@ EXAMPLES:
     print("[Shutdown] Stopping real-time service...")
     await realtime_service.stop()
     print("[Shutdown] Real-time service stopped")
+    
+    # Stop trailing stop service
+    from services.trailing_stop_service import trailing_stop_service
+    await trailing_stop_service.stop()
+    print("[Shutdown] Trailing stop service stopped")
+    
     print("="*60)
 
 app = FastAPI(
