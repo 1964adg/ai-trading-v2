@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     model_config = ConfigDict(
-        env_file=".env",
+        env_file="../.env",
         env_file_encoding="utf-8",
         extra="ignore",  # ✅ CHIAVE:  Ignora variabili extra in .env
         protected_namespaces=()  # ✅ FIX: Risolve warning "model_"
