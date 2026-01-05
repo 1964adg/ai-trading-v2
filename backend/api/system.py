@@ -12,14 +12,17 @@ async def get_system_info():
     """Get system configuration and status"""
 
     # Database status - Multi-database setup
-    databases = check_database_health()
+    databases = check_database_health() if engines else {}
     
     # Overall status
-    all_connected = all(status == "connected" for status in databases.values())
-    database_status = "connected" if all_connected else ("partial" if databases else "disconnected")
+    if databases:
+        all_connected = all(status == "connected" for status in databases.values())
+        database_status = "connected" if all_connected else "partial"
+    else:
+        database_status = "disconnected"
     
     # Determine database type
-    db_type = "SQLite Multi-Database" if all_connected else "Mixed/Error"
+    db_type = "SQLite Multi-Database" if databases and all(status == "connected" for status in databases.values()) else ("Partial" if databases else "Not Initialized")
     
     return {
         "server": {

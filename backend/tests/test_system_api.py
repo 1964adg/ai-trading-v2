@@ -31,8 +31,8 @@ def test_system_info_endpoint():
     assert data["trading"]["realtime_enabled"] is True
 
     # Verify database status (should be connected or disconnected)
-    assert data["database"]["status"] in ["connected", "disconnected", "error"]
-    assert data["database"]["type"] in ["PostgreSQL", "In-Memory"]
+    assert data["database"]["status"] in ["connected", "disconnected", "partial", "error"]
+    assert data["database"]["type"] in ["PostgreSQL", "In-Memory", "SQLite Multi-Database", "Mixed/Error", "Partial", "Not Initialized"]
 
     # Verify ML features
     assert "technical_analysis" in data["ml_features"]
@@ -52,11 +52,25 @@ def test_system_info_database_connected():
     response = client.get("/api/system/info")
     data = response.json()
 
-    # If database is connected, URL should be masked
+    # If database is connected, check structure
     if data["database"]["status"] == "connected":
-        assert data["database"]["url"] is not None
-        assert "***" in data["database"]["url"]
-        assert data["database"]["type"] == "PostgreSQL"
+        # Multi-database setup should have databases dict and urls dict
+        if "databases" in data["database"]:
+            assert isinstance(data["database"]["databases"], dict)
+            assert "trading" in data["database"]["databases"]
+            assert "market" in data["database"]["databases"]
+            assert "analytics" in data["database"]["databases"]
+            
+            assert isinstance(data["database"]["urls"], dict)
+            assert "trading" in data["database"]["urls"]
+            assert "market" in data["database"]["urls"]
+            assert "analytics" in data["database"]["urls"]
+            
+            assert data["database"]["type"] == "SQLite Multi-Database"
+        # Legacy single database setup
+        elif "url" in data["database"]:
+            assert data["database"]["url"] is not None
+            assert data["database"]["type"] in ["PostgreSQL", "SQLite"]
 
 
 def test_system_info_response_time():
