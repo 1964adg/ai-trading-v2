@@ -253,3 +253,9 @@ docs_backup_*/
 infrastructure/ml/model_storage/*.pkl
 infrastructure/ml/training_data/*.parquet
 backend/infrastructure/
+
+# SQLite Database Files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

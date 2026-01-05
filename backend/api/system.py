@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from datetime import datetime
 from config import settings
-from lib.database import engine
+from lib.database import engines, check_database_health
 from app.scout.ml_predictor import TORCH_AVAILABLE
 
 router = APIRouter()
@@ -11,17 +11,24 @@ router = APIRouter()
 async def get_system_info():
     """Get system configuration and status"""
 
-    # Database status
-    database_status = "disconnected"
-    database_url = None
-    if engine:
-        try:
-            with engine.connect():
-                database_status = "connected"
-                database_url = str(settings.DATABASE_URL).split("@")[0] + "@***"
-        except:
-            database_status = "error"
-
+    # Database status - Multi-database setup
+    databases = check_database_health() if engines else {}
+    
+    # Overall status
+    if databases:
+        all_connected = all(status == "connected" for status in databases.values())
+        database_status = "connected" if all_connected else "partial"
+    else:
+        database_status = "disconnected"
+    
+    # Determine database type
+    if databases and all(status == "connected" for status in databases.values()):
+        db_type = "SQLite Multi-Database"
+    elif databases:
+        db_type = "Partial"
+    else:
+        db_type = "Not Initialized"
+    
     return {
         "server": {
             "version": "2.0.0",
@@ -33,8 +40,13 @@ async def get_system_info():
         "trading": {"mode": "paper", "live_trading": False, "realtime_enabled": True},
         "database": {
             "status": database_status,
-            "url": database_url,
-            "type": "PostgreSQL" if database_status == "connected" else "In-Memory",
+            "type": db_type,
+            "databases": databases,
+            "urls": {
+                "trading": settings.TRADING_DATABASE_URL.split("///")[1] if "///" in settings.TRADING_DATABASE_URL else settings.TRADING_DATABASE_URL,
+                "market": settings.MARKET_DATABASE_URL.split("///")[1] if "///" in settings.MARKET_DATABASE_URL else settings.MARKET_DATABASE_URL,
+                "analytics": settings.ANALYTICS_DATABASE_URL.split("///")[1] if "///" in settings.ANALYTICS_DATABASE_URL else settings.ANALYTICS_DATABASE_URL,
+            },
         },
         "ml_features": {
             "technical_analysis": True,

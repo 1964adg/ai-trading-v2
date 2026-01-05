@@ -23,7 +23,15 @@ class Settings(BaseSettings):
     # Trading Configuration
     PAPER_TRADING:  bool = True
 
-    # Database Configuration
+    # Database Configuration - Multi-Database SQLite Setup
+    # Trading database - Active trades, positions, orders
+    TRADING_DATABASE_URL: str = "sqlite:///./data/trading.db"
+    # Market data database - Historical candlestick data
+    MARKET_DATABASE_URL: str = "sqlite:///./data/market_data.db"
+    # Analytics database - Pattern detection, ML results
+    ANALYTICS_DATABASE_URL: str = "sqlite:///./data/analytics.db"
+    
+    # Legacy PostgreSQL support (optional, for migration)
     POSTGRES_DB: Optional[str] = None
     POSTGRES_USER: Optional[str] = None
     POSTGRES_PASSWORD: Optional[str] = None

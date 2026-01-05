@@ -78,10 +78,9 @@ def test_paper_trading_db_mode():
 
 
 def test_database_fallback():
-    """Test that app works without DATABASE_URL."""
-    if 'DATABASE_URL' in os.environ:
-        del os.environ['DATABASE_URL']
-    
+    """Test that app works with default SQLite databases."""
+    # With new multi-database setup, databases should always initialize
+    # since they use SQLite with default paths
     from lib.database import init_database
     result = init_database()
-    assert result is False
+    assert result is True  # SQLite databases should always initialize
