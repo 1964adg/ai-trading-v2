@@ -183,11 +183,15 @@ class RealTimeDataService:
                             interval="1m",
                             limit=1
                         )
-                        if klines:
-                            current_price = klines[0]["close"]
-                            # Update position price in service
-                            paper_trading_service.update_position_price(position["id"], current_price)
-                            updated_positions.append(position["id"])
+                        # Fix: Use proper DataFrame validation
+                        if klines is not None and not klines.empty:
+                            # Convert to dict for safe access
+                            klines_dict = klines.to_dict('records')
+                            if klines_dict:
+                                current_price = float(klines_dict[0]["close"])
+                                # Update position price in service
+                                paper_trading_service.update_position_price(position["id"], current_price)
+                                updated_positions.append(position["id"])
                     except Exception as e:
                         print(f"[Real-Time Service] Error updating position {position['id']}: {e}")
                 

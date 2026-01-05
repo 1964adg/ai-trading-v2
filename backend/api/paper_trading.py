@@ -69,8 +69,14 @@ async def create_paper_order(order: OrderRequest, db: Session = Depends(get_db_s
                     interval="1m",
                     limit=1
                 )
-                if klines:
-                    execution_price = klines[0]["close"]
+                # Fix: Use proper DataFrame validation
+                if klines is not None and not klines.empty:
+                    # Convert to dict for safe access
+                    klines_dict = klines.to_dict('records')
+                    if klines_dict:
+                        execution_price = float(klines_dict[0]["close"])
+                    else:
+                        raise HTTPException(status_code=503, detail="Unable to fetch market price")
                 else:
                     raise HTTPException(status_code=503, detail="Unable to fetch market price")
             except Exception as e:
@@ -117,10 +123,14 @@ async def get_paper_positions(db: Session = Depends(get_db_session)):
                     interval="1m",
                     limit=1
                 )
-                if klines:
-                    current_price = klines[0]["close"]
-                    # Update in service (which also calculates P&L)
-                    paper_trading_service.update_position_price(position["id"], current_price, db=db)
+                # Fix: Use proper DataFrame validation
+                if klines is not None and not klines.empty:
+                    # Convert to dict for safe access
+                    klines_dict = klines.to_dict('records')
+                    if klines_dict:
+                        current_price = float(klines_dict[0]["close"])
+                        # Update in service (which also calculates P&L)
+                        paper_trading_service.update_position_price(position["id"], current_price, db=db)
             except Exception as e:
                 logging.warning(f"Failed to update price for {position['symbol']}: {e}")
                 # Keep the position with last known values
@@ -177,10 +187,16 @@ async def close_paper_position(position_id: str, db: Session = Depends(get_db_se
             limit=1
         )
         
-        if not klines:
+        # Fix: Use proper DataFrame validation
+        if klines is None or klines.empty:
             raise HTTPException(status_code=503, detail="Unable to fetch market price for closing")
         
-        closing_price = klines[0]["close"]
+        # Convert to dict for safe access
+        klines_dict = klines.to_dict('records')
+        if not klines_dict:
+            raise HTTPException(status_code=503, detail="Unable to fetch market price for closing")
+        
+        closing_price = float(klines_dict[0]["close"])
         
         # Close the position
         result = paper_trading_service.close_position(position_id, closing_price, db=db)
