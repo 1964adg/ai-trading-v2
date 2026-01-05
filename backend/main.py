@@ -29,15 +29,19 @@ async def lifespan(app: FastAPI):
     )
 
     # Initialize database
-    from lib.database import init_database, create_tables
+    from lib.database import init_database, create_tables, check_database_health
     from services.paper_trading_service import paper_trading_service
 
-    if init_database():
+    db_initialized = init_database()
+    if db_initialized:
         create_tables()
         paper_trading_service.set_database(True)
-        print("[Startup] Database initialized and connected")
+        db_health = check_database_health()
+        print("[Startup] ✓ Multi-Database initialized successfully:")
+        for db_name, status in db_health.items():
+            print(f"  • {db_name.capitalize()} DB: {status.upper()}")
     else:
-        print("[Startup] Database not available - using in-memory storage")
+        print("[Startup] ⚠ Database initialization failed - using in-memory storage")
 
     banner = """
 ============================================================
