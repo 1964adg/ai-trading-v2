@@ -351,9 +351,10 @@ class PaperTradingService:
         if not position:
             return None
         
+        # Update current price before calculating P&L
+        position.current_price = closing_price
         realized_pnl = self._calculate_pnl(position)
         position.status = PositionStatus.CLOSED
-        position.current_price = closing_price
         position.realized_pnl = realized_pnl
         position.closed_at = datetime.now()
         

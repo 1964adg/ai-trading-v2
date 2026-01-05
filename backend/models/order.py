@@ -11,7 +11,7 @@ class OrderType(str, enum.Enum):
     STOP_LIMIT = "STOP_LIMIT"
 
 
-        class OrderStatus(str, enum.Enum):
+class OrderStatus(str, enum.Enum):
     PENDING = "PENDING"
     FILLED = "FILLED"
     CANCELLED = "CANCELLED"
