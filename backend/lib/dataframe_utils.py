@@ -65,15 +65,15 @@ def get_latest_price(df, price_column: str = 'close') -> Optional[float]:
         return None
 
 
-def dataframe_to_dict_safe(df) -> Optional[dict]:
+def dataframe_to_dict_safe(df) -> Optional[list]:
     """
-    Safely convert DataFrame to dict, handling edge cases.
+    Safely convert DataFrame to list of dicts (records format), handling edge cases.
     
     Args:
         df: DataFrame to convert
         
     Returns:
-        Dict with 'records' format, or None if invalid
+        List of dicts with 'records' format, or None if invalid
     """
     if not is_dataframe_valid(df):
         return None
