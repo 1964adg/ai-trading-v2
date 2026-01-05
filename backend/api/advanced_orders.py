@@ -81,9 +81,12 @@ async def create_oco_order(order: OCOOrderRequest):
                 interval="1m",
                 limit=1
             )
-            if klines:
-                current_price = klines[0]["close"]
-                order_monitoring_service.update_market_price(order.symbol.upper(), current_price)
+            # Fix: Use proper DataFrame validation
+            if klines is not None and not klines.empty:
+                klines_dict = klines.to_dict('records')
+                if klines_dict:
+                    current_price = float(klines_dict[0]["close"])
+                    order_monitoring_service.update_market_price(order.symbol.upper(), current_price)
         except Exception as e:
             pass  # Non-critical, monitoring will catch up
         
@@ -122,9 +125,14 @@ async def create_bracket_order(order: BracketOrderRequest):
                     interval="1m",
                     limit=1
                 )
-                if klines:
-                    current_price = klines[0]["close"]
-                    order.entry_order["price"] = current_price
+                # Fix: Use proper DataFrame validation
+                if klines is not None and not klines.empty:
+                    klines_dict = klines.to_dict('records')
+                    if klines_dict:
+                        current_price = float(klines_dict[0]["close"])
+                        order.entry_order["price"] = current_price
+                else:
+                    raise HTTPException(status_code=503, detail="Unable to fetch market price")
             except Exception as e:
                 raise HTTPException(status_code=503, detail=f"Unable to fetch market price: {str(e)}")
         
@@ -181,9 +189,13 @@ async def create_trailing_stop_order(order: TrailingStopOrderRequest):
                 interval="1m",
                 limit=1
             )
-            if not klines:
+            # Fix: Use proper DataFrame validation
+            if klines is None or klines.empty:
                 raise HTTPException(status_code=503, detail="Unable to fetch market price")
-            current_price = klines[0]["close"]
+            klines_dict = klines.to_dict('records')
+            if not klines_dict:
+                raise HTTPException(status_code=503, detail="Unable to fetch market price")
+            current_price = float(klines_dict[0]["close"])
         except Exception as e:
             raise HTTPException(status_code=503, detail=f"Unable to fetch market price: {str(e)}")
         
@@ -253,9 +265,12 @@ async def create_iceberg_order(order: IcebergOrderRequest):
                 interval="1m",
                 limit=1
             )
-            if klines:
-                current_price = klines[0]["close"]
-                order_monitoring_service.update_market_price(order.symbol.upper(), current_price)
+            # Fix: Use proper DataFrame validation
+            if klines is not None and not klines.empty:
+                klines_dict = klines.to_dict('records')
+                if klines_dict:
+                    current_price = float(klines_dict[0]["close"])
+                    order_monitoring_service.update_market_price(order.symbol.upper(), current_price)
         except Exception as e:
             pass  # Non-critical
         
@@ -344,9 +359,12 @@ async def update_order_prices():
                     interval="1m",
                     limit=1
                 )
-                if klines:
-                    current_price = klines[0]["close"]
-                    order_monitoring_service.update_market_price(symbol, current_price)
+                # Fix: Use proper DataFrame validation
+                if klines is not None and not klines.empty:
+                    klines_dict = klines.to_dict('records')
+                    if klines_dict:
+                        current_price = float(klines_dict[0]["close"])
+                        order_monitoring_service.update_market_price(symbol, current_price)
             except Exception as e:
                 # Log error but continue with other symbols
                 pass
