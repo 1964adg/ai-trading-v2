@@ -3,6 +3,7 @@
 import UnifiedPriceHeader from '@/components/trading/UnifiedPriceHeader';
 import EmaConfigModal from '@/components/modals/EmaConfigModal';
 import SymbolSearchModal from '@/components/modals/SymbolSearchModal';
+import SystemInfoModal from '@/components/modals/SystemInfoModal';
 import ExecuteOrderConfirmation from '@/components/modals/ExecuteOrderConfirmation';
 import IndicatorSummary from '@/components/trading/IndicatorSummary';
 import QuickInfoPanel from '@/components/trading/QuickInfoPanel';
@@ -52,30 +53,25 @@ export default function Dashboard() {
   const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<EnhancedOrder | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSystemInfo, setShowSystemInfo] = useState(false);
 
-  // Debounce symbol and timeframe changes to optimize performance
   const debouncedSymbol = useDebouncedValue(symbol, 300);
   const debouncedTimeframe = useDebouncedValue(timeframe, 300);
 
-  // Use refs to prevent callback recreation
-  const viewportRangeRef = useRef<{ from:  number; to: number } | null>(null);
+  const viewportRangeRef = useRef<{ from: number; to: number } | null>(null);
   const previousTimeframeRef = useRef<Timeframe>(timeframe);
   const timeframeRef = useRef<Timeframe>(timeframe);
   const symbolRef = useRef<string>(symbol);
 
-  // Keep refs in sync
   useEffect(() => {
     timeframeRef.current = timeframe;
     symbolRef.current = symbol;
   }, [timeframe, symbol]);
 
-  // Real Trading Integration
-  useRealTrading({ enabled: true, refreshInterval:  5000 });
+  useRealTrading({ enabled: true, refreshInterval: 5000 });
 
-  // Use Zustand store for trading state
   const { addPosition, emaPeriods, emaEnabled, toggleEma, setEmaPeriods, setEmaEnabled } = useTradingStore();
 
-  // Pattern Recognition
   const { detectedPatterns } = usePatternRecognition({
     enableRealTime: true,
     initialSettings: {
@@ -83,21 +79,17 @@ export default function Dashboard() {
     },
   });
 
-  // Filter patterns by confidence threshold
   const recentPatterns = detectedPatterns
     .filter((p) => p.confidence >= patternConfidenceThreshold)
     .slice(0, 5);
 
-  // Calculate EMA trends for indicator summary
   const emaStatus = [9, 21, 50, 200].map((period) => ({
     period,
     trend: calculateEMATrend(chartData, period),
   }));
 
-  // Market store for price updates and sync
   const { setSymbol: setGlobalSymbol, updatePrice, setConnectionStatus } = useMarketStore();
 
-  // Listen for symbol changes from other windows
   useEffect(() => {
     const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (data:  unknown) => {
       const newSymbol = data as string;
@@ -110,26 +102,23 @@ export default function Dashboard() {
     return unsubscribe;
   }, [symbol]);
 
-  // Fetch 24h ticker data
   const { priceChangePercent24h } = useSymbolTicker(debouncedSymbol, 10000);
 
-  // Real-time orderbook
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { isConnected:  isOrderbookConnected } = useOrderbook({
-    symbol: debouncedSymbol,
+    symbol:  debouncedSymbol,
     enabled: true,
     maxLevels: 20,
   });
 
-  // WebSocket handlers
-  const handleMarketUpdate = useCallback((data: { symbol:  string; price: number }) => {
+  const handleMarketUpdate = useCallback((data: { symbol: string; price: number }) => {
     if (data.symbol === symbolRef.current) {
       updatePrice(data.price);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handlePositionUpdate = useCallback((data:  { positions?: unknown[] }) => {
+  const handlePositionUpdate = useCallback((data:  { positions?:  unknown[] }) => {
     console.log('[Dashboard] Position update:', data.positions?.length);
   }, []);
 
@@ -150,10 +139,9 @@ export default function Dashboard() {
     onMarketUpdate: handleMarketUpdate,
     onPositionUpdate: handlePositionUpdate,
     onPortfolioUpdate: handlePortfolioUpdate,
-    onOrderUpdate: handleOrderUpdate,
+    onOrderUpdate:  handleOrderUpdate,
   });
 
-  // Subscribe to ticker
   useEffect(() => {
     if (isRealtimeConnected) {
       subscribeTicker(debouncedSymbol);
@@ -161,7 +149,6 @@ export default function Dashboard() {
     }
   }, [debouncedSymbol, isRealtimeConnected, subscribeTicker, unsubscribeTicker]);
 
-  // WebSocket message handler
   const handleWebSocketMessage = useCallback((data: unknown) => {
     if (
       data &&
@@ -209,28 +196,25 @@ export default function Dashboard() {
   });
 
   const { data, error, isLoading, mutate } = useSWR(
-  `/api/klines?symbol=${debouncedSymbol}&timeframe=${debouncedTimeframe}&limit=500`,
-  () => fetchKlines(debouncedSymbol, debouncedTimeframe, 500),
-  {
-    refreshInterval: 10000,
-    revalidateOnFocus: false,
-    dedupingInterval: 500,           // ← RIDOTTO da 2000 a 500ms
-    keepPreviousData: true,
-    revalidateOnMount: true,         // ← NUOVO
-    revalidateIfStale: true,         // ← NUOVO
-    focusThrottleInterval: 2000,     // ← NUOVO
-  }
-);
+    `/api/klines?symbol=${debouncedSymbol}&timeframe=${debouncedTimeframe}&limit=500`,
+    () => fetchKlines(debouncedSymbol, debouncedTimeframe, 500),
+    {
+      refreshInterval: 10000,
+      revalidateOnFocus: false,
+      dedupingInterval: 500,
+      keepPreviousData: true,
+      revalidateOnMount: true,
+      revalidateIfStale: true,
+      focusThrottleInterval: 2000,
+    }
+  );
 
-// ✅ AGGIUNGI SUBITO DOPO (prima degli useEffect esistenti):
-// Force revalidate when symbol/timeframe changes
-useEffect(() => {
-  if (debouncedSymbol && debouncedTimeframe) {
-    mutate();  // Trigger immediate refetch
-  }
-}, [debouncedSymbol, debouncedTimeframe, mutate]);
+  useEffect(() => {
+    if (debouncedSymbol && debouncedTimeframe) {
+      mutate();
+    }
+  }, [debouncedSymbol, debouncedTimeframe, mutate]);
 
-  // Initialize chartData from API
   useEffect(() => {
     if (data?.success && data.data.length > 0) {
       setChartData((prev) => {
@@ -249,50 +233,44 @@ useEffect(() => {
     }
   }, [data]);
 
-  // Handle timeframe change
   const handleTimeframeChange = useCallback((newTimeframe: Timeframe) => {
     previousTimeframeRef.current = timeframeRef.current;
     setTimeframe(newTimeframe);
     setChartData([]);
   }, []);
 
-  // Handle symbol change
-  const handleSymbolChange = useCallback((newSymbol:  string) => {
+  const handleSymbolChange = useCallback((newSymbol: string) => {
     setSymbol(newSymbol);
     setGlobalSymbol(newSymbol);
     setChartData([]);
     viewportRangeRef.current = null;
   }, [setGlobalSymbol]);
 
- const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close :  0;
+  const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
 
-// Update market store
-useEffect(() => {
-  if (currentPrice > 0) {
-    updatePrice(currentPrice);
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [currentPrice]);
+  useEffect(() => {
+    if (currentPrice > 0) {
+      updatePrice(currentPrice);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPrice]);
 
-// Prefetch common timeframes for faster switching
-useEffect(() => {
-  if (symbol && chartData.length > 0 && getFeatureFlag('ENABLE_PREFETCH')) {
-    prefetchTimeframes(symbol, ['5m', '15m']).catch(() => {
-      // Ignore errors
-    });
-  }
-}, [symbol, chartData.length]);
+  useEffect(() => {
+    if (symbol && chartData.length > 0 && getFeatureFlag('ENABLE_PREFETCH')) {
+      prefetchTimeframes(symbol, ['5m', '15m']).catch(() => {
+        // Ignore errors
+      });
+    }
+  }, [symbol, chartData.length]);
 
-// Update connection status
-useEffect(() => {
-  const status = isRealtimeConnected ? 'FULL' : isConnected ? 'PARTIAL' : 'OFFLINE';
-  setConnectionStatus(status);
-}, [isConnected, isRealtimeConnected, setConnectionStatus]);
+  useEffect(() => {
+    const status = isRealtimeConnected ? 'FULL' : isConnected ? 'PARTIAL' : 'OFFLINE';
+    setConnectionStatus(status);
+  }, [isConnected, isRealtimeConnected, setConnectionStatus]);
 
-// Handlers
-const handleOrderbookPriceClick = useCallback((price: number) => {
-  console.log('[Orderbook] Price clicked:', price);
-}, []);
+  const handleOrderbookPriceClick = useCallback((price: number) => {
+    console.log('[Orderbook] Price clicked:', price);
+  }, []);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleQuickTrade = useCallback(async (order: {
@@ -306,7 +284,7 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
   }, []);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleBuy = useCallback((quantity: number, price: number) => {
+  const handleBuy = useCallback((quantity: number, price:  number) => {
     const position:  Position = {
       id: `pos_${Date.now()}`,
       symbol: symbolRef.current,
@@ -337,8 +315,7 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
     addPosition(position);
   }, [addPosition]);
 
-  // Handle order execution with confirmation
-  const handleExecuteOrder = useCallback((order: EnhancedOrder) => {
+  const handleExecuteOrder = useCallback((order:  EnhancedOrder) => {
     setSelectedOrder(order);
     setShowOrderConfirmation(true);
   }, []);
@@ -346,7 +323,6 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
   const handleConfirmExecution = useCallback(() => {
     if (selectedOrder) {
       console.log('[Order] Executing order:', selectedOrder);
-      // TODO: Call actual order execution API
       alert(`✅ Order ${selectedOrder.id} executed!\nType: ${selectedOrder.type}\nSymbol: ${selectedOrder.symbol}`);
     }
     setShowOrderConfirmation(false);
@@ -378,8 +354,6 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
 
   return (
     <div className="min-h-screen bg-black p-4">
-
-      {/* Unified Header with Pattern Confidence Selector */}
       <div className="max-w-[1920px] mx-auto mb-4">
         <div className="flex items-center justify-between mb-2">
           <UnifiedPriceHeader
@@ -397,7 +371,6 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
           />
 
           <div className="flex items-center gap-2">
-            {/* Pattern Confidence Threshold Selector */}
             <div>
               <select
                 value={patternConfidenceThreshold}
@@ -412,7 +385,6 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
               </select>
             </div>
 
-            {/* Settings Button */}
             <button
               onClick={() => setShowSettings(true)}
               className="px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded text-sm text-white border border-gray-700 transition-colors"
@@ -424,10 +396,7 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
         </div>
       </div>
 
-      {/* 3-Column Grid Layout */}
       <div className="grid grid-cols-12 gap-4 max-w-[1920px] mx-auto">
-
-        {/* LEFT COLUMN - Watch List + Multi-Timeframe (25% = 3 cols) */}
         <div className="col-span-12 lg:col-span-3 space-y-4">
           <WatchListPanel
             currentSymbol={symbol}
@@ -435,12 +404,11 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
             onAddSymbol={() => setShowSymbolSelector(true)}
           />
 
-          {/* Multi-Timeframe Panel (controlled by feature flag) */}
           {getFeatureFlag('ENABLE_MULTI_TIMEFRAME') && (
             <MultiTimeframePanel
               symbol={symbol}
               timeframes={MULTI_TIMEFRAME_INTERVALS}
-              onTimeframeClick={handleTimeframeChange} // ✅ AGGIUNGI
+              onTimeframeClick={handleTimeframeChange}
             />
           )}
           <IndicatorPanel
@@ -453,7 +421,6 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
           />
         </div>
 
-        {/* CENTER COLUMN - Chart + Indicators (50% = 6 cols) */}
         <div className="col-span-12 lg:col-span-6 space-y-4">
           <TradingChart
             data={chartData}
@@ -470,7 +437,6 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
           />
         </div>
 
-        {/* RIGHT COLUMN - Risk + Trade + Orderbook (25% = 3 cols) */}
         <div className="col-span-12 lg:col-span-3 space-y-4">
           <PositionRiskGauge accountBalance={10000} maxRiskPercent={50} />
 
@@ -491,7 +457,6 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
         </div>
       </div>
 
-      {/* Modals */}
       <EmaConfigModal
         isOpen={showEmaConfig}
         onClose={() => setShowEmaConfig(false)}
@@ -517,7 +482,6 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
         onCancel={() => setShowOrderConfirmation(false)}
       />
 
-      {/* Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
@@ -530,10 +494,27 @@ const handleOrderbookPriceClick = useCallback((price: number) => {
                 ✕
               </button>
             </div>
+
+            <button
+              onClick={() => {
+                setShowSettings(false);
+                setShowSystemInfo(true);
+              }}
+              className="w-full mb-4 px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <span>🖥️</span>
+              <span>System Information</span>
+            </button>
+
             <FeatureFlagsPanel />
           </div>
         </div>
       )}
+
+      <SystemInfoModal
+        isOpen={showSystemInfo}
+        onClose={() => setShowSystemInfo(false)}
+      />
     </div>
   );
 }

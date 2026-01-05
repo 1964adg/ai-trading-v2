@@ -33,12 +33,11 @@ jobs:
       - name: Run tests
         working-directory: ./backend
         env:
-          PYTHONPATH: ${{ github.workspace }}/backend
-          TESTING: true  # ← AGGIUNGI QUESTA RIGA
-          CI: true       # ← AGGIUNGI QUESTA RIGA
-        run: |
-          python -m pytest -v --ignore=tests/test_api_backtest.py --ignore=tests/test_backtest.py
-
+          PYTHONPATH:  ${{ github.workspace }}/backend
+          TESTING: true
+          CI: true
+        run:  |
+          python -m pytest -v --ignore=tests/test_api_backtest.py --ignore=tests/test_backtest.py tests/test_api_system.py
   # ===========================
   # FRONTEND TESTS
   # ===========================

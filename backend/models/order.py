@@ -3,20 +3,23 @@ from sqlalchemy.sql import func
 from .base import Base
 import enum
 
+
 class OrderType(str, enum.Enum):
     MARKET = "MARKET"
     LIMIT = "LIMIT"
     STOP_MARKET = "STOP_MARKET"
     STOP_LIMIT = "STOP_LIMIT"
 
-class OrderStatus(str, enum.Enum):
+
+        class OrderStatus(str, enum.Enum):
     PENDING = "PENDING"
     FILLED = "FILLED"
     CANCELLED = "CANCELLED"
 
+
 class Order(Base):
     __tablename__ = "orders"
-    
+
     id = Column(String, primary_key=True)
     position_id = Column(String, ForeignKey("positions.id"), index=True)
     symbol = Column(String, nullable=False, index=True)
