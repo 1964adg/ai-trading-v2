@@ -22,7 +22,12 @@ async def get_system_info():
         database_status = "disconnected"
     
     # Determine database type
-    db_type = "SQLite Multi-Database" if databases and all(status == "connected" for status in databases.values()) else ("Partial" if databases else "Not Initialized")
+    if databases and all(status == "connected" for status in databases.values()):
+        db_type = "SQLite Multi-Database"
+    elif databases:
+        db_type = "Partial"
+    else:
+        db_type = "Not Initialized"
     
     return {
         "server": {

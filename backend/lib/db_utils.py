@@ -135,6 +135,10 @@ def import_database(database: str, input_path: str):
     Args:
         database: Database name ('trading', 'market', or 'analytics')
         input_path: Input SQL file path
+        
+    Note:
+        This function executes SQL statements from a file. Only use with trusted
+        SQL dumps. For production, consider using SQLite's .restore command instead.
     """
     if database not in engines:
         raise ValueError(f"Database '{database}' not available")
@@ -142,13 +146,17 @@ def import_database(database: str, input_path: str):
     db_path = str(engines[database].url).replace("sqlite:///", "")
     
     try:
-        with open(input_path, 'r') as f:
-            sql_dump = f.read()
+        # Use SQLite's native import for safety
+        import subprocess
         
-        with get_db(database) as db:
-            for statement in sql_dump.split(';'):
-                if statement.strip():
-                    db.execute(text(statement))
+        with open(input_path, 'r') as f:
+            subprocess.run(
+                ['sqlite3', db_path],
+                stdin=f,
+                check=True,
+                capture_output=True,
+                text=True
+            )
         
         logger.info(f"Database '{database}' imported from {input_path}")
         return True

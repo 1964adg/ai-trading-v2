@@ -182,14 +182,14 @@ def test_market_database_candlestick_insert():
     
     # Read the candlestick
     with get_db('market') as db:
-        result = db.execute(text(f"SELECT * FROM candlesticks WHERE id={candle_id}"))
+        result = db.execute(text("SELECT * FROM candlesticks WHERE id=:candle_id"), {"candle_id": candle_id})
         row = result.fetchone()
         assert row is not None
         assert row[1] == 'BTCUSDT'  # symbol
     
     # Clean up
     with get_db('market') as db:
-        db.execute(text(f"DELETE FROM candlesticks WHERE id={candle_id}"))
+        db.execute(text("DELETE FROM candlesticks WHERE id=:candle_id"), {"candle_id": candle_id})
         db.commit()
 
 
@@ -220,14 +220,14 @@ def test_analytics_database_pattern_insert():
     
     # Read the pattern
     with get_db('analytics') as db:
-        result = db.execute(text(f"SELECT * FROM pattern_cache WHERE id={pattern_id}"))
+        result = db.execute(text("SELECT * FROM pattern_cache WHERE id=:pattern_id"), {"pattern_id": pattern_id})
         row = result.fetchone()
         assert row is not None
         assert row[1] == 'BTCUSDT'  # symbol
     
     # Clean up
     with get_db('analytics') as db:
-        db.execute(text(f"DELETE FROM pattern_cache WHERE id={pattern_id}"))
+        db.execute(text("DELETE FROM pattern_cache WHERE id=:pattern_id"), {"pattern_id": pattern_id})
         db.commit()
 
 
