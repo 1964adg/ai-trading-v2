@@ -150,3 +150,43 @@ Import:
 - **Problemi/soluzioni:**
 - **Commit:**
 - **Next:**
+
+## Entry — 2026-01-07 19:00 (Europe/Rome) — Credenziali/porte + EUR vs USDT + import watchlist 90d
+
+### Credenziali / Porte / Posizioni file (NO password)
+- PostgreSQL:
+  - Host: `localhost`
+  - Porta: `5433`
+  - Database: `ai_trading`
+  - Utente: `trader`
+- Backend:
+  - URL: `http://localhost:8000`
+  - `.env` letto da: `backend/.env` (NON versionato)
+  - Esempio: `backend/.env.example` (da committare)
+- Frontend:
+  - URL: `http://localhost:3000`
+
+### EUR vs USDT (Binance)
+- In UI Binance, il filtro USDT mostrava “no data”, ma via API Binance risponde correttamente anche per USDT.
+- Test eseguito via Python `requests` (PowerShell + `python -c`) con risultati `status=200` per:
+  - `BTCEUR`, `ETHEUR`, `BTCUSDT`, `ETHUSDT`, `SOLUSDT`, `BNBUSDT`
+- Decisione: **USDT-first** per storage/scalping/analisi (liquidità), EUR opzionale lato UI.
+
+### Nota debug: curl su Windows
+- `curl` fallisce verso Binance con errore schannel:
+  - `CRYPT_E_NO_REVOCATION_CHECK`
+- Workaround: usare Python `requests` per testare API; `curl -k` solo per debug.
+
+### Import storico watchlist 90 giorni (1m)
+- Import completato per la maggior parte dei simboli (es. BTCUSDT 1m: 129600 righe).
+- Anomalia: `MATICUSDT` import 0 (DB count 0) ma metadata segnata `complete`.
+  - Fix pianificato nello script importer:
+    - se Binance ritorna `[]`, loggare “empty response”
+    - `sync_status='error'` se `total_candles=0` (non `complete`)
+
+### Next steps
+1. Committare/pushare:
+   - `docs/DEV_DIARY.md` (questa entry)
+   - `backend/scripts/import_klines.py` (fix empty response + metadata status + sys.path bootstrap)
+   - `backend/.env.example`
+2. Patch `backend/api/market.py`: klines **DB-first** con fallback Binance (payload invariato).
