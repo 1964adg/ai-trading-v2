@@ -83,3 +83,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Override database URLs for testing/CI environments
+# This ensures tests use SQLite even if .env configures Postgres
+import os
+if os.environ.get('TESTING') == 'true' or os.environ.get('CI') == 'true':
+    settings.TRADING_DATABASE_URL = "sqlite:///./data/trading.db"
+    settings.MARKET_DATABASE_URL = "sqlite:///./data/market_data.db"
+    settings.ANALYTICS_DATABASE_URL = "sqlite:///./data/analytics.db"

@@ -32,7 +32,7 @@ def test_system_info_endpoint():
 
     # Check database info
     assert data["database"]["status"] in ["connected", "disconnected", "error"]
-    assert data["database"]["type"] in ["PostgreSQL", "In-Memory"]
+    assert data["database"]["type"] in ["PostgreSQL", "In-Memory", "SQLite Multi-Database"]
 
     # Check ML features
     assert isinstance(data["ml_features"]["technical_analysis"], bool)
