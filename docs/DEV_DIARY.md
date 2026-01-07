@@ -87,7 +87,7 @@ Verifiche:
 - Tempo: ~3 minuti per BTCUSDT 90 giorni 1m.
 
 #### Watchlist decisa (10 simboli)
-`BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT, ADAUSDT, DOGEUSDT, AVAXUSDT, LINKUSDT, MATICUSDT`
+`BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT, ADAUSDT, DOGEUSDT, AVAXUSDT, LINKUSDT, POLUSDT`
 
 Retention decisa:
 - **1m: 90 giorni** (watchlist)
@@ -183,6 +183,12 @@ Import:
   - Fix pianificato nello script importer:
     - se Binance ritorna `[]`, loggare “empty response”
     - `sync_status='error'` se `total_candles=0` (non `complete`)
+
+#### Anomalia: MATICUSDT import 0
+- Anomalia iniziale: `MATICUSDT` import 0 (DB count 0) ma metadata segnata `complete`.
+- Risoluzione: sostituito in watchlist con `POLUSDT`.
+  - Verifica: `POLUSDT` 1m 90 giorni = `129600` righe in `candlesticks`.
+  - Metadata: `sync_status=complete`.
 
 ### Next steps
 1. Committare/pushare:
