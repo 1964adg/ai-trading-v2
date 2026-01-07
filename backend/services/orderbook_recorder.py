@@ -102,10 +102,12 @@ class OrderbookRecorderService:
 
         while self.is_recording:
             try:
-                # Check if we should still be recording (position-based or manual)
-                if not self._should_record() and not self.is_recording:
-                    logger.info("No open positions, stopping auto-recording")
-                    break
+                # Check if we should still be recording based on positions (only if not manually enabled)
+                # Manual recording (via is_recording flag) takes precedence
+                has_open_positions = self._should_record()
+                
+                if not has_open_positions:
+                    logger.debug("No open positions detected (auto-recording check)")
 
                 # Capture snapshot
                 snapshot = await self._capture_orderbook()

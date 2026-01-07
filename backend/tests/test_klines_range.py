@@ -171,11 +171,11 @@ def test_backtest_without_date_range_uses_limit(mock_fetch_limit):
         "strategy": "rsi",
         "initial_capital": 10000,
         "position_size_pct": 2.0,
-        "rsi_period": 14,  # This is correct, it's remapped in the endpoint
+        "rsi_period": 14,
         "rsi_oversold": 30,
         "rsi_overbought": 70,
         "stop_loss_pct": 2.0,
-        "take_profit_pct": 4.0,
+        "take_profit_pct": 4.0,  # Not used by RSI strategy but part of request schema
     }
 
     response = client.post("/api/backtest", json=backtest_config)
