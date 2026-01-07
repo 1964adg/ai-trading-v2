@@ -55,12 +55,13 @@ class TrailingStopService:
             # RIGA 54-67 - CORREGGI COSÌ:
             try:
                 # Get current price
+                # ✅ CORRETTO
                 klines = binance_service.get_klines_data(
                     symbol=position.symbol, interval="1m", limit=1
                 )
 
-                # Fix:  DataFrame check
-                if klines is None or klines.empty:
+                # Fix: DataFrame check corretto
+                if klines is None or (hasattr(klines, "empty") and klines.empty):
                     continue
 
                 # Converti DataFrame a dict per accesso
