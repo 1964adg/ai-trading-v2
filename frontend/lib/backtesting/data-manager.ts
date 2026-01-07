@@ -5,21 +5,21 @@
 
 import { BarData } from '@/types/backtesting';
 import { Timeframe, KlineData } from '@/lib/types';
-import { fetchKlines } from '@/lib/api';
+import { fetchKlines, fetchKlinesRange } from '@/lib/api';
 
 export class DataManager {
   private cache: Map<string, BarData[]> = new Map();
   private maxCacheSize = 100; // Max number of datasets to cache
 
   /**
-   * Fetch and validate historical data
+   * Fetch and validate historical data using range endpoint
    */
   async fetchHistoricalData(
     symbol: string,
     timeframe: Timeframe,
     startDate: Date,
     endDate: Date,
-    limit = 1000
+    limit = 10000
   ): Promise<BarData[]> {
     const cacheKey = this.getCacheKey(symbol, timeframe, startDate, endDate);
     
@@ -29,8 +29,8 @@ export class DataManager {
     }
 
     try {
-      // Fetch data from API
-      const response = await fetchKlines(symbol, timeframe, limit);
+      // Fetch data from API using range endpoint
+      const response = await fetchKlinesRange(symbol, timeframe, startDate, endDate, limit);
       
       if (!response.success || !response.data) {
         throw new Error('Failed to fetch historical data');
@@ -40,13 +40,10 @@ export class DataManager {
       const barData = this.transformToBarData(response.data);
       const validatedData = this.validateData(barData);
       
-      // Filter by date range
-      const filteredData = this.filterByDateRange(validatedData, startDate, endDate);
+      // Cache the result (data is already filtered by backend)
+      this.addToCache(cacheKey, validatedData);
       
-      // Cache the result
-      this.addToCache(cacheKey, filteredData);
-      
-      return filteredData;
+      return validatedData;
     } catch (error) {
       console.error('[DataManager] Error fetching data:', error);
       throw error;
@@ -57,15 +54,22 @@ export class DataManager {
    * Transform KlineData to BarData
    */
   private transformToBarData(klines: KlineData[]): BarData[] {
-    return klines.map(kline => ({
-      timestamp: kline.timestamp,
-      time: Math.floor(kline.timestamp / 1000), // Convert to seconds
-      open: kline.open,
-      high: kline.high,
-      low: kline.low,
-      close: kline.close,
-      volume: kline.volume,
-    }));
+    return klines.map(kline => {
+      // Parse ISO8601 timestamp with Z
+      const timestamp = typeof kline.timestamp === 'string' 
+        ? new Date(kline.timestamp).getTime()
+        : kline.timestamp;
+      
+      return {
+        timestamp,
+        time: Math.floor(timestamp / 1000), // Convert to seconds
+        open: kline.open,
+        high: kline.high,
+        low: kline.low,
+        close: kline.close,
+        volume: kline.volume,
+      };
+    });
   }
 
   /**

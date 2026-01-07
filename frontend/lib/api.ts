@@ -140,6 +140,60 @@ export function clearKlineCache() {
 }
 
 /**
+ * Fetch klines data by date range from backend API
+ */
+export async function fetchKlinesRange(
+  symbol: string,
+  interval: Timeframe,
+  startDate: Date,
+  endDate: Date,
+  limit: number = 10000
+): Promise<ApiResponse<KlineData[]>> {
+  try {
+    const params = new URLSearchParams({
+      symbol,
+      timeframe: interval,
+      start: startDate.toISOString(),
+      end: endDate.toISOString(),
+      limit: limit.toString()
+    });
+
+    if (getFeatureFlag('ENABLE_DEBUG_LOGS')) {
+      console.log(`🌐 [API RANGE CALL] ${symbol} ${interval} ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    }
+    const startTime = performance.now();
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/klines/range?${params}`,
+      {
+        signal: AbortSignal.timeout(30000),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    const elapsed = performance.now() - startTime;
+    if (getFeatureFlag('ENABLE_DEBUG_LOGS')) {
+      console.log(`✅ [API RANGE DONE] ${symbol} in ${(elapsed / 1000).toFixed(1)}s, got ${data.data?.length || 0} candles`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error(`❌ [API RANGE ERROR] ${symbol}:`, error);
+
+    return {
+      success: false,
+      data: [],
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
  * Transform KlineData from backend to ChartDataPoint for lightweight-charts.
  */
 export function transformKlinesToChartData(klines: KlineData[]): ChartDataPoint[] {
