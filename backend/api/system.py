@@ -22,9 +22,9 @@ async def get_system_info():
         database_status = "disconnected"
 
     # Determine database type (contract expected by tests)
-    # - PostgreSQL when any DB is configured/visible
+    # - SQLite Multi-Database when databases are initialized
     # - In-Memory when nothing is initialized (CI/testing)
-    db_type = "PostgreSQL" if databases else "In-Memory"
+    db_type = "SQLite Multi-Database" if databases else "In-Memory"
 
     return {
         "server": {
