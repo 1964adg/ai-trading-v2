@@ -7,6 +7,9 @@ on:
     branches:  [main]
 
 jobs:
+  # ===========================
+  # BACKEND TESTS
+  # ===========================
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
@@ -47,6 +50,9 @@ jobs:
             tests/test_pipeline_fixes.py \
             tests/test_advanced_orders.py
 
+  # ===========================
+  # FRONTEND TESTS
+  # ===========================
   frontend-test:
     name: Frontend Tests
     runs-on: ubuntu-latest
@@ -70,6 +76,9 @@ jobs:
         env:
           CI: true
 
+  # ===========================
+  # BUILD CHECK
+  # ===========================
   build-check:
     name: Build Production
     runs-on: ubuntu-latest
