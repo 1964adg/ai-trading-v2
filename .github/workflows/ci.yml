@@ -7,9 +7,6 @@ on:
     branches:  [main]
 
 jobs:
-  # ===========================
-  # BACKEND TESTS
-  # ===========================
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
@@ -36,11 +33,20 @@ jobs:
           PYTHONPATH:  ${{ github.workspace }}/backend
           TESTING: true
           CI: true
-        run:  |
-          python -m pytest -v --ignore=tests/test_api_backtest.py --ignore=tests/test_backtest.py tests/test_api_system.py
-  # ===========================
-  # FRONTEND TESTS
-  # ===========================
+        run: |
+          python -m pytest -v \
+            --ignore=tests/test_api_backtest.py \
+            --ignore=tests/test_backtest.py \
+            --ignore=tests/test_order_monitoring.py \
+            --ignore=tests/test_multi_database.py \
+            --ignore=tests/test_paper_trading_db.py \
+            --ignore=tests/test_klines_endpoints.py \
+            --ignore=tests/test_ml_infrastructure.py \
+            tests/test_api_system.py \
+            tests/test_api_health.py \
+            tests/test_pipeline_fixes.py \
+            tests/test_advanced_orders.py
+
   frontend-test:
     name: Frontend Tests
     runs-on: ubuntu-latest
@@ -64,9 +70,6 @@ jobs:
         env:
           CI: true
 
-  # ===========================
-  # BUILD CHECK
-  # ===========================
   build-check:
     name: Build Production
     runs-on: ubuntu-latest
