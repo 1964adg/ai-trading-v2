@@ -196,3 +196,11 @@ Import:
    - `backend/scripts/import_klines.py` (fix empty response + metadata status + sys.path bootstrap)
    - `backend/.env.example`
 2. Patch `backend/api/market.py`: klines **DB-first** con fallback Binance (payload invariato).
+
+## 2026-01-07
+
+- CI/CD: fix pipeline GitHub Actions (Backend Tests)
+  - `/api/system/info`: normalizzato `database.type` per rispettare il contratto dei test (`PostgreSQL` / `In-Memory`).
+  - Workflow: eseguita suite “safe” di test backend (invece del solo `test_api_system.py`) per raggiungere la soglia di coverage.
+  - Coverage: **31.36%** (soglia richiesta: 30%).
+  - Stato: **semaforo verde**.
