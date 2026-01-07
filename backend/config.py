@@ -12,16 +12,16 @@ class Settings(BaseSettings):
     PORT: int = 8000
     CORS_ORIGINS: Union[str, list[str]] = ["http://localhost:3000"]
 
-    @field_validator('CORS_ORIGINS', mode='before')
+    @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: Union[str, list[str]]) -> list[str]:
         """Parse CORS_ORIGINS from comma-separated string or list."""
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(',') if origin.strip()]
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
 
     # Trading Configuration
-    PAPER_TRADING:  bool = True
+    PAPER_TRADING: bool = True
 
     # Database Configuration - Multi-Database SQLite Setup
     # Trading database - Active trades, positions, orders
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     MARKET_DATABASE_URL: str = "sqlite:///./data/market_data.db"
     # Analytics database - Pattern detection, ML results
     ANALYTICS_DATABASE_URL: str = "sqlite:///./data/analytics.db"
-    
+
     # Legacy PostgreSQL support (optional, for migration)
     POSTGRES_DB: Optional[str] = None
     POSTGRES_USER: Optional[str] = None
@@ -49,14 +49,14 @@ class Settings(BaseSettings):
 
     # Frontend Configuration
     NODE_ENV: str = "development"
-    NEXT_PUBLIC_API_URL:  str = "http://localhost:8000"
+    NEXT_PUBLIC_API_URL: str = "http://localhost:8000"
 
     # Security
-    JWT_SECRET_KEY:  Optional[str] = None
+    JWT_SECRET_KEY: Optional[str] = None
     ENCRYPTION_KEY: Optional[str] = None
 
     # Logging
-    LOG_LEVEL:  str = "INFO"
+    LOG_LEVEL: str = "INFO"
 
     # Monitoring
     ENABLE_METRICS: bool = False
@@ -75,10 +75,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     model_config = ConfigDict(
-        env_file="../.env",
+        env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",  # ✅ CHIAVE:  Ignora variabili extra in .env
-        protected_namespaces=()  # ✅ FIX: Risolve warning "model_"
+        protected_namespaces=(),  # ✅ FIX: Risolve warning "model_"
     )
 
 

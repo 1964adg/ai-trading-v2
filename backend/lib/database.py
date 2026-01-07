@@ -15,118 +15,133 @@ SessionLocals = {}
 engine = None
 SessionLocal = None
 
+
+def _is_sqlite(database_url: str) -> bool:
+    return database_url.startswith("sqlite:///")
+
+
 def _create_engine(database_url: str, database_name: str):
-    """Create a SQLite engine with optimized parameters."""
+    """Create an engine.Applies SQLite-only pragmas when needed."""
     try:
-        # Ensure data directory exists
-        if database_url.startswith('sqlite:///'):
-            db_path = database_url.replace('sqlite:///', '')
-            if not db_path.startswith(':memory:'):
+        # Ensure data directory exists (SQLite)
+        if _is_sqlite(database_url):
+            db_path = database_url.replace("sqlite:///", "")
+            if not db_path.startswith(":memory:"):
                 os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        
-        # Configure engine parameters for SQLite
+
         engine_params = {
             "pool_pre_ping": True,
             "echo": False,
-            "connect_args": {
-                "check_same_thread": False,  # Allow SQLite to be used across threads
-                "timeout": 30  # Connection timeout
-            }
         }
-        
-        engine = create_engine(database_url, **engine_params)
-        
-        # Test connection and optimize SQLite
-        with engine.connect() as conn:
-            # Enable WAL mode for better concurrency
-            conn.execute(text("PRAGMA journal_mode=WAL"))
-            # Set synchronous to NORMAL for better performance
-            conn.execute(text("PRAGMA synchronous=NORMAL"))
-            # Increase cache size (negative value = KB, -2000 = 2MB)
-            conn.execute(text("PRAGMA cache_size=-2000"))
-            # Enable foreign keys
-            conn.execute(text("PRAGMA foreign_keys=ON"))
-            conn.commit()
-        
+
+        if _is_sqlite(database_url):
+            engine_params["connect_args"] = {
+                "check_same_thread": False,
+                "timeout": 30,
+            }
+        else:
+            # Postgres (local) sane pooling defaults
+            engine_params.update(
+                {
+                    "pool_size": 5,
+                    "max_overflow": 10,
+                    "pool_recycle": 1800,
+                }
+            )
+
+        eng = create_engine(database_url, **engine_params)
+
+        # SQLite optimizations only
+        if _is_sqlite(database_url):
+            with eng.connect() as conn:
+                conn.execute(text("PRAGMA journal_mode=WAL"))
+                conn.execute(text("PRAGMA synchronous=NORMAL"))
+                conn.execute(text("PRAGMA cache_size=-2000"))
+                conn.execute(text("PRAGMA foreign_keys=ON"))
+                conn.commit()
+
+        # Test connection
+        with eng.connect() as conn:
+            conn.execute(text("SELECT 1"))
+
         logger.info(f"Database '{database_name}' initialized: {database_url}")
-        return engine
+        return eng
+
     except Exception as e:
         logger.error(f"Failed to initialize database '{database_name}': {e}")
         return None
 
+
 def init_database():
     """Initialize all database connections."""
     global engines, SessionLocals, engine, SessionLocal
-    
+
     success = True
-    
-    # Initialize trading database (primary)
+
     trading_engine = _create_engine(settings.TRADING_DATABASE_URL, "trading")
     if trading_engine:
-        engines['trading'] = trading_engine
-        SessionLocals['trading'] = sessionmaker(bind=trading_engine, autocommit=False, autoflush=False)
-        # Set as legacy engine for backward compatibility
+        engines["trading"] = trading_engine
+        SessionLocals["trading"] = sessionmaker(
+            bind=trading_engine, autocommit=False, autoflush=False
+        )
         engine = trading_engine
-        SessionLocal = SessionLocals['trading']
+        SessionLocal = SessionLocals["trading"]
     else:
         success = False
-    
-    # Initialize market data database
+
     market_engine = _create_engine(settings.MARKET_DATABASE_URL, "market")
     if market_engine:
-        engines['market'] = market_engine
-        SessionLocals['market'] = sessionmaker(bind=market_engine, autocommit=False, autoflush=False)
+        engines["market"] = market_engine
+        SessionLocals["market"] = sessionmaker(
+            bind=market_engine, autocommit=False, autoflush=False
+        )
     else:
         success = False
-    
-    # Initialize analytics database
+
     analytics_engine = _create_engine(settings.ANALYTICS_DATABASE_URL, "analytics")
     if analytics_engine:
-        engines['analytics'] = analytics_engine
-        SessionLocals['analytics'] = sessionmaker(bind=analytics_engine, autocommit=False, autoflush=False)
+        engines["analytics"] = analytics_engine
+        SessionLocals["analytics"] = sessionmaker(
+            bind=analytics_engine, autocommit=False, autoflush=False
+        )
     else:
         success = False
-    
+
     if success:
         logger.info("All databases initialized successfully")
     else:
         logger.warning("Some databases failed to initialize")
-    
+
     return success
+
 
 def create_tables():
     """Create all tables in their respective databases."""
     from models.base import Base
     import models  # Import all models
-    
-    # Create tables in trading database
-    if 'trading' in engines:
-        Base.metadata.create_all(bind=engines['trading'])
+
+    if "trading" in engines:
+        Base.metadata.create_all(bind=engines["trading"])
         logger.info("Trading database tables created")
-    
-    # Create tables in market database
-    if 'market' in engines:
+
+    if "market" in engines:
         from models.candlestick import CandlestickBase
-        CandlestickBase.metadata.create_all(bind=engines['market'])
+
+        CandlestickBase.metadata.create_all(bind=engines["market"])
         logger.info("Market database tables created")
-    
-    # Create tables in analytics database
-    if 'analytics' in engines:
+
+    if "analytics" in engines:
         from models.pattern import PatternBase
-        PatternBase.metadata.create_all(bind=engines['analytics'])
+
+        PatternBase.metadata.create_all(bind=engines["analytics"])
         logger.info("Analytics database tables created")
 
+
 @contextmanager
-def get_db(database: str = 'trading') -> Session:
-    """
-    Get database session context manager.
-    
-    Args:
-        database: Database name ('trading', 'market', or 'analytics')
-    """
+def get_db(database: str = "trading") -> Session:
     if database not in SessionLocals:
         raise RuntimeError(f"Database '{database}' not initialized")
-    
+
     db = SessionLocals[database]()
     try:
         yield db
@@ -137,30 +152,21 @@ def get_db(database: str = 'trading') -> Session:
     finally:
         db.close()
 
-def get_db_session(database: str = 'trading') -> Session:
-    """
-    Get database session (for dependency injection).
-    
-    Args:
-        database: Database name ('trading', 'market', or 'analytics')
-    """
+
+def get_db_session(database: str = "trading") -> Session:
     if database not in SessionLocals:
         raise RuntimeError(f"Database '{database}' not initialized")
     return SessionLocals[database]()
 
-def get_engine(database: str = 'trading'):
-    """
-    Get database engine.
-    
-    Args:
-        database: Database name ('trading', 'market', or 'analytics')
-    """
+
+def get_engine(database: str = "trading"):
     return engines.get(database)
+
 
 def check_database_health() -> dict:
     """Check health of all databases."""
     health = {}
-    
+
     for db_name, db_engine in engines.items():
         try:
             with db_engine.connect() as conn:
@@ -169,5 +175,5 @@ def check_database_health() -> dict:
         except Exception as e:
             health[db_name] = f"error: {str(e)}"
             logger.error(f"Database '{db_name}' health check failed: {e}")
-    
+
     return health
