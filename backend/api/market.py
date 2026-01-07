@@ -654,11 +654,10 @@ async def run_backtest(request: BacktestRequest):
             )
         elif request.strategy == "rsi":
             strategy = RSIStrategy(
-                rsi_period=request.rsi_period,
+                period=request.rsi_period,
                 oversold=request.rsi_oversold,
                 overbought=request.rsi_overbought,
                 stop_loss_pct=request.stop_loss_pct,
-                take_profit_pct=request.take_profit_pct,
             )
         else:
             raise HTTPException(
