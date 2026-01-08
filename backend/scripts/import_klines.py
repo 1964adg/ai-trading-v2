@@ -44,6 +44,18 @@ DEFAULT_WATCHLIST = [
     "POLUSDT",
 ]
 
+# Error codes for standardized error reporting
+ERROR_CODES = {
+    "EMPTY_RESPONSE": "EMPTY_RESPONSE",
+    "INVALID_SYMBOL": "INVALID_SYMBOL",
+    "INVALID_INTERVAL": "INVALID_INTERVAL",
+    "RATE_LIMIT": "RATE_LIMIT",
+    "NETWORK_ERROR": "NETWORK_ERROR",
+    "HTTP_ERROR": "HTTP_ERROR",
+    "DB_ERROR": "DB_ERROR",
+    "UNKNOWN_ERROR": "UNKNOWN_ERROR",
+}
+
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -123,7 +135,21 @@ def _insert_candles_bulk(db, rows: List[Dict[str, Any]]) -> int:
     return int(result.rowcount or 0)
 
 
-def _upsert_metadata(db, symbol: str, interval: str) -> None:
+def _upsert_metadata(
+    db,
+    symbol: str,
+    interval: str,
+    error_code: str | None = None,
+    error_message: str | None = None,
+) -> None:
+    """
+    Update metadata based on actual DB state.
+    
+    Always computes stats from candlesticks table. Sets status:
+    - 'complete': DB has candles and no error
+    - 'error': DB has 0 candles or error occurred
+    - 'partial': DB has some candles but error occurred during sync
+    """
     # Compute stats from candlesticks
     stats = (
         db.execute(
@@ -143,61 +169,171 @@ def _upsert_metadata(db, symbol: str, interval: str) -> None:
         .one()
     )
 
-    status = "complete" if (stats["total"] and stats["total"] > 0) else "error"
+    total = stats["total"] or 0
+    
+    # Determine sync_status based on DB state and error presence
+    if error_code:
+        # Had an error during sync
+        if total > 0:
+            status = "partial"  # Some data exists but sync failed
+        else:
+            status = "error"  # No data and error occurred
+    else:
+        # No error reported
+        if total > 0:
+            status = "complete"  # Data exists and sync completed
+        else:
+            status = "error"  # No data even though no explicit error (shouldn't happen)
 
-    db.execute(
-        text(
-            """
-            INSERT INTO candlestick_metadata (
-                symbol, interval,
-                earliest_timestamp, latest_timestamp,
-                total_candles, last_sync, sync_status
-            )
-            VALUES (
-                :symbol, :interval,
-                :earliest, :latest,
-                :total, NOW(), :status
-            )
-            ON CONFLICT (symbol, interval)
-            DO UPDATE SET
-                earliest_timestamp = EXCLUDED.earliest_timestamp,
-                latest_timestamp = EXCLUDED.latest_timestamp,
-                total_candles = EXCLUDED.total_candles,
-                last_sync = EXCLUDED.last_sync,
-                sync_status = EXCLUDED.sync_status,
-                updated_at = NOW()
-        """
-        ),
-        {
-            "symbol": symbol,
-            "interval": interval,
-            "earliest": stats["earliest"],
-            "latest": stats["latest"],
-            "total": stats["total"],
-            "status": status,
-        },
-    )
+    # Build update parameters
+    params = {
+        "symbol": symbol,
+        "interval": interval,
+        "earliest": stats["earliest"],
+        "latest": stats["latest"],
+        "total": total,
+        "status": status,
+        "error_code": error_code,
+        "error_message": error_message,
+    }
 
-
-def _set_metadata_status(symbol: str, interval: str, status: str) -> None:
-    """Best-effort metadata status update."""
-    with get_db("market") as db:
+    # Build dynamic SQL based on whether we're clearing or setting errors
+    if error_code:
+        # Set error fields
         db.execute(
             text(
                 """
-                INSERT INTO candlestick_metadata (symbol, interval, sync_status, last_sync)
-                VALUES (:symbol, :interval, :status, NOW())
+                INSERT INTO candlestick_metadata (
+                    symbol, interval,
+                    earliest_timestamp, latest_timestamp,
+                    total_candles, last_sync, sync_status,
+                    error_code, error_message, last_attempt_at
+                )
+                VALUES (
+                    :symbol, :interval,
+                    :earliest, :latest,
+                    :total, NOW(), :status,
+                    :error_code, :error_message, NOW()
+                )
                 ON CONFLICT (symbol, interval)
-                DO UPDATE SET sync_status=:status, last_sync=NOW(), updated_at=NOW()
+                DO UPDATE SET
+                    earliest_timestamp = EXCLUDED.earliest_timestamp,
+                    latest_timestamp = EXCLUDED.latest_timestamp,
+                    total_candles = EXCLUDED.total_candles,
+                    last_sync = EXCLUDED.last_sync,
+                    sync_status = EXCLUDED.sync_status,
+                    error_code = EXCLUDED.error_code,
+                    error_message = EXCLUDED.error_message,
+                    last_attempt_at = EXCLUDED.last_attempt_at,
+                    updated_at = NOW()
             """
             ),
-            {"symbol": symbol, "interval": interval, "status": status},
+            params,
+        )
+    else:
+        # Clear error fields and set last_success_at
+        db.execute(
+            text(
+                """
+                INSERT INTO candlestick_metadata (
+                    symbol, interval,
+                    earliest_timestamp, latest_timestamp,
+                    total_candles, last_sync, sync_status,
+                    error_code, error_message, last_attempt_at, last_success_at
+                )
+                VALUES (
+                    :symbol, :interval,
+                    :earliest, :latest,
+                    :total, NOW(), :status,
+                    NULL, NULL, NOW(), NOW()
+                )
+                ON CONFLICT (symbol, interval)
+                DO UPDATE SET
+                    earliest_timestamp = EXCLUDED.earliest_timestamp,
+                    latest_timestamp = EXCLUDED.latest_timestamp,
+                    total_candles = EXCLUDED.total_candles,
+                    last_sync = EXCLUDED.last_sync,
+                    sync_status = EXCLUDED.sync_status,
+                    error_code = NULL,
+                    error_message = NULL,
+                    last_attempt_at = EXCLUDED.last_attempt_at,
+                    last_success_at = EXCLUDED.last_success_at,
+                    updated_at = NOW()
+            """
+            ),
+            params,
         )
 
 
-def import_symbol_interval(
-    symbol: str, interval: str, days: int, sleep_s: float = 0.25
+
+def _set_metadata_status(
+    symbol: str,
+    interval: str,
+    status: str,
+    error_code: str | None = None,
+    error_message: str | None = None,
 ) -> None:
+    """Best-effort metadata status update."""
+    with get_db("market") as db:
+        if error_code:
+            db.execute(
+                text(
+                    """
+                    INSERT INTO candlestick_metadata (
+                        symbol, interval, sync_status, last_sync,
+                        error_code, error_message, last_attempt_at
+                    )
+                    VALUES (
+                        :symbol, :interval, :status, NOW(),
+                        :error_code, :error_message, NOW()
+                    )
+                    ON CONFLICT (symbol, interval)
+                    DO UPDATE SET
+                        sync_status = :status,
+                        last_sync = NOW(),
+                        error_code = :error_code,
+                        error_message = :error_message,
+                        last_attempt_at = NOW(),
+                        updated_at = NOW()
+                """
+                ),
+                {
+                    "symbol": symbol,
+                    "interval": interval,
+                    "status": status,
+                    "error_code": error_code,
+                    "error_message": error_message,
+                },
+            )
+        else:
+            db.execute(
+                text(
+                    """
+                    INSERT INTO candlestick_metadata (
+                        symbol, interval, sync_status, last_sync, last_attempt_at
+                    )
+                    VALUES (:symbol, :interval, :status, NOW(), NOW())
+                    ON CONFLICT (symbol, interval)
+                    DO UPDATE SET
+                        sync_status = :status,
+                        last_sync = NOW(),
+                        last_attempt_at = NOW(),
+                        updated_at = NOW()
+                """
+                ),
+                {"symbol": symbol, "interval": interval, "status": status},
+            )
+
+
+def import_symbol_interval(
+    symbol: str, interval: str, days: int, sleep_s: float = 0.25, max_retries: int = 3
+) -> dict:
+    """
+    Import klines for a symbol/interval pair.
+    
+    Returns dict with status info:
+        {"success": bool, "error_code": str|None, "error_message": str|None, "inserted": int}
+    """
     start_ms, end_ms = _chunks_from_days(days)
 
     print(f"\n[IMPORT] {symbol} {interval} days={days}")
@@ -206,19 +342,91 @@ def import_symbol_interval(
     total_inserted = 0
     cursor_ms = start_ms
     last_open_ms = None
+    error_code = None
+    error_message = None
 
     # mark metadata as syncing
     _set_metadata_status(symbol, interval, "syncing")
 
     try:
         while cursor_ms < end_ms:
-            klines = _fetch_klines(
-                symbol=symbol, interval=interval, start_ms=cursor_ms, end_ms=end_ms
-            )
+            retry_count = 0
+            klines = None
+            
+            # Retry loop for transient errors
+            while retry_count <= max_retries:
+                try:
+                    klines = _fetch_klines(
+                        symbol=symbol, interval=interval, start_ms=cursor_ms, end_ms=end_ms
+                    )
+                    break  # Success, exit retry loop
+                    
+                except HTTPError as e:
+                    error_str = str(e)
+                    
+                    # Check for specific Binance error codes
+                    if "Invalid symbol" in error_str or "400" in error_str:
+                        error_code = ERROR_CODES["INVALID_SYMBOL"]
+                        error_message = f"Invalid symbol: {symbol}"
+                        print(f"  [ERROR] {error_message}")
+                        raise  # Don't retry for invalid symbol
+                        
+                    elif "Invalid interval" in error_str:
+                        error_code = ERROR_CODES["INVALID_INTERVAL"]
+                        error_message = f"Invalid interval: {interval}"
+                        print(f"  [ERROR] {error_message}")
+                        raise  # Don't retry for invalid interval
+                        
+                    elif "429" in error_str or "rate limit" in error_str.lower():
+                        error_code = ERROR_CODES["RATE_LIMIT"]
+                        error_message = "Rate limit exceeded"
+                        retry_count += 1
+                        if retry_count <= max_retries:
+                            backoff = min(2 ** retry_count, 60)  # Exponential backoff, max 60s
+                            print(f"  [WARN] Rate limit hit, retrying in {backoff}s (attempt {retry_count}/{max_retries})...")
+                            time.sleep(backoff)
+                            continue
+                        else:
+                            print(f"  [ERROR] {error_message} - max retries exceeded")
+                            raise
+                            
+                    else:
+                        error_code = ERROR_CODES["HTTP_ERROR"]
+                        error_message = f"HTTP error: {error_str[:200]}"
+                        retry_count += 1
+                        if retry_count <= max_retries:
+                            backoff = min(2 ** retry_count, 30)
+                            print(f"  [WARN] HTTP error, retrying in {backoff}s (attempt {retry_count}/{max_retries})...")
+                            time.sleep(backoff)
+                            continue
+                        else:
+                            print(f"  [ERROR] {error_message} - max retries exceeded")
+                            raise
+                            
+                except requests.exceptions.RequestException as e:
+                    error_code = ERROR_CODES["NETWORK_ERROR"]
+                    error_message = f"Network error: {str(e)[:200]}"
+                    retry_count += 1
+                    if retry_count <= max_retries:
+                        backoff = min(2 ** retry_count, 30)
+                        print(f"  [WARN] Network error, retrying in {backoff}s (attempt {retry_count}/{max_retries})...")
+                        time.sleep(backoff)
+                        continue
+                    else:
+                        print(f"  [ERROR] {error_message} - max retries exceeded")
+                        raise
+                        
+                except Exception as e:
+                    error_code = ERROR_CODES["UNKNOWN_ERROR"]
+                    error_message = f"Unexpected error: {str(e)[:200]}"
+                    print(f"  [ERROR] {error_message}")
+                    raise
+            
+            # Check if we got an empty response
             if not klines:
-                print(
-                    f"  [WARN] Binance returned 0 klines for {symbol} {interval} at cursor={_to_dt(cursor_ms)}; stopping."
-                )
+                error_code = ERROR_CODES["EMPTY_RESPONSE"]
+                error_message = f"Binance returned 0 klines for cursor={_to_dt(cursor_ms)}"
+                print(f"  [WARN] {error_message}; stopping.")
                 break
 
             # Convert Binance kline arrays into dict rows
@@ -249,9 +457,16 @@ def import_symbol_interval(
                 )
                 last_open_ms = open_time_ms
 
-            with get_db("market") as db:
-                inserted = _insert_candles_bulk(db, rows)
-                total_inserted += inserted
+            # Insert into database
+            try:
+                with get_db("market") as db:
+                    inserted = _insert_candles_bulk(db, rows)
+                    total_inserted += inserted
+            except Exception as e:
+                error_code = ERROR_CODES["DB_ERROR"]
+                error_message = f"Database error: {str(e)[:200]}"
+                print(f"  [ERROR] {error_message}")
+                raise
 
             # Move cursor forward: next ms after last open_time
             cursor_ms = int(klines[-1][0]) + 1
@@ -265,16 +480,46 @@ def import_symbol_interval(
             if last_open_ms is not None and cursor_ms <= last_open_ms:
                 cursor_ms = last_open_ms + 60_000  # +1 minute fallback
 
-        # Finalize metadata
+        # Finalize metadata based on what happened
         with get_db("market") as db:
-            _upsert_metadata(db, symbol, interval)
+            _upsert_metadata(db, symbol, interval, error_code, error_message)
 
-        print(f"[DONE] {symbol} {interval} inserted_total≈{total_inserted}")
+        if error_code:
+            print(f"[FAILED] {symbol} {interval} - {error_code}: {error_message}")
+            return {
+                "success": False,
+                "error_code": error_code,
+                "error_message": error_message,
+                "inserted": total_inserted,
+            }
+        else:
+            print(f"[DONE] {symbol} {interval} inserted_total≈{total_inserted}")
+            return {
+                "success": True,
+                "error_code": None,
+                "error_message": None,
+                "inserted": total_inserted,
+            }
 
-    except Exception:
-        # Patch 3: ensure we don't leave "syncing" on errors
-        _set_metadata_status(symbol, interval, "error")
-        raise
+    except Exception as e:
+        # Ensure metadata reflects error state
+        if not error_code:
+            error_code = ERROR_CODES["UNKNOWN_ERROR"]
+            error_message = f"Unhandled exception: {str(e)[:200]}"
+        
+        try:
+            with get_db("market") as db:
+                _upsert_metadata(db, symbol, interval, error_code, error_message)
+        except Exception as meta_error:
+            print(f"  [ERROR] Failed to update metadata: {meta_error}")
+        
+        print(f"[FAILED] {symbol} {interval} - {error_code}: {error_message}")
+        return {
+            "success": False,
+            "error_code": error_code,
+            "error_message": error_message,
+            "inserted": total_inserted,
+        }
 
 
 def main():
@@ -317,9 +562,41 @@ def main():
             raise SystemExit("Provide --symbol or use --watchlist")
         symbols = [args.symbol.strip().upper()]
 
+    # Track results for summary
+    results = []
+    
     for s in symbols:
         for itv in intervals:
-            import_symbol_interval(symbol=s, interval=itv, days=args.days)
+            result = import_symbol_interval(symbol=s, interval=itv, days=args.days)
+            results.append({
+                "symbol": s,
+                "interval": itv,
+                **result
+            })
+    
+    # Print summary
+    print("\n" + "=" * 80)
+    print("IMPORT SUMMARY")
+    print("=" * 80)
+    
+    successes = [r for r in results if r["success"]]
+    failures = [r for r in results if not r["success"]]
+    
+    print(f"\n✅ Successful: {len(successes)}/{len(results)}")
+    for r in successes:
+        print(f"   {r['symbol']} {r['interval']}: {r['inserted']} candles inserted")
+    
+    if failures:
+        print(f"\n❌ Failed: {len(failures)}/{len(results)}")
+        for r in failures:
+            print(f"   {r['symbol']} {r['interval']}: {r['error_code']} - {r['error_message']}")
+        
+        # Exit with error code if any job failed
+        print("\n⚠️  Some imports failed. Exiting with code 1.")
+        sys.exit(1)
+    else:
+        print("\n✅ All imports completed successfully!")
+        sys.exit(0)
 
 
 if __name__ == "__main__":

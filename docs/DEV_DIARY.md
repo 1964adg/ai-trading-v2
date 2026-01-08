@@ -214,3 +214,60 @@ Import:
 - Config hardening: refactored `backend/config.py` to instantiate `Settings()` once and force SQLite DB URLs when `TESTING=true` or `CI=true`, preventing accidental Postgres usage in tests/scripts.
 - Local env fix: removed a Windows Machine-level `MARKET_DATABASE_URL=sqlite:///./data/market_data.db` that was overriding `.env` and breaking “Postgres in dev”.
 - Added `backend/check_db.py` diagnostic script to print active DB URLs and list market DB tables.
+
+## 2026-01-08 — Standardized candlestick import metadata errors and importer robustness (Europe/Rome)
+
+### Context
+- **Project focus**: Binance Spot only (for now), manual-assisted trading (no auto-execution), paper trading R&D
+- **Priority**: Data reliability and diagnosability for pattern/scanner/strategy development
+
+### Retention Policy Decisions
+Established retention policy for historical candlestick data:
+- **1m interval**: 90 days (primary scalping timeframe)
+- **5m/15m/30m intervals**: 180 days (medium-term pattern analysis)
+- **1h/4h intervals**: On-demand import (longer-term trends)
+
+### Standardized Error Reporting
+Added comprehensive error tracking to `candlestick_metadata` model:
+- New columns:
+  - `error_code` (nullable String): Machine-readable error classification
+  - `error_message` (nullable String): Human-readable error details
+  - `last_attempt_at` (nullable DateTime TZ): Timestamp of last import attempt
+  - `last_success_at` (nullable DateTime TZ): Timestamp of last successful import
+- Error codes defined:
+  - `EMPTY_RESPONSE`: Binance returned empty array (no data for timeframe)
+  - `INVALID_SYMBOL`: Symbol not found on Binance
+  - `INVALID_INTERVAL`: Invalid interval parameter
+  - `RATE_LIMIT`: Hit Binance API rate limit
+  - `NETWORK_ERROR`: Network/connection failure
+  - `HTTP_ERROR`: HTTP error from Binance
+  - `DB_ERROR`: Database operation failed
+  - `UNKNOWN_ERROR`: Unexpected/unclassified error
+
+### Importer Robustness Improvements
+Enhanced `backend/scripts/import_klines.py` with:
+1. **DB-truthful metadata**: Always compute `earliest_timestamp`, `latest_timestamp`, `total_candles` from actual DB state
+2. **Correct status logic**:
+   - `sync_status='complete'`: DB count > 0 and import succeeded
+   - `sync_status='error'`: DB count == 0 or unrecoverable error
+   - `sync_status='partial'`: Import failed mid-way but DB has some data
+3. **Empty response handling**: If Binance returns `[]`, set `EMPTY_RESPONSE` error, do NOT mark complete
+4. **Retry with backoff**: Exponential backoff for transient failures (rate limit, network), configurable max retries
+5. **Continue-on-error mode**: Watchlist runs process all symbols/intervals, provide summary, exit code 1 if any failed
+6. **Error field management**: Clear error fields on success, set on failure
+
+### Migration
+- Created `backend/scripts/migrate_add_metadata_errors.py` to add new columns
+- Compatible with both PostgreSQL and SQLite
+- Safe to run multiple times (checks if columns exist)
+
+### Files Changed
+- `backend/models/candlestick.py`: Added error reporting columns to `CandlestickMetadata`
+- `backend/scripts/import_klines.py`: Complete refactor with error handling and retry logic
+- `backend/scripts/migrate_add_metadata_errors.py`: New migration script
+- `docs/DEV_DIARY.md`: This entry
+
+### Next Steps
+- Run migration script on existing database
+- Test import scenarios (empty response, invalid symbol, rate limits)
+- Verify metadata accuracy in all error conditions

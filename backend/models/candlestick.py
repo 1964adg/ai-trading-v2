@@ -70,7 +70,13 @@ class CandlestickMetadata(CandlestickBase):
     
     # Sync status
     last_sync = Column(DateTime(timezone=True))
-    sync_status = Column(String, default="pending")  # pending, syncing, complete, error
+    sync_status = Column(String, default="pending")  # pending, syncing, complete, error, partial
+    
+    # Error reporting
+    error_code = Column(String, nullable=True)
+    error_message = Column(String, nullable=True)
+    last_attempt_at = Column(DateTime(timezone=True), nullable=True)
+    last_success_at = Column(DateTime(timezone=True), nullable=True)
     
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
