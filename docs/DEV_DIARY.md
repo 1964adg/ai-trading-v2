@@ -204,3 +204,13 @@ Import:
   - Workflow: eseguita suite “safe” di test backend (invece del solo `test_api_system.py`) per raggiungere la soglia di coverage.
   - Coverage: **31.36%** (soglia richiesta: 30%).
   - Stato: **semaforo verde**.
+
+## 2026-01-08 — Postgres in dev, SQLite forced in TESTING/CI; orderbook snapshots table
+
+- Root cause: `orderbook_snapshots` was not visible in `backend/data/market_data.db` because the app was using Postgres via `MARKET_DATABASE_URL`, while the check was inspecting the SQLite file.
+- Model registration: ensured `OrderbookSnapshot` is registered in `CandlestickBase.metadata`:
+  - imported `OrderbookSnapshot` in `backend/models/__init__.py`
+  - defensive import of `models.orderbook` in `backend/lib/database.py:create_tables()` before `CandlestickBase.metadata.create_all(...)`
+- Config hardening: refactored `backend/config.py` to instantiate `Settings()` once and force SQLite DB URLs when `TESTING=true` or `CI=true`, preventing accidental Postgres usage in tests/scripts.
+- Local env fix: removed a Windows Machine-level `MARKET_DATABASE_URL=sqlite:///./data/market_data.db` that was overriding `.env` and breaking “Postgres in dev”.
+- Added `backend/check_db.py` diagnostic script to print active DB URLs and list market DB tables.
