@@ -150,6 +150,8 @@ def _upsert_metadata(
     - 'error': DB has 0 candles or error occurred
     - 'partial': DB has some candles but error occurred during sync
     """
+    now = _utc_now()
+    
     # Compute stats from candlesticks
     stats = (
         db.execute(
@@ -195,6 +197,7 @@ def _upsert_metadata(
         "status": status,
         "error_code": error_code,
         "error_message": error_message,
+        "now": now,
     }
 
     # Build dynamic SQL based on whether we're clearing or setting errors
@@ -212,8 +215,8 @@ def _upsert_metadata(
                 VALUES (
                     :symbol, :interval,
                     :earliest, :latest,
-                    :total, NOW(), :status,
-                    :error_code, :error_message, NOW()
+                    :total, :now, :status,
+                    :error_code, :error_message, :now
                 )
                 ON CONFLICT (symbol, interval)
                 DO UPDATE SET
@@ -225,7 +228,7 @@ def _upsert_metadata(
                     error_code = EXCLUDED.error_code,
                     error_message = EXCLUDED.error_message,
                     last_attempt_at = EXCLUDED.last_attempt_at,
-                    updated_at = NOW()
+                    updated_at = :now
             """
             ),
             params,
@@ -244,8 +247,8 @@ def _upsert_metadata(
                 VALUES (
                     :symbol, :interval,
                     :earliest, :latest,
-                    :total, NOW(), :status,
-                    NULL, NULL, NOW(), NOW()
+                    :total, :now, :status,
+                    NULL, NULL, :now, :now
                 )
                 ON CONFLICT (symbol, interval)
                 DO UPDATE SET
@@ -258,7 +261,7 @@ def _upsert_metadata(
                     error_message = NULL,
                     last_attempt_at = EXCLUDED.last_attempt_at,
                     last_success_at = EXCLUDED.last_success_at,
-                    updated_at = NOW()
+                    updated_at = :now
             """
             ),
             params,
@@ -274,6 +277,8 @@ def _set_metadata_status(
     error_message: str | None = None,
 ) -> None:
     """Best-effort metadata status update."""
+    now = _utc_now()
+    
     with get_db("market") as db:
         if error_code:
             db.execute(
@@ -284,17 +289,17 @@ def _set_metadata_status(
                         error_code, error_message, last_attempt_at
                     )
                     VALUES (
-                        :symbol, :interval, :status, NOW(),
-                        :error_code, :error_message, NOW()
+                        :symbol, :interval, :status, :now,
+                        :error_code, :error_message, :now
                     )
                     ON CONFLICT (symbol, interval)
                     DO UPDATE SET
                         sync_status = :status,
-                        last_sync = NOW(),
+                        last_sync = :now,
                         error_code = :error_code,
                         error_message = :error_message,
-                        last_attempt_at = NOW(),
-                        updated_at = NOW()
+                        last_attempt_at = :now,
+                        updated_at = :now
                 """
                 ),
                 {
@@ -303,6 +308,7 @@ def _set_metadata_status(
                     "status": status,
                     "error_code": error_code,
                     "error_message": error_message,
+                    "now": now,
                 },
             )
         else:
@@ -312,16 +318,16 @@ def _set_metadata_status(
                     INSERT INTO candlestick_metadata (
                         symbol, interval, sync_status, last_sync, last_attempt_at
                     )
-                    VALUES (:symbol, :interval, :status, NOW(), NOW())
+                    VALUES (:symbol, :interval, :status, :now, :now)
                     ON CONFLICT (symbol, interval)
                     DO UPDATE SET
                         sync_status = :status,
-                        last_sync = NOW(),
-                        last_attempt_at = NOW(),
-                        updated_at = NOW()
+                        last_sync = :now,
+                        last_attempt_at = :now,
+                        updated_at = :now
                 """
                 ),
-                {"symbol": symbol, "interval": interval, "status": status},
+                {"symbol": symbol, "interval": interval, "status": status, "now": now},
             )
 
 
