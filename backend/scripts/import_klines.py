@@ -56,6 +56,11 @@ ERROR_CODES = {
     "UNKNOWN_ERROR": "UNKNOWN_ERROR",
 }
 
+# Retry backoff configuration (in seconds)
+MAX_RATE_LIMIT_BACKOFF = 60
+MAX_HTTP_ERROR_BACKOFF = 30
+MAX_NETWORK_ERROR_BACKOFF = 30
+
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -268,7 +273,6 @@ def _upsert_metadata(
         )
 
 
-
 def _set_metadata_status(
     symbol: str,
     interval: str,
@@ -388,7 +392,7 @@ def import_symbol_interval(
                         error_message = "Rate limit exceeded"
                         retry_count += 1
                         if retry_count <= max_retries:
-                            backoff = min(2 ** retry_count, 60)  # Exponential backoff, max 60s
+                            backoff = min(2 ** retry_count, MAX_RATE_LIMIT_BACKOFF)
                             print(f"  [WARN] Rate limit hit, retrying in {backoff}s (attempt {retry_count}/{max_retries})...")
                             time.sleep(backoff)
                             continue
@@ -401,7 +405,7 @@ def import_symbol_interval(
                         error_message = f"HTTP error: {error_str[:200]}"
                         retry_count += 1
                         if retry_count <= max_retries:
-                            backoff = min(2 ** retry_count, 30)
+                            backoff = min(2 ** retry_count, MAX_HTTP_ERROR_BACKOFF)
                             print(f"  [WARN] HTTP error, retrying in {backoff}s (attempt {retry_count}/{max_retries})...")
                             time.sleep(backoff)
                             continue
@@ -414,7 +418,7 @@ def import_symbol_interval(
                     error_message = f"Network error: {str(e)[:200]}"
                     retry_count += 1
                     if retry_count <= max_retries:
-                        backoff = min(2 ** retry_count, 30)
+                        backoff = min(2 ** retry_count, MAX_NETWORK_ERROR_BACKOFF)
                         print(f"  [WARN] Network error, retrying in {backoff}s (attempt {retry_count}/{max_retries})...")
                         time.sleep(backoff)
                         continue

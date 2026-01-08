@@ -48,21 +48,26 @@ def migrate():
                 print("[MIGRATION] Columns already exist. Skipping.")
                 return
         
-        # Add columns
-        print("[MIGRATION] Adding error_code column...")
-        db.execute(text("ALTER TABLE candlestick_metadata ADD COLUMN error_code VARCHAR"))
-        
-        print("[MIGRATION] Adding error_message column...")
-        db.execute(text("ALTER TABLE candlestick_metadata ADD COLUMN error_message VARCHAR"))
-        
-        print("[MIGRATION] Adding last_attempt_at column...")
-        db.execute(text("ALTER TABLE candlestick_metadata ADD COLUMN last_attempt_at TIMESTAMP WITH TIME ZONE"))
-        
-        print("[MIGRATION] Adding last_success_at column...")
-        db.execute(text("ALTER TABLE candlestick_metadata ADD COLUMN last_success_at TIMESTAMP WITH TIME ZONE"))
-        
-        db.commit()
-        print("[MIGRATION] ✅ Migration completed successfully!")
+        # Add columns - each ALTER TABLE is atomic in both PostgreSQL and SQLite
+        try:
+            print("[MIGRATION] Adding error_code column...")
+            db.execute(text("ALTER TABLE candlestick_metadata ADD COLUMN error_code VARCHAR"))
+            
+            print("[MIGRATION] Adding error_message column...")
+            db.execute(text("ALTER TABLE candlestick_metadata ADD COLUMN error_message VARCHAR"))
+            
+            print("[MIGRATION] Adding last_attempt_at column...")
+            db.execute(text("ALTER TABLE candlestick_metadata ADD COLUMN last_attempt_at TIMESTAMP WITH TIME ZONE"))
+            
+            print("[MIGRATION] Adding last_success_at column...")
+            db.execute(text("ALTER TABLE candlestick_metadata ADD COLUMN last_success_at TIMESTAMP WITH TIME ZONE"))
+            
+            db.commit()
+            print("[MIGRATION] ✅ Migration completed successfully!")
+        except Exception as e:
+            db.rollback()
+            print(f"[MIGRATION] ❌ Migration failed: {e}")
+            raise
 
 
 if __name__ == "__main__":
