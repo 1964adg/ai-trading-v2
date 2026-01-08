@@ -126,6 +126,7 @@ def create_tables():
 
     if "market" in engines:
         from models.candlestick import CandlestickBase
+        import models.orderbook  # ✅ registers OrderbookSnapshot into CandlestickBase.metadata
 
         CandlestickBase.metadata.create_all(bind=engines["market"])
         logger.info("Market database tables created")

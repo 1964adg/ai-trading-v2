@@ -1,8 +1,10 @@
 """Configuration settings for the AI Trading Backend."""
 
-from pydantic_settings import BaseSettings
-from pydantic import field_validator, ConfigDict
+import os
 from typing import Optional, Union
+
+from pydantic import ConfigDict, field_validator
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -77,17 +79,21 @@ class Settings(BaseSettings):
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="ignore",  # ✅ CHIAVE:  Ignora variabili extra in .env
-        protected_namespaces=(),  # ✅ FIX: Risolve warning "model_"
+        extra="ignore",  # ✅ Ignora variabili extra in .env
+        protected_namespaces=(),  # ✅ Risolve warning "model_"
     )
 
 
+def _truthy(v: str | None) -> bool:
+    return (v or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+# ✅ Instantiate Settings ONCE
 settings = Settings()
 
-# Override database URLs for testing/CI environments
-# This ensures tests use SQLite even if .env configures Postgres
-import os
-if os.environ.get('TESTING') == 'true' or os.environ.get('CI') == 'true':
+# ✅ Force SQLite in TESTING/CI to avoid accidental Postgres usage in tests/scripts
+# This ensures tests use SQLite even if .env configures Postgres.
+if _truthy(os.getenv("TESTING")) or _truthy(os.getenv("CI")):
     settings.TRADING_DATABASE_URL = "sqlite:///./data/trading.db"
     settings.MARKET_DATABASE_URL = "sqlite:///./data/market_data.db"
     settings.ANALYTICS_DATABASE_URL = "sqlite:///./data/analytics.db"
