@@ -160,7 +160,7 @@ def _upsert_metadata(
             SELECT
               MIN(open_time) AS earliest,
               MAX(open_time) AS latest,
-              COUNT(*)::int AS total
+              COUNT(*) AS total
             FROM candlesticks
             WHERE symbol = :symbol AND interval = :interval
         """
@@ -171,7 +171,7 @@ def _upsert_metadata(
         .one()
     )
 
-    total = stats["total"] or 0
+    total = int(stats["total"] or 0)
     
     # Determine sync_status based on DB state and error presence
     if error_code:
