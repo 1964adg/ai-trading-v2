@@ -25,7 +25,7 @@ from lib.risk_calculator import (
 # ✅ DB access (market DB)
 from lib.database import get_db
 from sqlalchemy import text
-from datetime import timezone
+from datetime import timezone, datetime
 
 router = APIRouter()
 
@@ -101,6 +101,53 @@ def _fetch_klines_from_db(symbol: str, interval: str, limit: int):
     return _rows_to_api_format(rows)
 
 
+def _fetch_klines_from_db_range(
+    symbol: str, interval: str, start: datetime, end: datetime, limit: int = 10000
+):
+    """
+    Fetch klines from DB within a date range.
+    Returns oldest to newest for charting.
+    """
+    sql = text(
+        """
+        SELECT
+          open_time,
+          open_price,
+          high_price,
+          low_price,
+          close_price,
+          volume
+        FROM candlesticks
+        WHERE symbol = :symbol 
+          AND interval = :interval
+          AND open_time >= :start
+          AND open_time <= :end
+        ORDER BY open_time ASC
+        LIMIT :limit
+    """
+    )
+    with get_db("market") as db:
+        rows = (
+            db.execute(
+                sql,
+                {
+                    "symbol": symbol.strip().upper(),
+                    "interval": interval.strip(),
+                    "start": start,
+                    "end": end,
+                    "limit": int(limit),
+                },
+            )
+            .mappings()
+            .all()
+        )
+
+    if not rows:
+        return []
+
+    return _rows_to_api_format(rows)
+
+
 async def _fetch_klines_data(symbol: str, interval: str, limit: int):
     """
     DB-first: try candlesticks table, fallback to Binance.
@@ -148,6 +195,66 @@ async def get_klines_path(
     limit: int = Query(default=500, ge=1, le=1000),
 ):
     return await _fetch_klines_data(symbol=symbol, interval=interval, limit=limit)
+
+
+@router.get("/klines/range")
+async def get_klines_range(
+    symbol: str = Query(..., description="Trading pair symbol (e.g., BTCEUR)"),
+    timeframe: str = Query(
+        ..., description="Timeframe interval (e.g., 1m, 5m, 15m, 1h, 4h, 1d)"
+    ),
+    start: str = Query(..., description="Start date (ISO8601 format)"),
+    end: str = Query(..., description="End date (ISO8601 format)"),
+    limit: int = Query(10000, description="Max candles to return", ge=1, le=50000),
+):
+    """
+    Fetch klines by date range with DB-first approach.
+    Falls back to Binance if DB has no data (limited to 1000 candles).
+    """
+    try:
+        # Parse dates
+        start_dt = pd.to_datetime(start).to_pydatetime()
+        end_dt = pd.to_datetime(end).to_pydatetime()
+        
+        # Ensure timezone-aware
+        if start_dt.tzinfo is None:
+            start_dt = start_dt.replace(tzinfo=timezone.utc)
+        else:
+            start_dt = start_dt.astimezone(timezone.utc)
+            
+        if end_dt.tzinfo is None:
+            end_dt = end_dt.replace(tzinfo=timezone.utc)
+        else:
+            end_dt = end_dt.astimezone(timezone.utc)
+
+        # 1) Try DB first
+        db_data = _fetch_klines_from_db_range(
+            symbol=symbol, interval=timeframe, start=start_dt, end=end_dt, limit=limit
+        )
+        if db_data:
+            return {"success": True, "data": db_data}
+
+        # 2) Fallback to Binance (best-effort, limited to 1000)
+        fallback_limit = min(1000, limit)
+        data = binance_service.get_klines_data(
+            symbol=symbol.strip().upper(),
+            interval=timeframe.strip(),
+            limit=fallback_limit,
+        )
+
+        # Convert DataFrame to dict
+        if hasattr(data, "to_dict"):
+            data = data.to_dict("records")
+
+        return {"success": True, "data": data}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+    except BinanceAPIException as e:
+        raise HTTPException(status_code=400, detail=f"Invalid request: {e.message}")
+    except ConnectionError:
+        raise HTTPException(status_code=503, detail="Unable to connect to Binance API")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 #
@@ -448,14 +555,66 @@ async def run_backtest(request: BacktestRequest):
 
         print(f"[BACKTEST] Starting backtest for {request.symbol} {request.timeframe}")
 
-        # Fetch historical data
-        klines = binance_service.get_klines_data(
-            symbol=request.symbol.upper(), interval=request.timeframe, limit=1000
-        )
+        # Fetch historical data using DB-first approach
+        if request.start_date and request.end_date:
+            # Use range-based query
+            print(f"[BACKTEST] Using range query: {request.start_date} to {request.end_date}")
+            
+            start_dt = pd.to_datetime(request.start_date).to_pydatetime()
+            end_dt = pd.to_datetime(request.end_date).to_pydatetime()
+            
+            # Ensure timezone-aware
+            if start_dt.tzinfo is None:
+                start_dt = start_dt.replace(tzinfo=timezone.utc)
+            else:
+                start_dt = start_dt.astimezone(timezone.utc)
+                
+            if end_dt.tzinfo is None:
+                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            else:
+                end_dt = end_dt.astimezone(timezone.utc)
+            
+            klines_data = _fetch_klines_from_db_range(
+                symbol=request.symbol,
+                interval=request.timeframe,
+                start=start_dt,
+                end=end_dt,
+                limit=50000,
+            )
+            
+            if not klines_data:
+                # Fallback to Binance (limited to 1000)
+                print(f"[BACKTEST] No DB data, falling back to Binance")
+                klines_data = binance_service.get_klines_data(
+                    symbol=request.symbol.upper(),
+                    interval=request.timeframe,
+                    limit=1000,
+                )
+                if hasattr(klines_data, "to_dict"):
+                    klines_data = klines_data.to_dict("records")
+        else:
+            # Use DB-first limit logic (no date range)
+            print(f"[BACKTEST] Using limit-based query (limit=1000)")
+            klines_data = _fetch_klines_from_db(
+                symbol=request.symbol, interval=request.timeframe, limit=1000
+            )
+            
+            if not klines_data:
+                # Fallback to Binance
+                print(f"[BACKTEST] No DB data, falling back to Binance")
+                klines_data = binance_service.get_klines_data(
+                    symbol=request.symbol.upper(),
+                    interval=request.timeframe,
+                    limit=1000,
+                )
+                if hasattr(klines_data, "to_dict"):
+                    klines_data = klines_data.to_dict("records")
 
-        # Convert to DataFrame if not already
-        if not isinstance(klines, pd.DataFrame):
-            klines = pd.DataFrame(klines)
+        # Convert to DataFrame
+        if not isinstance(klines_data, pd.DataFrame):
+            klines = pd.DataFrame(klines_data)
+        else:
+            klines = klines_data
 
         print(f"[BACKTEST] Got {len(klines)} candles")
 
@@ -465,20 +624,17 @@ async def run_backtest(request: BacktestRequest):
 
         # Convert timestamp to datetime index if needed
         if "timestamp" in klines.columns:
-            klines["timestamp"] = pd.to_datetime(klines["timestamp"])
+            klines["timestamp"] = pd.to_datetime(klines["timestamp"], utc=True)
             klines.set_index("timestamp", inplace=True)
         elif "time" in klines.columns:
-            klines["time"] = pd.to_datetime(klines["time"])
+            klines["time"] = pd.to_datetime(klines["time"], utc=True)
             klines.set_index("time", inplace=True)
-
-        # Filter by date range if provided
-        if request.start_date:
-            start_dt = pd.to_datetime(request.start_date)
-            klines = klines[klines.index >= start_dt]
-
-        if request.end_date:
-            end_dt = pd.to_datetime(request.end_date)
-            klines = klines[klines.index <= end_dt]
+        
+        # Ensure index is UTC datetime
+        if klines.index.tz is None:
+            klines.index = klines.index.tz_localize(timezone.utc)
+        else:
+            klines.index = klines.index.tz_convert(timezone.utc)
 
         print(f"[BACKTEST] Date range: {klines.index[0]} to {klines.index[-1]}")
 
@@ -498,11 +654,10 @@ async def run_backtest(request: BacktestRequest):
             )
         elif request.strategy == "rsi":
             strategy = RSIStrategy(
-                rsi_period=request.rsi_period,
+                period=request.rsi_period,
                 oversold=request.rsi_oversold,
                 overbought=request.rsi_overbought,
                 stop_loss_pct=request.stop_loss_pct,
-                take_profit_pct=request.take_profit_pct,
             )
         else:
             raise HTTPException(
@@ -577,3 +732,55 @@ async def run_backtest(request: BacktestRequest):
         print(f"[BACKTEST] ❌ Error: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Backtest error: {str(e)}")
+
+
+# ============================================================================
+# PHASE D: ORDER BOOK RECORDING ENDPOINTS
+# ============================================================================
+
+from services.orderbook_recorder import orderbook_recorder
+
+
+@router.post("/rec/start")
+async def start_orderbook_recording(
+    symbol: str = Query(..., description="Trading pair symbol (e.g., BTCEUR)")
+):
+    """
+    Start recording order book snapshots.
+    Captures top 20 bids/asks every ~500ms.
+    """
+    try:
+        result = orderbook_recorder.start_recording(symbol=symbol.upper())
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to start recording: {str(e)}"
+        )
+
+
+@router.post("/rec/stop")
+async def stop_orderbook_recording():
+    """
+    Stop recording order book snapshots.
+    """
+    try:
+        result = orderbook_recorder.stop_recording()
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to stop recording: {str(e)}"
+        )
+
+
+@router.get("/rec/status")
+async def get_orderbook_recording_status():
+    """
+    Get current order book recording status.
+    """
+    try:
+        status = orderbook_recorder.get_status()
+        return {"success": True, **status}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get status: {str(e)}"
+        )
