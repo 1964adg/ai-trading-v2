@@ -5,9 +5,11 @@
 
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useMarketStore } from '@/stores/marketStore';
 import { useTradingStore } from '@/stores/tradingStore';
+import { usePatternDetectionStore } from '@/stores/patternDetectionStore';
 import { PatternDetector } from '@/components/PatternDetector';
 import { PatternDashboard } from '@/components/PatternDashboard';
 import PatternSelector from '@/components/trading/PatternSelector';
@@ -15,11 +17,13 @@ import CustomPatternBuilder from '@/components/trading/CustomPatternBuilder';
 import VWAPControls from '@/components/indicators/VWAPControls';
 import VolumeProfileControls from '@/components/indicators/VolumeProfileControls';
 import OrderFlowPanel from '@/components/indicators/OrderFlowPanel';
-import { usePatternRecognition } from '@/hooks/usePatternRecognition';
 import { useOrderFlow } from '@/hooks/useOrderFlow';
 import { PatternType, ESSENTIAL_CANDLESTICK_PATTERNS } from '@/types/patterns';
 
 export default function AnalysisPage() {
+  const searchParams = useSearchParams();
+  const patternId = searchParams.get('patternId');
+  
   const { symbol } = useMarketStore();
   const {
     vwapConfig,
@@ -30,21 +34,55 @@ export default function AnalysisPage() {
     setOrderFlowConfig,
   } = useTradingStore();
 
-  // Pattern Recognition Integration
+  // Use centralized pattern detection store
   const {
     detectedPatterns,
     patternStats,
-    overallPerformance,
     isDetecting,
     settings,
     updateSettings,
-  } = usePatternRecognition({
-    enableRealTime: true,
-    initialSettings: {
-      minConfidence: 60,
-      sensitivity: 'MEDIUM',
-    },
-  });
+  } = usePatternDetectionStore();
+
+  // Compute overall performance from pattern stats
+  const overallPerformance = useMemo(() => {
+    if (patternStats.length === 0) {
+      return {
+        totalPatterns: 0,
+        successRate: 0,
+        averageConfidence: 0,
+        totalProfitability: 0,
+        bestPattern: null,
+        worstPattern: null,
+      };
+    }
+
+    const totalDetections = patternStats.reduce((sum, stat) => sum + stat.totalDetections, 0);
+    const totalSuccessful = patternStats.reduce((sum, stat) => sum + stat.successfulSignals, 0);
+    const avgConfidence = patternStats.reduce((sum, stat) => sum + stat.averageConfidence, 0) / patternStats.length;
+    const totalProfit = patternStats.reduce((sum, stat) => sum + stat.profitability, 0);
+
+    // Find best and worst patterns
+    const sortedBySuccess = [...patternStats].sort((a, b) => b.successRate - a.successRate);
+    const best = sortedBySuccess[0] || null;
+    const worst = sortedBySuccess[sortedBySuccess.length - 1] || null;
+
+    return {
+      totalPatterns: totalDetections,
+      successRate: totalDetections > 0 ? (totalSuccessful / totalDetections) * 100 : 0,
+      averageConfidence: avgConfidence,
+      totalProfitability: totalProfit,
+      bestPattern: best ? best.patternType : null,
+      worstPattern: worst ? worst.patternType : null,
+    };
+  }, [patternStats]);
+
+  // Highlight selected pattern if patternId is provided
+  useEffect(() => {
+    if (patternId) {
+      console.log('[AnalysisPage] Viewing pattern:', patternId);
+      // Could scroll to or highlight the pattern in the UI
+    }
+  }, [patternId]);
 
   // Order Flow Integration
   const {

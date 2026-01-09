@@ -15,8 +15,9 @@ import AdvancedRiskCalculator from '@/components/trading/AdvancedRiskCalculator'
 import PositionRiskGauge from '@/components/trading/PositionRiskGauge';
 import FeatureFlagsPanel from '@/components/settings/FeatureFlagsPanel';
 import { useRealTrading } from '@/hooks/useRealTrading';
-import { usePatternRecognition } from '@/hooks/usePatternRecognition';
 import { useState, useCallback, useEffect, useRef } from 'react';
+import PatternAlertsPanel from '@/components/trading/PatternAlertsPanel';
+import { usePatternDetectionStore } from '@/stores/patternDetectionStore';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import TradingChart from '@/components/TradingChart';
@@ -119,12 +120,20 @@ export default function Dashboard() {
 
   const { addPosition, emaPeriods, emaEnabled, toggleEma, setEmaPeriods, setEmaEnabled } = useTradingStore();
 
-  const { detectedPatterns } = usePatternRecognition({
-    enableRealTime: true,
-    initialSettings: {
-      minConfidence: patternConfidenceThreshold,
-    },
-  });
+  // Use centralized pattern detection store
+  const { detectedPatterns, updateCandles, updateSettings } = usePatternDetectionStore();
+
+  // Update store settings when threshold changes
+  useEffect(() => {
+    updateSettings({ minConfidence: patternConfidenceThreshold });
+  }, [patternConfidenceThreshold, updateSettings]);
+
+  // Feed chartData to the pattern detection store
+  useEffect(() => {
+    if (chartData.length > 0) {
+      updateCandles(chartData);
+    }
+  }, [chartData, updateCandles]);
 
   const recentPatterns = detectedPatterns
     .filter((p) => p.confidence >= patternConfidenceThreshold)
@@ -514,6 +523,8 @@ export default function Dashboard() {
             patterns={recentPatterns}
             patternConfidenceThreshold={patternConfidenceThreshold}
           />
+
+          <PatternAlertsPanel />
 
           <IndicatorSummary
             recentPatterns={recentPatterns}

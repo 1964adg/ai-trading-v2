@@ -6,7 +6,8 @@ import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData, Seri
 import { ChartDataPoint } from '@/lib/types';
 import { formatCurrency, formatNumber, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
-import { DetectedPattern } from '@/types/patterns';
+import { DetectedPattern, PatternSignal } from '@/types/patterns';
+import { getPatternColor, getMarkerShape } from '@/components/charts/PatternOverlay';
 
 interface TradingChartProps {
   data: ChartDataPoint[];
@@ -436,14 +437,28 @@ function TradingChartComponent({
         (p) => p.confidence >= patternConfidenceThreshold
       );
 
-      // Convert patterns to chart markers
-      const markers: SeriesMarker<Time>[] = filteredPatterns.map((p) => ({
-        time: p.time,
-        position: p.signal === 'BULLISH' ? 'belowBar' : 'aboveBar',
-        color: p.signal === 'BULLISH' ? '#10b981' : '#ef4444',
-        shape: 'circle',
-        text: p.pattern.name.substring(0, 3).toUpperCase(),
-      }));
+      // Convert patterns to chart markers with BUY/SELL/W text
+      const markers: SeriesMarker<Time>[] = filteredPatterns.map((p) => {
+        // Use PatternOverlay helpers for color and shape
+        const color = getPatternColor(p.signal);
+        const shape = getMarkerShape(p.signal);
+        
+        // Map signal to BUY/SELL/W text
+        let text = 'W'; // Default for NEUTRAL
+        if (p.signal === 'BULLISH') {
+          text = 'BUY';
+        } else if (p.signal === 'BEARISH') {
+          text = 'SELL';
+        }
+
+        return {
+          time: p.time,
+          position: p.signal === 'BEARISH' ? 'aboveBar' : 'belowBar',
+          color,
+          shape,
+          text,
+        };
+      });
 
       // Set pattern markers on the chart
       series.setMarkers(markers);
