@@ -89,7 +89,7 @@ function AnalysisContent() {
     }
     
     fallbackFetch();
-  }, [candles.length, symbol, setCandles, isFallbackLoading]);
+  }, [candles.length, symbol, setCandles]);
   
   // Update selected pattern when query param changes
   useEffect(() => {
