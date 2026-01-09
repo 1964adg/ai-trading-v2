@@ -337,3 +337,13 @@ Importer: gestione EMPTY_RESPONSE resa non-fatal quando esistono già candele ne
 Frontend: aggiunto selettore “periodo” sul dashboard e supporto al caricamento storico via /api/klines/range (range/preset). (Da rifinire: limitare periodo max a 1D se desiderato.)
 Debug: chiarito che il frontend usa /api/klines?symbol=...&timeframe=... e introdotta normalizzazione per evitare mismatch su timeframe/symbol.
 Risultato: DB-first verificato in modo oggettivo (BTCUSDT→db, BTCEUR→binance) e range endpoint pronto per storico.
+
+## 2026-01-09
+### Klines DB-first + debug source + chart range + coverage
+- Backend: aggiunto campo `source: "db" | "binance"` nella response di:
+  - `GET /api/klines`
+  - `GET /api/klines/range`
+  per verificare in modo oggettivo se i dati arrivano dal DB o da Binance.
+- Importer: `EMPTY_RESPONSE` non è più fatal se nel DB esistono già candele (`partial` invece di `failed`).
+- Frontend: aggiunto dropdown periodo (preset) accanto al pattern threshold e supporto fetch via `/api/klines/range` (range/preset).
+- Note: verificato che `BTCUSDT` risponde con `source=db` e `BTCEUR` con `source=binance`.
