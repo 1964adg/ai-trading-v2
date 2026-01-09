@@ -14,8 +14,8 @@ import IndicatorPanel from '@/components/trading/IndicatorPanel';
 import AdvancedRiskCalculator from '@/components/trading/AdvancedRiskCalculator';
 import PositionRiskGauge from '@/components/trading/PositionRiskGauge';
 import FeatureFlagsPanel from '@/components/settings/FeatureFlagsPanel';
+import PatternAlertsPanel from '@/components/trading/PatternAlertsPanel';
 import { useRealTrading } from '@/hooks/useRealTrading';
-import { usePatternRecognition } from '@/hooks/usePatternRecognition';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
@@ -38,6 +38,7 @@ import { useMarketStore } from '@/stores/marketStore';
 import { syncManager, SyncEvent } from '@/lib/syncManager';
 import { EnhancedOrder } from '@/types/enhanced-orders';
 import { getFeatureFlag } from '@/lib/featureFlags';
+import { usePatternStore } from '@/stores/patternStore';
 
 const DEFAULT_SYMBOL = 'BTCEUR';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
@@ -93,7 +94,6 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [showEmaConfig, setShowEmaConfig] = useState(false);
   const [showSymbolSelector, setShowSymbolSelector] = useState(false);
-  const [patternConfidenceThreshold, setPatternConfidenceThreshold] = useState(70);
   // ✅ NEW: period selector state (defaults to legacy behavior)
   const [period, setPeriod] = useState<ChartPeriod>('limit');
 
@@ -119,15 +119,18 @@ export default function Dashboard() {
 
   const { addPosition, emaPeriods, emaEnabled, toggleEma, setEmaPeriods, setEmaEnabled } = useTradingStore();
 
-  const { detectedPatterns } = usePatternRecognition({
-    enableRealTime: true,
-    initialSettings: {
-      minConfidence: patternConfidenceThreshold,
-    },
-  });
+  // ✅ Use centralized pattern store instead of local usePatternRecognition
+  const { detectedPatterns, settings: patternSettings, setCandles } = usePatternStore();
+
+  // Feed chart data into pattern store
+  useEffect(() => {
+    if (chartData.length > 0) {
+      setCandles(chartData);
+    }
+  }, [chartData, setCandles]);
 
   const recentPatterns = detectedPatterns
-    .filter((p) => p.confidence >= patternConfidenceThreshold)
+    .filter((p) => p.confidence >= patternSettings.minConfidence)
     .slice(0, 5);
 
   const emaStatus = [9, 21, 50, 200].map((period) => ({
@@ -440,7 +443,7 @@ export default function Dashboard() {
           />
 
           <div className="flex items-center gap-2">
-            {/* ✅ NEW: Period dropdown (accanto al patternConfidenceThreshold) */}
+            {/* ✅ NEW: Period dropdown */}
             <div>
               <select
                 value={period}
@@ -453,20 +456,6 @@ export default function Dashboard() {
                 <option value="7d">7D</option>
                 <option value="30d">30D</option>
                 <option value="90d">90D</option>
-              </select>
-            </div>
-
-            <div>
-              <select
-                value={patternConfidenceThreshold}
-                onChange={(e) => setPatternConfidenceThreshold(Number(e.target.value))}
-                className="bg-gray-800 text-white rounded px-3 py-2 text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
-              >
-                <option value={50}>All Patterns (50%+)</option>
-                <option value={60}>Medium (60%+)</option>
-                <option value={70}>High (70%+)</option>
-                <option value={80}>Very High (80%+)</option>
-                <option value={90}>Extreme (90%+)</option>
               </select>
             </div>
 
@@ -512,8 +501,10 @@ export default function Dashboard() {
             emaPeriods={emaPeriods}
             emaEnabled={emaEnabled}
             patterns={recentPatterns}
-            patternConfidenceThreshold={patternConfidenceThreshold}
+            patternConfidenceThreshold={patternSettings.minConfidence}
           />
+
+          <PatternAlertsPanel />
 
           <IndicatorSummary
             recentPatterns={recentPatterns}
