@@ -117,7 +117,7 @@ export default function PatternSelector({
               step="5"
               value={minConfidence}
               onChange={(e) => onConfidenceChange(Number(e.target.value))}
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer pattern-selector-slider"
             />
             <div className="flex justify-between text-xs text-gray-500">
               <span>0%</span>
@@ -200,8 +200,8 @@ export default function PatternSelector({
       )}
 
       {/* Slider Styling */}
-      <style jsx>{`
-        .slider::-webkit-slider-thumb {
+      <style>{`
+        .pattern-selector-slider::-webkit-slider-thumb {
           appearance: none;
           width: 16px;
           height: 16px;
@@ -209,7 +209,7 @@ export default function PatternSelector({
           background: #3b82f6;
           cursor: pointer;
         }
-        .slider::-moz-range-thumb {
+        .pattern-selector-slider::-moz-range-thumb {
           width: 16px;
           height: 16px;
           border-radius: 50%;

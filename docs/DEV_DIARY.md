@@ -380,3 +380,52 @@ Risultato: DB-first verificato in modo oggettivo (BTCUSDT→db, BTCEUR→binance
 - **Issue aperte / Next:**
   - La pagina `/analysis` mostra “No patterns detected yet” perché non riceve/calcora candles per il pattern engine: decidere architettura “pattern centralizzati” vs “ricalcolo per pagina”.
   - Proporre una “centrale” unica per patterns+alerts, con UI main page ricca ma configurazione avanzata solo in analysis.
+## 2026-01-09 — Next 14.2.35 bump + build fix PatternSelector + stato dashboard
+
+### Obiettivo
+- Aggiornare Next.js per security patch e ripristinare build green.
+- Riprendere controllo dello stato dopo cherry-pick conflittuali.
+
+### Stato branch / PR
+- Branch: `chore/bump-next-14.2.35`
+- Commit:
+  - `chore(frontend): bump next to 14.2.35 (security)`
+  - `fix(frontend): fix PatternSelector slider styles for Next 14 build` (rimosso `style jsx`, allineati selettori slider)
+
+### Risultati
+- `cd frontend && npm install`: OK (ma `npm audit` segnala 3 high severity – da valutare in follow-up)
+- `cd frontend && npm run build`: OK (build green)
+- Warning rimasto:
+  - `app/analysis/page.tsx` useEffect exhaustive-deps (`isFallbackLoading`)
+
+### Note operative
+- Durante il cherry-pick del commit di fix build si è generato conflitto su `PatternSelector.tsx`.
+- Risoluzione corretta: classe `pattern-selector-slider` sull’input range + CSS matching; rimozione `jsx` da `<style>` per compatibilità TS/Next build.
+
+### Problema aperto (funzionale)
+- “Dashboard non mostra nulla”: da investigare separatamente (probabile flusso dati/candles/store o fetch).
+- Prossimi step: verificare API backend, store `useMarketStore/usePatternStore`, e che il frontend stia ricevendo klines (network tab + log store).
+
+### Entry — 2026-01-09 (Europe/Rome) — Next 14.2.35 bump + build fix PatternSelector + analysis deps
+
+- **Obiettivo:**
+  - Fare security bump Next e ripristinare build green (Next build/TS).
+  - Chiudere i conflitti su `PatternSelector` e lasciare stato tracciato.
+
+- **Cosa è cambiato:**
+  - Frontend: bump `next` a **14.2.35** (security).
+  - Fix build: `frontend/components/trading/PatternSelector.tsx`
+    - rimosso `jsx` da `<style>` (errore TS: prop `jsx` non tipizzato)
+    - riallineata classe slider: `pattern-selector-slider` (input) + selettori CSS corrispondenti
+  - Fix lint warning: `frontend/app/analysis/page.tsx`
+    - aggiunta dipendenza `isFallbackLoading` nel `useEffect` fallback fetch (react-hooks/exhaustive-deps)
+
+- **Verifiche:**
+  - `cd frontend && npm install` OK
+  - `cd frontend && npm run lint` OK
+  - `cd frontend && npm run build` OK
+
+- **Note:**
+  - `npm audit` segnala vulnerabilità high: da valutare in follow-up separato (evitare `npm audit fix --force` senza review).
+
+PR #84, bump Next 14.2.35, fix PatternSelector build (rimozione <style jsx>), test npm run build ok, note npm audit.
