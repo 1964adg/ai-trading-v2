@@ -347,3 +347,36 @@ Risultato: DB-first verificato in modo oggettivo (BTCUSDT→db, BTCEUR→binance
 - Importer: `EMPTY_RESPONSE` non è più fatal se nel DB esistono già candele (`partial` invece di `failed`).
 - Frontend: aggiunto dropdown periodo (preset) accanto al pattern threshold e supporto fetch via `/api/klines/range` (range/preset).
 - Note: verificato che `BTCUSDT` risponde con `source=db` e `BTCEUR` con `source=binance`.
+
+### Entry — 2026-01-09 (Europe/Rome) — Pattern markers BUY/SELL/W + fix ESLint in monorepo workspaces
+
+- **Obiettivo:**
+  - Rendere i marker pattern sul chart operativi (BUY/SELL/W) invece del nome pattern.
+  - Stabilizzare toolchain ESLint/TypeScript in monorepo npm workspaces (Next.js 14).
+
+- **Cosa è cambiato (Frontend UI):**
+  - `frontend/components/charts/PatternOverlay.tsx` e `frontend/components/TradingChart.tsx` aggiornati per usare una logica marker "operativa":
+    - BULLISH → `BUY` (shape arrowUp, green)
+    - BEARISH → `SELL` (shape arrowDown, red)
+    - NEUTRAL → `W` (shape circle, amber)
+  - `TradingChart.tsx` ora usa helper `convertPatternsToOverlays()` + `createChartMarkers()` per generare markers.
+
+- **Build/Lint (Root cause e fix):**
+  - Root cause: mix di ESLint 8 e 9 nello stesso albero (workspace), con crash su regole `@typescript-eslint/*`.
+  - Fix applicato: uniformato tutto il monorepo su ESLint 8.57.1 (compatibile con Next 14.2.33).
+  - Nota operativa importante: in workspaces usare comandi dal root:
+    - Build frontend: `npm -w frontend run build`
+
+- **Decisioni:**
+  - ESLint 8.57.1 pinned a livello root workspace per evitare conflitti tra Next.js e plugin typescript-eslint.
+  - I comandi workspace (`npm -w ...`) diventano la modalità standard per build/lint.
+
+- **Comandi utili:**
+  - `cd C:\ai-trading-v2`
+  - `npm install`
+  - `npm -w frontend run build`
+  - `npm ls eslint`
+
+- **Issue aperte / Next:**
+  - La pagina `/analysis` mostra “No patterns detected yet” perché non riceve/calcora candles per il pattern engine: decidere architettura “pattern centralizzati” vs “ricalcolo per pagina”.
+  - Proporre una “centrale” unica per patterns+alerts, con UI main page ricca ma configurazione avanzata solo in analysis.

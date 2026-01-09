@@ -1,6 +1,6 @@
 /**
  * Feature Flags System
- * 
+ *
  * Provides centralized feature flag management with localStorage persistence.
  * Flags can be overridden at runtime via localStorage for testing/debugging.
  */
@@ -12,6 +12,12 @@ export const FEATURE_FLAGS = {
   ENABLE_PREFETCH: true,               // Prefetch 5m, 15m timeframes
   ENABLE_FRONTEND_CACHE: true,         // Frontend in-memory cache
   ENABLE_DEBUG_LOGS: true,             // Performance logging
+
+  // ✅ Pattern overlays on chart
+  ENABLE_PATTERN_MARKERS: true,        // BUY/SELL/WATCH markers on candles
+  ENABLE_PATTERN_STRENGTH: false,      // Histogram "strength" under price
+  ENABLE_PATTERN_WATCH: true,          // Include NEUTRAL patterns as WATCH
+
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS;
