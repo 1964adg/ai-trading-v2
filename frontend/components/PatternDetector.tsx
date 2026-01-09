@@ -12,12 +12,14 @@ interface PatternDetectorProps {
   patterns: DetectedPattern[];
   isDetecting?: boolean;
   onPatternClick?: (pattern: DetectedPattern) => void;
+  selectedPatternId?: string | null;
 }
 
 export function PatternDetector({
   patterns,
   isDetecting = false,
   onPatternClick,
+  selectedPatternId = null,
 }: PatternDetectorProps) {
   const getSignalColor = (signal: PatternSignal): string => {
     switch (signal) {
@@ -72,45 +74,56 @@ export function PatternDetector({
             No patterns detected yet
           </div>
         ) : (
-          recentPatterns.map((pattern, index) => (
-            <div
-              key={`${pattern.id}-${index}`}
-              onClick={() => onPatternClick?.(pattern)}
-              className={`p-3 rounded-lg border transition-all cursor-pointer hover:bg-slate-700/30 ${getSignalColor(
-                pattern.signal
-              )}`}
-            >
-              {/* Pattern Header */}
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <div className="font-medium text-sm">{pattern.pattern.name}</div>
-                  <div className="text-xs opacity-70 mt-0.5">
-                    {formatTime(pattern.timestamp)}
+          recentPatterns.map((pattern, index) => {
+            const isSelected = selectedPatternId === pattern.id;
+            return (
+              <div
+                key={`${pattern.id}-${index}`}
+                id={`pattern-${pattern.id}`}
+                onClick={() => onPatternClick?.(pattern)}
+                className={`p-3 rounded-lg border transition-all cursor-pointer hover:bg-slate-700/30 ${getSignalColor(
+                  pattern.signal
+                )} ${isSelected ? 'ring-2 ring-blue-500 shadow-lg shadow-blue-500/20' : ''}`}
+              >
+                {/* Pattern Header */}
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <div className="font-medium text-sm flex items-center gap-2">
+                      {pattern.pattern.name}
+                      {isSelected && (
+                        <span className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs opacity-70 mt-0.5">
+                      {formatTime(pattern.timestamp)}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-sm font-bold ${getConfidenceColor(pattern.confidence)}`}>
+                      {pattern.confidence}%
+                    </div>
+                    <div className="text-xs opacity-70">Confidence</div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className={`text-sm font-bold ${getConfidenceColor(pattern.confidence)}`}>
-                    {pattern.confidence}%
-                  </div>
-                  <div className="text-xs opacity-70">Confidence</div>
-                </div>
-              </div>
 
-              {/* Pattern Details */}
-              <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-current/20">
-                <div>
-                  <span className="opacity-70">Signal:</span>{' '}
-                  <span className="font-medium">{pattern.signal}</span>
-                </div>
-                <div>
-                  <span className="opacity-70">Price:</span>{' '}
-                  <span className="font-medium">
-                    ${pattern.priceLevel.toFixed(2)}
-                  </span>
+                {/* Pattern Details */}
+                <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-current/20">
+                  <div>
+                    <span className="opacity-70">Signal:</span>{' '}
+                    <span className="font-medium">{pattern.signal}</span>
+                  </div>
+                  <div>
+                    <span className="opacity-70">Price:</span>{' '}
+                    <span className="font-medium">
+                      ${pattern.priceLevel.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
