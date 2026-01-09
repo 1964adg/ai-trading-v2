@@ -30,7 +30,7 @@ const DEFAULT_LIMIT = 500;
 function AnalysisContent() {
   const searchParams = useSearchParams();
   const patternIdParam = searchParams.get('patternId');
-  
+
   const { symbol } = useMarketStore();
   const {
     vwapConfig,
@@ -50,15 +50,16 @@ function AnalysisContent() {
     updateSettings,
     isDetecting,
   } = usePatternStore();
-  
+
   // Fallback fetch state
   const [isFallbackLoading, setIsFallbackLoading] = useState(false);
   const [fallbackError, setFallbackError] = useState<string | null>(null);
   const hasFetchedRef = useRef(false);
-  
+
   // Track selected pattern from query param
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
-  
+
+  // ✅ Fallback candle fetch on mount if store has no candles
   // ✅ Fallback candle fetch on mount if store has no candles
   useEffect(() => {
     async function fallbackFetch() {
@@ -66,15 +67,15 @@ function AnalysisContent() {
       if (hasFetchedRef.current || isFallbackLoading || candles.length > 0) {
         return;
       }
-      
+
       hasFetchedRef.current = true;
       setIsFallbackLoading(true);
       setFallbackError(null);
-      
+
       try {
         const symbolToUse = symbol || DEFAULT_SYMBOL;
         const result = await fetchKlines(symbolToUse, DEFAULT_TIMEFRAME, DEFAULT_LIMIT);
-        
+
         if (result.success && result.data.length > 0) {
           const chartData = transformKlinesToChartData(result.data);
           setCandles(chartData);
@@ -87,15 +88,22 @@ function AnalysisContent() {
         setIsFallbackLoading(false);
       }
     }
-    
+
     fallbackFetch();
-  }, [candles.length, symbol, setCandles]);
-  
+  }, [
+    candles.length,
+    symbol,
+    isFallbackLoading,
+    setCandles,
+    setFallbackError,
+    setIsFallbackLoading,
+  ]);
+
   // Update selected pattern when query param changes
   useEffect(() => {
     if (patternIdParam) {
       setSelectedPatternId(patternIdParam);
-      
+
       // Scroll to pattern if it exists (after component renders)
       setTimeout(() => {
         const element = document.getElementById(`pattern-${patternIdParam}`);
@@ -115,7 +123,7 @@ function AnalysisContent() {
       patternsOfType.length > 0
         ? patternsOfType.reduce((sum, p) => sum + p.confidence, 0) / patternsOfType.length
         : 0;
-    
+
     return {
       patternType: patternDef.type,
       totalDetections: patternsOfType.length,
@@ -126,7 +134,7 @@ function AnalysisContent() {
       lastDetected: patternsOfType.length > 0 ? patternsOfType[patternsOfType.length - 1].timestamp : undefined,
     };
   });
-  
+
   const overallPerformance = {
     totalPatterns: detectedPatterns.length,
     successRate: 0, // Not tracked
@@ -183,7 +191,7 @@ function AnalysisContent() {
           <p className="text-gray-400">
             Pattern Recognition, Order Flow Analysis, and Technical Indicators
           </p>
-          
+
           {/* ✅ Fallback loading/error status */}
           {isFallbackLoading && (
             <div className="mt-2 text-sm text-blue-400 flex items-center gap-2">
@@ -205,13 +213,13 @@ function AnalysisContent() {
             <span>🎯</span>
             Pattern Recognition
           </h2>
-          
+
           <PatternDetector
             patterns={detectedPatterns}
             isDetecting={isDetecting}
             selectedPatternId={selectedPatternId}
           />
-          
+
           <PatternSelector
             enabledPatterns={settings.enabledPatterns}
             onPatternToggle={handlePatternToggle}
@@ -220,9 +228,9 @@ function AnalysisContent() {
             patternStats={patternStats}
             onEnableAll={handleEnableAllPatterns}
           />
-          
+
           <CustomPatternBuilder />
-          
+
           <PatternDashboard
             patternStats={patternStats}
             overallPerformance={overallPerformance}
@@ -235,7 +243,7 @@ function AnalysisContent() {
             <span>📈</span>
             Technical Indicators
           </h2>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* VWAP Controls */}
             <VWAPControls
@@ -257,7 +265,7 @@ function AnalysisContent() {
             <span>💹</span>
             Order Flow Analysis
           </h2>
-          
+
           <OrderFlowPanel
             config={orderFlowConfig}
             onConfigChange={setOrderFlowConfig}
@@ -278,7 +286,7 @@ function AnalysisContent() {
               {detectedPatterns.length}
             </div>
           </div>
-          
+
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
             <div className="text-gray-400 text-sm mb-2">VWAP</div>
             <div className={`text-3xl font-bold ${
@@ -287,7 +295,7 @@ function AnalysisContent() {
               {vwapConfig.enabled ? 'ON' : 'OFF'}
             </div>
           </div>
-          
+
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
             <div className="text-gray-400 text-sm mb-2">Volume Profile</div>
             <div className={`text-3xl font-bold ${
@@ -296,7 +304,7 @@ function AnalysisContent() {
               {volumeProfileConfig.enabled ? 'ON' : 'OFF'}
             </div>
           </div>
-          
+
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
             <div className="text-gray-400 text-sm mb-2">Order Flow</div>
             <div className={`text-3xl font-bold ${
