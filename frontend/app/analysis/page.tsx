@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useCallback, useEffect, useState, Suspense } from 'react';
+import { useCallback, useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useMarketStore } from '@/stores/marketStore';
 import { useTradingStore } from '@/stores/tradingStore';
@@ -19,6 +19,13 @@ import VolumeProfileControls from '@/components/indicators/VolumeProfileControls
 import OrderFlowPanel from '@/components/indicators/OrderFlowPanel';
 import { useOrderFlow } from '@/hooks/useOrderFlow';
 import { PatternType, ESSENTIAL_CANDLESTICK_PATTERNS } from '@/types/patterns';
+import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
+import { Timeframe } from '@/lib/types';
+
+// Defaults for fallback fetch (same as dashboard)
+const DEFAULT_SYMBOL = 'BTCEUR';
+const DEFAULT_TIMEFRAME: Timeframe = '1m';
+const DEFAULT_LIMIT = 500;
 
 function AnalysisContent() {
   const searchParams = useSearchParams();
@@ -36,14 +43,53 @@ function AnalysisContent() {
 
   // ✅ Use centralized pattern store instead of local usePatternRecognition
   const {
+    candles,
+    setCandles,
     detectedPatterns,
     settings,
     updateSettings,
     isDetecting,
   } = usePatternStore();
   
+  // Fallback fetch state
+  const [isFallbackLoading, setIsFallbackLoading] = useState(false);
+  const [fallbackError, setFallbackError] = useState<string | null>(null);
+  const hasFetchedRef = useRef(false);
+  
   // Track selected pattern from query param
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
+  
+  // ✅ Fallback candle fetch on mount if store has no candles
+  useEffect(() => {
+    async function fallbackFetch() {
+      // Skip if already fetched, currently loading, or we have candles
+      if (hasFetchedRef.current || isFallbackLoading || candles.length > 0) {
+        return;
+      }
+      
+      hasFetchedRef.current = true;
+      setIsFallbackLoading(true);
+      setFallbackError(null);
+      
+      try {
+        const symbolToUse = symbol || DEFAULT_SYMBOL;
+        const result = await fetchKlines(symbolToUse, DEFAULT_TIMEFRAME, DEFAULT_LIMIT);
+        
+        if (result.success && result.data.length > 0) {
+          const chartData = transformKlinesToChartData(result.data);
+          setCandles(chartData);
+        } else {
+          setFallbackError(result.error || 'Failed to load candles');
+        }
+      } catch (error) {
+        setFallbackError(error instanceof Error ? error.message : 'Unknown error loading candles');
+      } finally {
+        setIsFallbackLoading(false);
+      }
+    }
+    
+    fallbackFetch();
+  }, [candles.length, symbol, setCandles]);
   
   // Update selected pattern when query param changes
   useEffect(() => {
@@ -137,6 +183,20 @@ function AnalysisContent() {
           <p className="text-gray-400">
             Pattern Recognition, Order Flow Analysis, and Technical Indicators
           </p>
+          
+          {/* ✅ Fallback loading/error status */}
+          {isFallbackLoading && (
+            <div className="mt-2 text-sm text-blue-400 flex items-center gap-2">
+              <span className="animate-spin">⏳</span>
+              <span>Loading candles…</span>
+            </div>
+          )}
+          {fallbackError && !isFallbackLoading && (
+            <div className="mt-2 text-sm text-yellow-400 flex items-center gap-2">
+              <span>⚠️</span>
+              <span>Warning: Could not load candles - {fallbackError}</span>
+            </div>
+          )}
         </div>
 
         {/* Pattern Recognition Section */}
