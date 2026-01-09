@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import { ChartDataPoint } from '@/lib/types';
-import { DetectedPattern, PatternStats, CandleData } from '@/types/patterns';
+import { DetectedPattern, PatternStats, CandleData, PatternType } from '@/types/patterns';
 import { PatternDetector } from '@/lib/patterns/detector';
 import { PatternAnalyzer } from '@/lib/patterns/analyzer';
 
@@ -17,6 +17,8 @@ export interface PatternDetectionSettings {
   lookbackN: number; // When scopeMode is LAST_N
   realtimeMode: 'EACH_CANDLE' | 'DEBOUNCED';
   debounceMs: number; // When realtimeMode is DEBOUNCED
+  enabledPatterns: PatternType[]; // Which patterns to detect
+  sensitivity: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
 export const DEFAULT_PATTERN_SETTINGS: PatternDetectionSettings = {
@@ -26,6 +28,8 @@ export const DEFAULT_PATTERN_SETTINGS: PatternDetectionSettings = {
   lookbackN: 100,
   realtimeMode: 'DEBOUNCED',
   debounceMs: 1000,
+  enabledPatterns: [], // Empty = all patterns
+  sensitivity: 'MEDIUM',
 };
 
 interface PatternDetectionState {
@@ -89,10 +93,10 @@ export const usePatternDetectionStore = create<PatternDetectionState>((set, get)
       set({
         _detector: new PatternDetector({
           minConfidence: state.settings.minConfidence,
-          enabledPatterns: [],
+          enabledPatterns: state.settings.enabledPatterns,
           timeframes: [],
           realTimeUpdates: true,
-          sensitivity: 'MEDIUM',
+          sensitivity: state.settings.sensitivity,
           historicalAnalysis: false,
         }),
         _analyzer: new PatternAnalyzer(),
@@ -197,6 +201,8 @@ export const usePatternDetectionStore = create<PatternDetectionState>((set, get)
     if (state._detector) {
       state._detector.updateSettings({
         minConfidence: updatedSettings.minConfidence,
+        enabledPatterns: updatedSettings.enabledPatterns,
+        sensitivity: updatedSettings.sensitivity,
       });
     }
     
