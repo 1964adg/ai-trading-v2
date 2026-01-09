@@ -58,7 +58,15 @@ export default function AnalysisPage() {
 
     const totalDetections = patternStats.reduce((sum, stat) => sum + stat.totalDetections, 0);
     const totalSuccessful = patternStats.reduce((sum, stat) => sum + stat.successfulSignals, 0);
-    const avgConfidence = patternStats.reduce((sum, stat) => sum + stat.averageConfidence, 0) / patternStats.length;
+    
+    // Filter out invalid confidence values and calculate average
+    const validConfidences = patternStats
+      .map(stat => stat.averageConfidence)
+      .filter(conf => typeof conf === 'number' && !isNaN(conf) && isFinite(conf));
+    const avgConfidence = validConfidences.length > 0
+      ? validConfidences.reduce((sum, conf) => sum + conf, 0) / validConfidences.length
+      : 0;
+    
     const totalProfit = patternStats.reduce((sum, stat) => sum + stat.profitability, 0);
 
     // Find best and worst patterns

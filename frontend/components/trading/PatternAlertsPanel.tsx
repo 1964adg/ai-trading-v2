@@ -13,6 +13,24 @@ interface PatternAlertsPanelProps {
   className?: string;
 }
 
+/**
+ * Get signal display text
+ */
+function getSignalText(signal: string): string {
+  if (signal === 'BULLISH') return 'BUY';
+  if (signal === 'BEARISH') return 'SELL';
+  return 'W';
+}
+
+/**
+ * Get signal badge styles
+ */
+function getSignalBadgeClass(signal: string): string {
+  if (signal === 'BULLISH') return 'bg-green-900/50 text-green-400';
+  if (signal === 'BEARISH') return 'bg-red-900/50 text-red-400';
+  return 'bg-yellow-900/50 text-yellow-400';
+}
+
 export default function PatternAlertsPanel({ className = '' }: PatternAlertsPanelProps) {
   const router = useRouter();
   const {
@@ -193,16 +211,8 @@ export default function PatternAlertsPanel({ className = '' }: PatternAlertsPane
                   <span className="text-sm font-medium text-white">
                     {pattern.pattern.name}
                   </span>
-                  <span
-                    className={`text-xs font-bold px-2 py-1 rounded ${
-                      pattern.signal === 'BULLISH'
-                        ? 'bg-green-900/50 text-green-400'
-                        : pattern.signal === 'BEARISH'
-                        ? 'bg-red-900/50 text-red-400'
-                        : 'bg-yellow-900/50 text-yellow-400'
-                    }`}
-                  >
-                    {pattern.signal === 'BULLISH' ? 'BUY' : pattern.signal === 'BEARISH' ? 'SELL' : 'W'}
+                  <span className={`text-xs font-bold px-2 py-1 rounded ${getSignalBadgeClass(pattern.signal)}`}>
+                    {getSignalText(pattern.signal)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">

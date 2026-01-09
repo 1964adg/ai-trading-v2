@@ -133,12 +133,14 @@ export const usePatternDetectionStore = create<PatternDetectionState>((set, get)
       }
       
       // Clear previous detections to avoid accumulation
+      // Note: We intentionally clear history each time to get fresh detections
+      // The analyzer maintains historical stats separately
       detector.clearHistory();
       
       // Detect patterns
       const newPatterns = detector.detectPatterns(candlesToAnalyze);
       
-      // Record patterns in analyzer
+      // Record patterns in analyzer for statistics tracking
       newPatterns.forEach(pattern => {
         analyzer.recordPattern(pattern);
       });
@@ -179,9 +181,10 @@ export const usePatternDetectionStore = create<PatternDetectionState>((set, get)
       // Detect immediately
       state._performDetection(candles);
     } else {
-      // Debounced detection
+      // Debounced detection - use get() to access current state when timer fires
       const timer = setTimeout(() => {
-        state._performDetection(candles);
+        const currentState = get();
+        currentState._performDetection(candles);
       }, state.settings.debounceMs);
       
       set({ _debounceTimer: timer });
