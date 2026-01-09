@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useMarketStore } from '@/stores/marketStore';
 import { useTradingStore } from '@/stores/tradingStore';
@@ -20,7 +20,7 @@ import OrderFlowPanel from '@/components/indicators/OrderFlowPanel';
 import { useOrderFlow } from '@/hooks/useOrderFlow';
 import { PatternType, ESSENTIAL_CANDLESTICK_PATTERNS } from '@/types/patterns';
 
-export default function AnalysisPage() {
+function AnalysisContent() {
   const searchParams = useSearchParams();
   const patternIdParam = searchParams.get('patternId');
   
@@ -40,7 +40,6 @@ export default function AnalysisPage() {
     settings,
     updateSettings,
     isDetecting,
-    getPatternById,
   } = usePatternStore();
   
   // Track selected pattern from query param
@@ -108,19 +107,24 @@ export default function AnalysisPage() {
 
   // Pattern selector handlers
   const handlePatternToggle = useCallback((patternType: PatternType, enabled: boolean) => {
-    // Note: The centralized store doesn't have per-pattern enable/disable
-    // We'd need to extend the store for this, or just show all patterns
-    console.log('Pattern toggle not implemented in centralized store:', patternType, enabled);
-  }, []);
+    const newEnabledPatterns = enabled
+      ? [...settings.enabledPatterns, patternType]
+      : settings.enabledPatterns.filter(p => p !== patternType);
+    updateSettings({ enabledPatterns: newEnabledPatterns });
+  }, [settings.enabledPatterns, updateSettings]);
 
   const handleConfidenceChange = useCallback((confidence: number) => {
     updateSettings({ minConfidence: confidence });
   }, [updateSettings]);
 
   const handleEnableAllPatterns = useCallback((enabled: boolean) => {
-    // Note: The centralized store doesn't have per-pattern enable/disable
-    console.log('Enable all patterns not implemented in centralized store:', enabled);
-  }, []);
+    if (enabled) {
+      const allPatternTypes = ESSENTIAL_CANDLESTICK_PATTERNS.map(p => p.type);
+      updateSettings({ enabledPatterns: allPatternTypes });
+    } else {
+      updateSettings({ enabledPatterns: [] });
+    }
+  }, [updateSettings]);
 
   return (
     <div className="min-h-screen bg-black p-6">
@@ -244,5 +248,24 @@ export default function AnalysisPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AnalysisPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-screen">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-400">Loading analysis...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <AnalysisContent />
+    </Suspense>
   );
 }

@@ -17,6 +17,7 @@ export interface PatternDetectionSettings {
   lookbackN: number;
   realtimeMode: 'EACH_CANDLE' | 'DEBOUNCED';
   debounceMs: number;
+  enabledPatterns: PatternType[]; // For compatibility with PatternSelector
 }
 
 // Pattern detection state
@@ -118,6 +119,16 @@ export const usePatternStore = create<PatternDetectionState>((set, get) => ({
     lookbackN: 100,
     realtimeMode: 'DEBOUNCED',
     debounceMs: 500,
+    enabledPatterns: [
+      'DOJI',
+      'HAMMER',
+      'SHOOTING_STAR',
+      'BULLISH_ENGULFING',
+      'BEARISH_ENGULFING',
+      'BULLISH_PIN_BAR',
+      'BEARISH_PIN_BAR',
+      'INSIDE_BAR',
+    ] as PatternType[],
   },
   
   isDetecting: false,
@@ -194,6 +205,7 @@ export const usePatternStore = create<PatternDetectionState>((set, get) => ({
       // Update detector settings
       detector.updateSettings({
         minConfidence: settings.minConfidence,
+        enabledPatterns: settings.enabledPatterns,
       });
       
       // Determine candles to analyze based on scope
