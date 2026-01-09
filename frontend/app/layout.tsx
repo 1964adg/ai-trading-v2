@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+// Note: Google Fonts temporarily disabled due to network restrictions in build environment
+// To enable, uncomment the following lines:
+// import { Inter } from "next/font/google";
+// const inter = Inter({ subsets: ["latin"] });
+// And replace className="font-sans" with className={inter.className}
 import "./globals.css";
 import GlobalHeaderWrapper from "@/components/layout/GlobalHeaderWrapper";
 import { Toaster } from "sonner";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata:  Metadata = {
   title: "AI Trading v2",
@@ -18,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className="font-sans">
         <GlobalHeaderWrapper />
         {children}
         <Toaster position="top-right" richColors />
