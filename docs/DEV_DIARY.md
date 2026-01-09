@@ -405,3 +405,25 @@ Risultato: DB-first verificato in modo oggettivo (BTCUSDT→db, BTCEUR→binance
 ### Problema aperto (funzionale)
 - “Dashboard non mostra nulla”: da investigare separatamente (probabile flusso dati/candles/store o fetch).
 - Prossimi step: verificare API backend, store `useMarketStore/usePatternStore`, e che il frontend stia ricevendo klines (network tab + log store).
+
+### Entry — 2026-01-09 (Europe/Rome) — Next 14.2.35 bump + build fix PatternSelector + analysis deps
+
+- **Obiettivo:**
+  - Fare security bump Next e ripristinare build green (Next build/TS).
+  - Chiudere i conflitti su `PatternSelector` e lasciare stato tracciato.
+
+- **Cosa è cambiato:**
+  - Frontend: bump `next` a **14.2.35** (security).
+  - Fix build: `frontend/components/trading/PatternSelector.tsx`
+    - rimosso `jsx` da `<style>` (errore TS: prop `jsx` non tipizzato)
+    - riallineata classe slider: `pattern-selector-slider` (input) + selettori CSS corrispondenti
+  - Fix lint warning: `frontend/app/analysis/page.tsx`
+    - aggiunta dipendenza `isFallbackLoading` nel `useEffect` fallback fetch (react-hooks/exhaustive-deps)
+
+- **Verifiche:**
+  - `cd frontend && npm install` OK
+  - `cd frontend && npm run lint` OK
+  - `cd frontend && npm run build` OK
+
+- **Note:**
+  - `npm audit` segnala vulnerabilità high: da valutare in follow-up separato (evitare `npm audit fix --force` senza review).
