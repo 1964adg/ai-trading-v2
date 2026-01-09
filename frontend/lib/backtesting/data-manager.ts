@@ -5,7 +5,7 @@
 
 import { BarData } from '@/types/backtesting';
 import { Timeframe, KlineData } from '@/lib/types';
-import { fetchKlines, fetchKlinesRange } from '@/lib/api';
+import { fetchKlinesRange } from '@/lib/api';
 
 export class DataManager {
   private cache: Map<string, BarData[]> = new Map();
@@ -22,7 +22,7 @@ export class DataManager {
     limit = 10000
   ): Promise<BarData[]> {
     const cacheKey = this.getCacheKey(symbol, timeframe, startDate, endDate);
-    
+
     // Check cache first
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey)!;
@@ -31,7 +31,7 @@ export class DataManager {
     try {
       // Fetch data from API using range endpoint
       const response = await fetchKlinesRange(symbol, timeframe, startDate, endDate, limit);
-      
+
       if (!response.success || !response.data) {
         throw new Error('Failed to fetch historical data');
       }
@@ -39,10 +39,10 @@ export class DataManager {
       // Transform and validate data
       const barData = this.transformToBarData(response.data);
       const validatedData = this.validateData(barData);
-      
+
       // Cache the result (data is already filtered by backend)
       this.addToCache(cacheKey, validatedData);
-      
+
       return validatedData;
     } catch (error) {
       console.error('[DataManager] Error fetching data:', error);
@@ -56,10 +56,10 @@ export class DataManager {
   private transformToBarData(klines: KlineData[]): BarData[] {
     return klines.map(kline => {
       // Parse ISO8601 timestamp with Z
-      const timestamp = typeof kline.timestamp === 'string' 
+      const timestamp = typeof kline.timestamp === 'string'
         ? new Date(kline.timestamp).getTime()
         : kline.timestamp;
-      
+
       return {
         timestamp,
         time: Math.floor(timestamp / 1000), // Convert to seconds
@@ -82,20 +82,20 @@ export class DataManager {
         console.warn('[DataManager] Invalid price data:', bar);
         return false;
       }
-      
+
       // Check high/low consistency
       if (bar.high < bar.low) {
         console.warn('[DataManager] High < Low:', bar);
         return false;
       }
-      
+
       // Check OHLC consistency
-      if (bar.high < Math.max(bar.open, bar.close) || 
+      if (bar.high < Math.max(bar.open, bar.close) ||
           bar.low > Math.min(bar.open, bar.close)) {
         console.warn('[DataManager] OHLC inconsistency:', bar);
         return false;
       }
-      
+
       return true;
     });
   }
@@ -106,7 +106,7 @@ export class DataManager {
   private filterByDateRange(data: BarData[], startDate: Date, endDate: Date): BarData[] {
     const startMs = startDate.getTime();
     const endMs = endDate.getTime();
-    
+
     return data.filter(bar => {
       const barMs = bar.timestamp;
       return barMs >= startMs && barMs <= endMs;
@@ -119,21 +119,21 @@ export class DataManager {
   resampleData(data: BarData[], targetTimeframe: Timeframe): BarData[] {
     const intervalMs = this.getIntervalMs(targetTimeframe);
     const resampled: BarData[] = [];
-    
+
     if (data.length === 0) return resampled;
-    
+
     let currentBar: BarData | null = null;
     let currentInterval = Math.floor(data[0].timestamp / intervalMs) * intervalMs;
-    
+
     for (const bar of data) {
       const barInterval = Math.floor(bar.timestamp / intervalMs) * intervalMs;
-      
+
       if (barInterval !== currentInterval) {
         // Save previous bar
         if (currentBar) {
           resampled.push(currentBar);
         }
-        
+
         // Start new bar
         currentBar = {
           timestamp: barInterval,
@@ -153,12 +153,12 @@ export class DataManager {
         currentBar.volume += bar.volume;
       }
     }
-    
+
     // Add last bar
     if (currentBar) {
       resampled.push(currentBar);
     }
-    
+
     return resampled;
   }
 
@@ -181,7 +181,7 @@ export class DataManager {
       '3d': 3 * 24 * 60 * 60 * 1000,
       '1w': 7 * 24 * 60 * 60 * 1000,
     };
-    
+
     return intervals[timeframe];
   }
 
@@ -195,7 +195,7 @@ export class DataManager {
 
     const prices = data.map(b => b.close);
     const volumes = data.map(b => b.volume);
-    
+
     return {
       bars: data.length,
       startDate: new Date(data[0].timestamp),
@@ -223,11 +223,11 @@ export class DataManager {
   }> {
     const gaps: Array<{ start: Date; end: Date; missingBars: number }> = [];
     const intervalMs = this.getIntervalMs(expectedInterval);
-    
+
     for (let i = 1; i < data.length; i++) {
       const timeDiff = data[i].timestamp - data[i - 1].timestamp;
       const expectedDiff = intervalMs;
-      
+
       if (timeDiff > expectedDiff * 1.5) { // Allow 50% tolerance
         gaps.push({
           start: new Date(data[i - 1].timestamp),
@@ -236,7 +236,7 @@ export class DataManager {
         });
       }
     }
-    
+
     return gaps;
   }
 
@@ -255,7 +255,7 @@ export class DataManager {
         this.cache.delete(firstKey);
       }
     }
-    
+
     this.cache.set(key, data);
   }
 
@@ -281,12 +281,12 @@ export class DataManager {
       bar.close,
       bar.volume,
     ]);
-    
+
     const csv = [
       headers.join(','),
       ...rows.map(row => row.join(',')),
     ].join('\n');
-    
+
     return csv;
   }
 
@@ -296,7 +296,7 @@ export class DataManager {
   importFromCSV(csv: string): BarData[] {
     const lines = csv.split('\n');
     const data: BarData[] = [];
-    
+
     // Skip header
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(',');
@@ -312,7 +312,7 @@ export class DataManager {
         });
       }
     }
-    
+
     return this.validateData(data);
   }
 }

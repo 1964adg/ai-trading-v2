@@ -47,6 +47,25 @@ const FLAG_CONFIGS: FlagConfig[] = [
     description: 'Show performance and debug logs in console',
     requiresReload: false,
   },
+  // ✅ Pattern overlays
+  {
+    key: 'ENABLE_PATTERN_MARKERS',
+    label: 'Pattern Markers (BUY/SELL/WATCH)',
+    description: 'Show pattern signals directly on the candlestick chart',
+    requiresReload: false,
+  },
+  {
+    key: 'ENABLE_PATTERN_WATCH',
+    label: 'Include WATCH (Neutral patterns)',
+    description: 'Show NEUTRAL patterns as WATCH signals on chart',
+    requiresReload: false,
+  },
+  {
+    key: 'ENABLE_PATTERN_STRENGTH',
+    label: 'Pattern Strength Histogram',
+    description: 'Show a histogram of pattern strength under the price chart',
+    requiresReload: false,
+  },
 ];
 
 /**

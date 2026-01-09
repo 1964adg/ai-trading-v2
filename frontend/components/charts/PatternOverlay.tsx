@@ -49,6 +49,22 @@ export function getMarkerShape(
 }
 
 /**
+ * Get marker text based on signal (operational)
+ */
+export function getMarkerText(signal: PatternSignal): string {
+  switch (signal) {
+    case 'BULLISH':
+      return 'BUY';
+    case 'BEARISH':
+      return 'SELL';
+    case 'NEUTRAL':
+      return 'W';
+    default:
+      return '';
+  }
+}
+
+/**
  * Convert detected patterns to chart overlays
  */
 export function convertPatternsToOverlays(patterns: DetectedPattern[]): PatternOverlay[] {
@@ -64,7 +80,10 @@ export function convertPatternsToOverlays(patterns: DetectedPattern[]): PatternO
       price: pattern.priceLevel,
     },
     name: pattern.pattern.name,
-    strength: typeof pattern.metadata?.strength === 'number' ? pattern.metadata.strength : pattern.confidence,
+    strength:
+      typeof pattern.metadata?.strength === 'number'
+        ? pattern.metadata.strength
+        : pattern.confidence,
   }));
 }
 
@@ -82,13 +101,14 @@ export function createChartMarkers(
   return overlays.map((overlay) => {
     const color = getPatternColor(overlay.signal);
     const shape = getMarkerShape(overlay.signal);
+    const text = getMarkerText(overlay.signal);
 
     return {
       time: overlay.coordinates.time as Time,
       position: overlay.signal === 'BEARISH' ? 'aboveBar' : 'belowBar',
       color,
       shape,
-      text: overlay.name,
+      text,
       size: config.markerSize || 1,
     } as SeriesMarker<Time>;
   });
@@ -137,14 +157,14 @@ export function applyPatternFilters(
   minConfidence: number
 ): DetectedPattern[] {
   let filtered = patterns;
-  
+
   // Filter by enabled types
   if (enabledTypes.length > 0) {
     filtered = filterPatternsByType(filtered, enabledTypes);
   }
-  
+
   // Filter by confidence
   filtered = filterPatternsByConfidence(filtered, minConfidence);
-  
+
   return filtered;
 }

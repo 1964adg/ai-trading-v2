@@ -2,11 +2,14 @@
 
 import { useEffect, useRef, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
-import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData, SeriesMarker } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, CrosshairMode, Time, LineData } from 'lightweight-charts';
 import { ChartDataPoint } from '@/lib/types';
 import { formatCurrency, formatNumber, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateMultipleEMA } from '@/lib/indicators';
 import { DetectedPattern } from '@/types/patterns';
+
+// ✅ NEW: use pattern overlay helper so markers can be BUY/SELL/W + proper shapes/colors
+import { convertPatternsToOverlays, createChartMarkers } from '@/components/charts/PatternOverlay';
 
 interface TradingChartProps {
   data: ChartDataPoint[];
@@ -306,7 +309,7 @@ function TradingChartComponent({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Chart initialization should only run once on mount, dependencies intentionally omitted
-  
+
   useEffect(() => {
     // Update refs
     emaPeriodsRef.current = emaPeriods;
@@ -415,7 +418,7 @@ function TradingChartComponent({
     }, UPDATE_BUFFER_MS);
   }, [data, preserveViewport, restoreViewport, updateEmaData]);
 
-  // Handle pattern markers update
+  // ✅ UPDATED: Handle pattern markers update using PatternOverlay helper
   useEffect(() => {
     const series = seriesRef.current;
     if (!series) return;
@@ -436,14 +439,9 @@ function TradingChartComponent({
         (p) => p.confidence >= patternConfidenceThreshold
       );
 
-      // Convert patterns to chart markers
-      const markers: SeriesMarker<Time>[] = filteredPatterns.map((p) => ({
-        time: p.time,
-        position: p.signal === 'BULLISH' ? 'belowBar' : 'aboveBar',
-        color: p.signal === 'BULLISH' ? '#10b981' : '#ef4444',
-        shape: 'circle',
-        text: p.pattern.name.substring(0, 3).toUpperCase(),
-      }));
+      // Convert patterns to overlays, then to markers (text becomes BUY/SELL/W)
+      const overlays = convertPatternsToOverlays(filteredPatterns);
+      const markers = createChartMarkers(overlays, { showMarkers: true, markerSize: 1 });
 
       // Set pattern markers on the chart
       series.setMarkers(markers);
@@ -489,7 +487,7 @@ function TradingChartComponent({
         />
 
         {/* VWAP & Volume Profile overlays - Commented out */}
-        {/* 
+        {/*
         {vwapConfig && (
           <VWAPOverlay
             chart={chartRef.current}
