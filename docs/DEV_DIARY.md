@@ -427,3 +427,5 @@ Risultato: DB-first verificato in modo oggettivo (BTCUSDT→db, BTCEUR→binance
 
 - **Note:**
   - `npm audit` segnala vulnerabilità high: da valutare in follow-up separato (evitare `npm audit fix --force` senza review).
+
+PR #84, bump Next 14.2.35, fix PatternSelector build (rimozione <style jsx>), test npm run build ok, note npm audit.
