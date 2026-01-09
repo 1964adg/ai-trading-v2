@@ -19,6 +19,11 @@ import VolumeProfileControls from '@/components/indicators/VolumeProfileControls
 import OrderFlowPanel from '@/components/indicators/OrderFlowPanel';
 import { useOrderFlow } from '@/hooks/useOrderFlow';
 import { PatternType, ESSENTIAL_CANDLESTICK_PATTERNS } from '@/types/patterns';
+import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
+import { Timeframe } from '@/lib/types';
+
+const DEFAULT_SYMBOL = 'BTCEUR';
+const DEFAULT_TIMEFRAME: Timeframe = '1m';
 
 function AnalysisContent() {
   const searchParams = useSearchParams();
@@ -36,14 +41,20 @@ function AnalysisContent() {
 
   // ✅ Use centralized pattern store instead of local usePatternRecognition
   const {
+    candles,
     detectedPatterns,
     settings,
     updateSettings,
     isDetecting,
+    setCandles,
   } = usePatternStore();
   
   // Track selected pattern from query param
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
+  
+  // Fallback candle loading state
+  const [isFallbackLoading, setIsFallbackLoading] = useState(false);
+  const [fallbackError, setFallbackError] = useState<string | null>(null);
   
   // Update selected pattern when query param changes
   useEffect(() => {
@@ -59,6 +70,42 @@ function AnalysisContent() {
       }, 100);
     }
   }, [patternIdParam]);
+
+  // Fallback candle loading: fetch candles if pattern store is empty
+  useEffect(() => {
+    // Only fetch if:
+    // 1. Store has no candles
+    // 2. Not already loading
+    // 3. Settings are enabled
+    if (candles.length === 0 && !isFallbackLoading && settings.enabled) {
+      console.log('[Analysis] Pattern store empty, fetching fallback candles...');
+      setIsFallbackLoading(true);
+      setFallbackError(null);
+      
+      // Use defaults consistent with dashboard
+      fetchKlines(DEFAULT_SYMBOL, DEFAULT_TIMEFRAME, 500)
+        .then((response) => {
+          if (response.success && response.data.length > 0) {
+            const chartData = transformKlinesToChartData(response.data);
+            console.log(`[Analysis] Fetched ${chartData.length} candles, populating pattern store`);
+            setCandles(chartData);
+            setFallbackError(null);
+          } else {
+            const errorMsg = response.error || 'Failed to fetch candles';
+            console.error('[Analysis] Fallback fetch failed:', errorMsg);
+            setFallbackError(errorMsg);
+          }
+        })
+        .catch((error) => {
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          console.error('[Analysis] Fallback fetch error:', error);
+          setFallbackError(errorMsg);
+        })
+        .finally(() => {
+          setIsFallbackLoading(false);
+        });
+    }
+  }, [candles.length, isFallbackLoading, settings.enabled, setCandles]);
 
   // Calculate pattern stats from detected patterns
   const patternStats = ESSENTIAL_CANDLESTICK_PATTERNS.map((patternDef) => {
@@ -138,6 +185,32 @@ function AnalysisContent() {
             Pattern Recognition, Order Flow Analysis, and Technical Indicators
           </p>
         </div>
+
+        {/* Fallback Loading Indicator */}
+        {isFallbackLoading && (
+          <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+              <p className="text-blue-400">Loading candles...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Fallback Error Warning */}
+        {fallbackError && !isFallbackLoading && (
+          <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-yellow-500 text-xl">⚠️</span>
+              <div>
+                <p className="text-yellow-400 font-medium">Unable to load candles</p>
+                <p className="text-yellow-300/70 text-sm mt-1">{fallbackError}</p>
+                <p className="text-yellow-300/50 text-xs mt-2">
+                  Navigate to the dashboard first to load candles, or check backend connection.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Pattern Recognition Section */}
         <div className="space-y-4">
