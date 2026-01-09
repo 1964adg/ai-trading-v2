@@ -21,6 +21,7 @@ import { useOrderFlow } from '@/hooks/useOrderFlow';
 import { PatternType, ESSENTIAL_CANDLESTICK_PATTERNS } from '@/types/patterns';
 import { fetchKlines, transformKlinesToChartData } from '@/lib/api';
 import { Timeframe } from '@/lib/types';
+import { getFeatureFlag } from '@/lib/featureFlags';
 
 const DEFAULT_SYMBOL = 'BTCEUR';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
@@ -78,7 +79,9 @@ function AnalysisContent() {
     // 2. Not already loading
     // 3. Settings are enabled
     if (candles.length === 0 && !isFallbackLoading && settings.enabled) {
-      console.log('[Analysis] Pattern store empty, fetching fallback candles...');
+      if (getFeatureFlag('ENABLE_DEBUG_LOGS')) {
+        console.log('[Analysis] Pattern store empty, fetching fallback candles...');
+      }
       setIsFallbackLoading(true);
       setFallbackError(null);
       
@@ -87,7 +90,9 @@ function AnalysisContent() {
         .then((response) => {
           if (response.success && response.data.length > 0) {
             const chartData = transformKlinesToChartData(response.data);
-            console.log(`[Analysis] Fetched ${chartData.length} candles, populating pattern store`);
+            if (getFeatureFlag('ENABLE_DEBUG_LOGS')) {
+              console.log(`[Analysis] Fetched ${chartData.length} candles, populating pattern store`);
+            }
             setCandles(chartData);
             setFallbackError(null);
           } else {
