@@ -7,7 +7,6 @@ import { create } from 'zustand';
 import { ChartDataPoint } from '@/lib/types';
 import { DetectedPattern, PatternType } from '@/types/patterns';
 import { PatternDetector } from '@/lib/patterns/detector';
-import { Time } from 'lightweight-charts';
 
 // Pattern detection settings
 export interface PatternDetectionSettings {
@@ -40,6 +39,10 @@ interface PatternDetectionState {
     W: number;
   };
   
+  // Internal state (moved from module level for proper isolation)
+  _detectorInstance: PatternDetector | null;
+  _debounceTimer: NodeJS.Timeout | null;
+  
   // Actions
   setCandles: (candles: ChartDataPoint[]) => void;
   updateSettings: (settings: Partial<PatternDetectionSettings>) => void;
@@ -48,30 +51,24 @@ interface PatternDetectionState {
   getPatternById: (id: string) => DetectedPattern | undefined;
 }
 
-// Shared detector instance (reused across detection runs)
-let detectorInstance: PatternDetector | null = null;
-
-function getDetector(): PatternDetector {
-  if (!detectorInstance) {
-    detectorInstance = new PatternDetector({
-      enabledPatterns: [
-        'DOJI',
-        'HAMMER',
-        'SHOOTING_STAR',
-        'BULLISH_ENGULFING',
-        'BEARISH_ENGULFING',
-        'BULLISH_PIN_BAR',
-        'BEARISH_PIN_BAR',
-        'INSIDE_BAR',
-      ] as PatternType[],
-      minConfidence: 60,
-      realTimeUpdates: true,
-      sensitivity: 'MEDIUM',
-      historicalAnalysis: true,
-      timeframes: ['1m', '5m', '15m', '30m', '1h'],
-    });
-  }
-  return detectorInstance;
+function createDetector(): PatternDetector {
+  return new PatternDetector({
+    enabledPatterns: [
+      'DOJI',
+      'HAMMER',
+      'SHOOTING_STAR',
+      'BULLISH_ENGULFING',
+      'BEARISH_ENGULFING',
+      'BULLISH_PIN_BAR',
+      'BEARISH_PIN_BAR',
+      'INSIDE_BAR',
+    ] as PatternType[],
+    minConfidence: 60,
+    realTimeUpdates: true,
+    sensitivity: 'MEDIUM',
+    historicalAnalysis: true,
+    timeframes: ['1m', '5m', '15m', '30m', '1h'],
+  });
 }
 
 // Convert ChartDataPoint to CandleData format expected by PatternDetector
@@ -104,9 +101,6 @@ function calculatePatternCounts(patterns: DetectedPattern[]) {
   return counts;
 }
 
-// Debounce timer reference
-let debounceTimer: NodeJS.Timeout | null = null;
-
 export const usePatternStore = create<PatternDetectionState>((set, get) => ({
   // Initial state
   candles: [],
@@ -136,27 +130,32 @@ export const usePatternStore = create<PatternDetectionState>((set, get) => ({
   
   patternCounts: { BUY: 0, SELL: 0, W: 0 },
   
+  // Internal state
+  _detectorInstance: null,
+  _debounceTimer: null,
+  
   // Set candles and trigger detection if needed
   setCandles: (candles: ChartDataPoint[]) => {
     set({ candles });
     
-    const { settings, runDetection } = get();
+    const state = get();
     
-    if (!settings.enabled) {
+    if (!state.settings.enabled) {
       return;
     }
     
-    if (settings.realtimeMode === 'EACH_CANDLE') {
+    if (state.settings.realtimeMode === 'EACH_CANDLE') {
       // Run detection immediately
-      runDetection();
+      state.runDetection();
     } else {
-      // Debounced detection
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
+      // Debounced detection - clear previous timer
+      if (state._debounceTimer) {
+        clearTimeout(state._debounceTimer);
       }
-      debounceTimer = setTimeout(() => {
-        runDetection();
-      }, settings.debounceMs);
+      const timer = setTimeout(() => {
+        get().runDetection();
+      }, state.settings.debounceMs);
+      set({ _debounceTimer: timer });
     }
   },
   
@@ -185,33 +184,38 @@ export const usePatternStore = create<PatternDetectionState>((set, get) => ({
   
   // Run pattern detection
   runDetection: () => {
-    const { candles, settings, isDetecting } = get();
+    const state = get();
     
     // Skip if already detecting or disabled
-    if (isDetecting || !settings.enabled) {
+    if (state.isDetecting || !state.settings.enabled) {
       return;
     }
     
     // Skip if no candles
-    if (!candles || candles.length === 0) {
+    if (!state.candles || state.candles.length === 0) {
       return;
     }
     
     set({ isDetecting: true });
     
     try {
-      const detector = getDetector();
+      // Get or create detector instance
+      let detector = state._detectorInstance;
+      if (!detector) {
+        detector = createDetector();
+        set({ _detectorInstance: detector });
+      }
       
       // Update detector settings
       detector.updateSettings({
-        minConfidence: settings.minConfidence,
-        enabledPatterns: settings.enabledPatterns,
+        minConfidence: state.settings.minConfidence,
+        enabledPatterns: state.settings.enabledPatterns,
       });
       
       // Determine candles to analyze based on scope
-      let candlesToAnalyze = candles;
-      if (settings.scopeMode === 'LAST_N' && candles.length > settings.lookbackN) {
-        candlesToAnalyze = candles.slice(-settings.lookbackN);
+      let candlesToAnalyze = state.candles;
+      if (state.settings.scopeMode === 'LAST_N' && state.candles.length > state.settings.lookbackN) {
+        candlesToAnalyze = state.candles.slice(-state.settings.lookbackN);
       }
       
       // Convert to expected format
@@ -225,7 +229,7 @@ export const usePatternStore = create<PatternDetectionState>((set, get) => ({
       
       // Filter by confidence threshold (detector already does this, but double-check)
       const filteredPatterns = patterns.filter(
-        (p) => p.confidence >= settings.minConfidence
+        (p) => p.confidence >= state.settings.minConfidence
       );
       
       // Calculate counts

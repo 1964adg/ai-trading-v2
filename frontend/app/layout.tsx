@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-// import { Inter } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import GlobalHeaderWrapper from "@/components/layout/GlobalHeaderWrapper";
 import { Toaster } from "sonner";
 
-// const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata:  Metadata = {
   title: "AI Trading v2",
@@ -18,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="font-sans">
+      <body className={inter.className}>
         <GlobalHeaderWrapper />
         {children}
         <Toaster position="top-right" richColors />
