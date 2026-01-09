@@ -193,6 +193,46 @@ export async function fetchKlinesRange(
   }
 }
 
+// aggiungi sotto fetchKlinesRange (o sostituisci l'uso nel page.tsx)
+// NB: usa lo stesso tipo ApiResponse<KlineData[]>
+
+export async function fetchKlinesRangeNoCache(
+  symbol: string,
+  interval: Timeframe,
+  startDate: Date,
+  endDate: Date,
+  limit: number = 20000
+): Promise<ApiResponse<KlineData[]>> {
+  try {
+    const params = new URLSearchParams({
+      symbol,
+      timeframe: interval,
+      start: startDate.toISOString(),
+      end: endDate.toISOString(),
+      limit: limit.toString(),
+    });
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/klines/range?${params}`,
+      { signal: AbortSignal.timeout(30000) }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`❌ [API RANGE NO-CACHE ERROR] ${symbol}:`, error);
+    return {
+      success: false,
+      data: [],
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+
 /**
  * Transform KlineData from backend to ChartDataPoint for lightweight-charts.
  */

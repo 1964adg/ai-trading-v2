@@ -149,14 +149,14 @@ def _upsert_metadata(
 ) -> None:
     """
     Update metadata based on actual DB state.
-    
+
     Always computes stats from candlesticks table. Sets status:
     - 'complete': DB has candles and no error
     - 'error': DB has 0 candles or error occurred
     - 'partial': DB has some candles but error occurred during sync
     """
     now = _utc_now()
-    
+
     # Compute stats from candlesticks
     stats = (
         db.execute(
@@ -177,7 +177,7 @@ def _upsert_metadata(
     )
 
     total = int(stats["total"] or 0)
-    
+
     # Determine sync_status based on DB state and error presence
     if error_code:
         # Had an error during sync
@@ -282,7 +282,7 @@ def _set_metadata_status(
 ) -> None:
     """Best-effort metadata status update."""
     now = _utc_now()
-    
+
     with get_db("market") as db:
         if error_code:
             db.execute(
@@ -340,7 +340,7 @@ def import_symbol_interval(
 ) -> dict:
     """
     Import klines for a symbol/interval pair.
-    
+
     Returns dict with status info:
         {"success": bool, "error_code": str|None, "error_message": str|None, "inserted": int}
     """
@@ -362,80 +362,91 @@ def import_symbol_interval(
         while cursor_ms < end_ms:
             retry_count = 0
             klines = None
-            
+
             # Retry loop for transient errors
             while retry_count <= max_retries:
                 try:
                     klines = _fetch_klines(
-                        symbol=symbol, interval=interval, start_ms=cursor_ms, end_ms=end_ms
+                        symbol=symbol,
+                        interval=interval,
+                        start_ms=cursor_ms,
+                        end_ms=end_ms,
                     )
                     break  # Success, exit retry loop
-                    
+
                 except HTTPError as e:
                     error_str = str(e)
-                    
+
                     # Check for specific Binance error codes
                     if "Invalid symbol" in error_str or "400" in error_str:
                         error_code = ERROR_CODES["INVALID_SYMBOL"]
                         error_message = f"Invalid symbol: {symbol}"
                         print(f"  [ERROR] {error_message}")
                         raise  # Don't retry for invalid symbol
-                        
+
                     elif "Invalid interval" in error_str:
                         error_code = ERROR_CODES["INVALID_INTERVAL"]
                         error_message = f"Invalid interval: {interval}"
                         print(f"  [ERROR] {error_message}")
                         raise  # Don't retry for invalid interval
-                        
+
                     elif "429" in error_str or "rate limit" in error_str.lower():
                         error_code = ERROR_CODES["RATE_LIMIT"]
                         error_message = "Rate limit exceeded"
                         retry_count += 1
                         if retry_count <= max_retries:
-                            backoff = min(2 ** retry_count, MAX_RATE_LIMIT_BACKOFF)
-                            print(f"  [WARN] Rate limit hit, retrying in {backoff}s (attempt {retry_count}/{max_retries})...")
+                            backoff = min(2**retry_count, MAX_RATE_LIMIT_BACKOFF)
+                            print(
+                                f"  [WARN] Rate limit hit, retrying in {backoff}s (attempt {retry_count}/{max_retries})..."
+                            )
                             time.sleep(backoff)
                             continue
                         else:
                             print(f"  [ERROR] {error_message} - max retries exceeded")
                             raise
-                            
+
                     else:
                         error_code = ERROR_CODES["HTTP_ERROR"]
                         error_message = f"HTTP error: {error_str[:200]}"
                         retry_count += 1
                         if retry_count <= max_retries:
-                            backoff = min(2 ** retry_count, MAX_HTTP_ERROR_BACKOFF)
-                            print(f"  [WARN] HTTP error, retrying in {backoff}s (attempt {retry_count}/{max_retries})...")
+                            backoff = min(2**retry_count, MAX_HTTP_ERROR_BACKOFF)
+                            print(
+                                f"  [WARN] HTTP error, retrying in {backoff}s (attempt {retry_count}/{max_retries})..."
+                            )
                             time.sleep(backoff)
                             continue
                         else:
                             print(f"  [ERROR] {error_message} - max retries exceeded")
                             raise
-                            
+
                 except requests.exceptions.RequestException as e:
                     error_code = ERROR_CODES["NETWORK_ERROR"]
                     error_message = f"Network error: {str(e)[:200]}"
                     retry_count += 1
                     if retry_count <= max_retries:
-                        backoff = min(2 ** retry_count, MAX_NETWORK_ERROR_BACKOFF)
-                        print(f"  [WARN] Network error, retrying in {backoff}s (attempt {retry_count}/{max_retries})...")
+                        backoff = min(2**retry_count, MAX_NETWORK_ERROR_BACKOFF)
+                        print(
+                            f"  [WARN] Network error, retrying in {backoff}s (attempt {retry_count}/{max_retries})..."
+                        )
                         time.sleep(backoff)
                         continue
                     else:
                         print(f"  [ERROR] {error_message} - max retries exceeded")
                         raise
-                        
+
                 except Exception as e:
                     error_code = ERROR_CODES["UNKNOWN_ERROR"]
                     error_message = f"Unexpected error: {str(e)[:200]}"
                     print(f"  [ERROR] {error_message}")
                     raise
-            
+
             # Check if we got an empty response
             if not klines:
                 error_code = ERROR_CODES["EMPTY_RESPONSE"]
-                error_message = f"Binance returned 0 klines for cursor={_to_dt(cursor_ms)}"
+                error_message = (
+                    f"Binance returned 0 klines for cursor={_to_dt(cursor_ms)}"
+                )
                 print(f"  [WARN] {error_message}; stopping.")
                 break
 
@@ -491,38 +502,79 @@ def import_symbol_interval(
                 cursor_ms = last_open_ms + 60_000  # +1 minute fallback
 
         # Finalize metadata based on what happened
+        # Finalize metadata based on what happened
         with get_db("market") as db:
             _upsert_metadata(db, symbol, interval, error_code, error_message)
+
+        # EMPTY_RESPONSE is non-fatal if DB already has data
+        if error_code == ERROR_CODES["EMPTY_RESPONSE"]:
+            with get_db("market") as db:
+                total = int(
+                    db.execute(
+                        text(
+                            """
+                            SELECT COUNT(*)
+                            FROM candlesticks
+                            WHERE symbol = :symbol AND interval = :interval
+                            """
+                        ),
+                        {"symbol": symbol, "interval": interval},
+                    ).scalar()
+                    or 0
+                )
+
+            if total > 0:
+                print(
+                    f"[DONE/PARTIAL] {symbol} {interval} - {error_code}: {error_message}"
+                )
+                return {
+                    "success": True,
+                    "partial": True,
+                    "error_code": error_code,
+                    "error_message": error_message,
+                    "inserted": total_inserted,
+                }
+
+            print(f"[FAILED] {symbol} {interval} - {error_code}: {error_message}")
+            return {
+                "success": False,
+                "partial": False,
+                "error_code": error_code,
+                "error_message": error_message,
+                "inserted": total_inserted,
+            }
 
         if error_code:
             print(f"[FAILED] {symbol} {interval} - {error_code}: {error_message}")
             return {
                 "success": False,
+                "partial": False,
                 "error_code": error_code,
                 "error_message": error_message,
                 "inserted": total_inserted,
             }
-        else:
-            print(f"[DONE] {symbol} {interval} inserted_total≈{total_inserted}")
-            return {
-                "success": True,
-                "error_code": None,
-                "error_message": None,
-                "inserted": total_inserted,
-            }
+
+        print(f"[DONE] {symbol} {interval} inserted_total≈{total_inserted}")
+        return {
+            "success": True,
+            "partial": False,
+            "error_code": None,
+            "error_message": None,
+            "inserted": total_inserted,
+        }
 
     except Exception as e:
         # Ensure metadata reflects error state
         if not error_code:
             error_code = ERROR_CODES["UNKNOWN_ERROR"]
             error_message = f"Unhandled exception: {str(e)[:200]}"
-        
+
         try:
             with get_db("market") as db:
                 _upsert_metadata(db, symbol, interval, error_code, error_message)
         except Exception as meta_error:
             print(f"  [ERROR] Failed to update metadata: {meta_error}")
-        
+
         print(f"[FAILED] {symbol} {interval} - {error_code}: {error_message}")
         return {
             "success": False,
@@ -574,39 +626,64 @@ def main():
 
     # Track results for summary
     results = []
-    
+
     for s in symbols:
         for itv in intervals:
             result = import_symbol_interval(symbol=s, interval=itv, days=args.days)
-            results.append({
-                "symbol": s,
-                "interval": itv,
-                **result
-            })
-    
+            results.append({"symbol": s, "interval": itv, **result})
+
+    """
+    IMPORT SUMMARY refinement: show complete/partial/failed clearly and include inserted counts.
+
+    Drop-in replacement for the summary section in main().
+    Assumes each job result dict contains:
+    - success: bool
+    - partial: bool (True for EMPTY_RESPONSE with existing DB data)
+    - inserted: int
+    - error_code: str|None
+    - error_message: str|None
+    """
+
     # Print summary
     print("\n" + "=" * 80)
     print("IMPORT SUMMARY")
     print("=" * 80)
-    
-    successes = [r for r in results if r["success"]]
-    failures = [r for r in results if not r["success"]]
-    
-    print(f"\n✅ Successful: {len(successes)}/{len(results)}")
-    for r in successes:
-        print(f"   {r['symbol']} {r['interval']}: {r['inserted']} candles inserted")
-    
+
+    completes = [r for r in results if r.get("success") and not r.get("partial")]
+    partials = [r for r in results if r.get("success") and r.get("partial")]
+    failures = [r for r in results if not r.get("success")]
+
+    if completes:
+        print(f"\n✅ Complete: {len(completes)}/{len(results)}")
+        for r in completes:
+            print(f"   {r['symbol']} {r['interval']}: inserted={r.get('inserted', 0)}")
+    else:
+        print(f"\n✅ Complete: 0/{len(results)}")
+
+    if partials:
+        print(f"\n🟡 Partial (non-fatal): {len(partials)}/{len(results)}")
+        for r in partials:
+            # keep error_code visible, but show inserted as well
+            print(
+                f"   {r['symbol']} {r['interval']}: inserted={r.get('inserted', 0)} "
+                f"{r.get('error_code')} - {r.get('error_message')}"
+            )
+    else:
+        print(f"\n🟡 Partial (non-fatal): 0/{len(results)}")
+
     if failures:
         print(f"\n❌ Failed: {len(failures)}/{len(results)}")
         for r in failures:
-            print(f"   {r['symbol']} {r['interval']}: {r['error_code']} - {r['error_message']}")
-        
-        # Exit with error code if any job failed
+            print(
+                f"   {r['symbol']} {r['interval']}: inserted={r.get('inserted', 0)} "
+                f"{r.get('error_code')} - {r.get('error_message')}"
+            )
+
         print("\n⚠️  Some imports failed. Exiting with code 1.")
         sys.exit(1)
-    else:
-        print("\n✅ All imports completed successfully!")
-        sys.exit(0)
+
+    print("\n✅ All imports completed successfully (complete + partial non-fatal)!")
+    sys.exit(0)
 
 
 if __name__ == "__main__":

@@ -27,7 +27,8 @@ import { useRealtimeWebSocket } from '@/hooks/useRealtimeWebSocket';
 import { useOrderbook } from '@/hooks/useOrderbook';
 import { useSymbolTicker } from '@/hooks/useSymbolData';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { fetchKlines, transformKlinesToChartData, prefetchTimeframes } from '@/lib/api';
+// ✅ changed: add fetchKlinesRangeNoCache
+import { fetchKlines, fetchKlinesRangeNoCache, transformKlinesToChartData, prefetchTimeframes } from '@/lib/api';
 import { Timeframe, ChartDataPoint } from '@/lib/types';
 import { toUnixTimestamp, isValidUnixTimestamp } from '@/lib/formatters';
 import { calculateEMATrend } from '@/lib/indicators';
@@ -39,8 +40,51 @@ import { EnhancedOrder } from '@/types/enhanced-orders';
 import { getFeatureFlag } from '@/lib/featureFlags';
 
 const DEFAULT_SYMBOL = 'BTCEUR';
-const DEFAULT_TIMEFRAME:  Timeframe = '1m';
+const DEFAULT_TIMEFRAME: Timeframe = '1m';
 const MULTI_TIMEFRAME_INTERVALS: Timeframe[] = ['4h', '1h', '15m', '5m'];
+
+// ✅ NEW: chart period presets
+type ChartPeriod = 'limit' | '1d' | '7d' | '30d' | '90d';
+
+const PERIOD_TO_DAYS: Record<Exclude<ChartPeriod, 'limit'>, number> = {
+  '1d': 1,
+  '7d': 7,
+  '30d': 30,
+  '90d': 90,
+};
+
+function intervalToMinutes(tf: Timeframe): number | null {
+  const m = tf.match(/^(\d+)(m|h|d|w)$/);
+  if (!m) return null;
+
+  const n = Number(m[1]);
+  const unit = m[2];
+
+  if (unit === 'm') return n;
+  if (unit === 'h') return n * 60;
+  if (unit === 'd') return n * 60 * 24;
+  if (unit === 'w') return n * 60 * 24 * 7;
+
+  return null;
+}
+
+function computeRangeLimit(tf: Timeframe, days: number, cap: number = 20000) {
+  const minutes = intervalToMinutes(tf);
+  if (!minutes) return Math.min(5000, cap);
+
+  const candles = Math.ceil((days * 24 * 60) / minutes);
+  return Math.min(Math.max(candles, 50), cap);
+}
+
+function getRangeDates(p: ChartPeriod) {
+  if (p === 'limit') return null;
+
+  const end = new Date();
+  const days = PERIOD_TO_DAYS[p];
+  const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+
+  return { start, end, days };
+}
 
 export default function Dashboard() {
   const router = useRouter();
@@ -50,6 +94,9 @@ export default function Dashboard() {
   const [showEmaConfig, setShowEmaConfig] = useState(false);
   const [showSymbolSelector, setShowSymbolSelector] = useState(false);
   const [patternConfidenceThreshold, setPatternConfidenceThreshold] = useState(70);
+  // ✅ NEW: period selector state (defaults to legacy behavior)
+  const [period, setPeriod] = useState<ChartPeriod>('limit');
+
   const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<EnhancedOrder | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -91,7 +138,7 @@ export default function Dashboard() {
   const { setSymbol: setGlobalSymbol, updatePrice, setConnectionStatus } = useMarketStore();
 
   useEffect(() => {
-    const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (data:  unknown) => {
+    const unsubscribe = syncManager.on(SyncEvent.SYMBOL_CHANGE, (data: unknown) => {
       const newSymbol = data as string;
       if (newSymbol !== symbol) {
         setSymbol(newSymbol);
@@ -105,8 +152,8 @@ export default function Dashboard() {
   const { priceChangePercent24h } = useSymbolTicker(debouncedSymbol, 10000);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { isConnected:  isOrderbookConnected } = useOrderbook({
-    symbol:  debouncedSymbol,
+  const { isConnected: isOrderbookConnected } = useOrderbook({
+    symbol: debouncedSymbol,
     enabled: true,
     maxLevels: 20,
   });
@@ -118,7 +165,7 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handlePositionUpdate = useCallback((data:  { positions?:  unknown[] }) => {
+  const handlePositionUpdate = useCallback((data: { positions?: unknown[] }) => {
     console.log('[Dashboard] Position update:', data.positions?.length);
   }, []);
 
@@ -126,7 +173,7 @@ export default function Dashboard() {
     console.log('[Dashboard] Portfolio update:', data.portfolio);
   }, []);
 
-  const handleOrderUpdate = useCallback((data: { orderType?:  string }) => {
+  const handleOrderUpdate = useCallback((data: { orderType?: string }) => {
     console.log('[Dashboard] Order update:', data);
   }, []);
 
@@ -139,7 +186,7 @@ export default function Dashboard() {
     onMarketUpdate: handleMarketUpdate,
     onPositionUpdate: handlePositionUpdate,
     onPortfolioUpdate: handlePortfolioUpdate,
-    onOrderUpdate:  handleOrderUpdate,
+    onOrderUpdate: handleOrderUpdate,
   });
 
   useEffect(() => {
@@ -162,7 +209,7 @@ export default function Dashboard() {
       const klineData = data as { timestamp: number; open: number; high: number; low: number; close: number };
       const timestamp = toUnixTimestamp(klineData.timestamp);
 
-      if (! isValidUnixTimestamp(timestamp)) {
+      if (!isValidUnixTimestamp(timestamp)) {
         console.warn('[WebSocket] Invalid timestamp:', klineData.timestamp);
         return;
       }
@@ -195,11 +242,30 @@ export default function Dashboard() {
     enabled: getFeatureFlag('ENABLE_WEBSOCKET_KLINES'),
   });
 
+  // ✅ NEW: SWR key + fetcher based on period
+  const range = getRangeDates(period);
+
+  const swrKey =
+    period === 'limit'
+      ? `/api/klines?symbol=${debouncedSymbol}&timeframe=${debouncedTimeframe}&limit=500`
+      : `/api/klines/range?symbol=${debouncedSymbol}&timeframe=${debouncedTimeframe}&period=${period}`;
+
+  const refreshInterval =
+    period === 'limit' ? 10000 : 60000;
+
   const { data, error, isLoading, mutate } = useSWR(
-    `/api/klines?symbol=${debouncedSymbol}&timeframe=${debouncedTimeframe}&limit=500`,
-    () => fetchKlines(debouncedSymbol, debouncedTimeframe, 500),
+    swrKey,
+    () => {
+      if (period === 'limit') {
+        return fetchKlines(debouncedSymbol, debouncedTimeframe, 500);
+      }
+
+      const { start, end, days } = range!;
+      const limit = computeRangeLimit(debouncedTimeframe, days, 20000);
+      return fetchKlinesRangeNoCache(debouncedSymbol, debouncedTimeframe, start, end, limit);
+    },
     {
-      refreshInterval: 10000,
+      refreshInterval,
       revalidateOnFocus: false,
       dedupingInterval: 500,
       keepPreviousData: true,
@@ -211,9 +277,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (debouncedSymbol && debouncedTimeframe) {
+      // For any selection change, force refresh + reset (avoid mixing datasets)
+      setChartData([]);
+      viewportRangeRef.current = null;
       mutate();
     }
-  }, [debouncedSymbol, debouncedTimeframe, mutate]);
+  }, [debouncedSymbol, debouncedTimeframe, period, mutate]);
 
   useEffect(() => {
     if (data?.success && data.data.length > 0) {
@@ -277,15 +346,15 @@ export default function Dashboard() {
     side: 'BUY' | 'SELL';
     type: 'MARKET' | 'LIMIT';
     quantity: number;
-    price?:  number;
+    price?: number;
   }) => {
     console.log('[QuickTrade] Order:', order);
     alert(`✅ ${order.side} order submitted!\nType: ${order.type}\nQty: ${order.quantity}\nPrice: ${order.price || 'MARKET'}`);
   }, []);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleBuy = useCallback((quantity: number, price:  number) => {
-    const position:  Position = {
+  const handleBuy = useCallback((quantity: number, price: number) => {
+    const position: Position = {
       id: `pos_${Date.now()}`,
       symbol: symbolRef.current,
       side: 'long',
@@ -315,7 +384,7 @@ export default function Dashboard() {
     addPosition(position);
   }, [addPosition]);
 
-  const handleExecuteOrder = useCallback((order:  EnhancedOrder) => {
+  const handleExecuteOrder = useCallback((order: EnhancedOrder) => {
     setSelectedOrder(order);
     setShowOrderConfirmation(true);
   }, []);
@@ -335,7 +404,7 @@ export default function Dashboard() {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-red-500 mb-2">Error Loading Data</h2>
           <p className="text-gray-400">Make sure backend is running on http://localhost:8000</p>
-          <p className="text-sm text-gray-500 mt-2">{error.message}</p>
+          <p className="text-sm text-gray-500 mt-2">{(error as Error).message}</p>
         </div>
       </div>
     );
@@ -371,6 +440,22 @@ export default function Dashboard() {
           />
 
           <div className="flex items-center gap-2">
+            {/* ✅ NEW: Period dropdown (accanto al patternConfidenceThreshold) */}
+            <div>
+              <select
+                value={period}
+                onChange={(e) => setPeriod(e.target.value as ChartPeriod)}
+                className="bg-gray-800 text-white rounded px-3 py-2 text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+                title="Periodo chart"
+              >
+                <option value="limit">Ultime 500</option>
+                <option value="1d">1D</option>
+                <option value="7d">7D</option>
+                <option value="30d">30D</option>
+                <option value="90d">90D</option>
+              </select>
+            </div>
+
             <div>
               <select
                 value={patternConfidenceThreshold}

@@ -118,7 +118,7 @@ def _fetch_klines_from_db_range(
           close_price,
           volume
         FROM candlesticks
-        WHERE symbol = :symbol 
+        WHERE symbol = :symbol
           AND interval = :interval
           AND open_time >= :start
           AND open_time <= :end
@@ -152,23 +152,28 @@ async def _fetch_klines_data(symbol: str, interval: str, limit: int):
     """
     DB-first: try candlesticks table, fallback to Binance.
     Payload kept identical: {"success": True, "data": ...}
+    + Adds: "source": "db" | "binance" (debug/telemetry, frontend can ignore)
     """
     try:
+        # (optional but safe) normalize again at the boundary
+        symbol = symbol.strip().upper()
+        interval = interval.strip().lower()
+
         # 1) Try DB first
         db_data = _fetch_klines_from_db(symbol=symbol, interval=interval, limit=limit)
         if db_data:
-            return {"success": True, "data": db_data}
+            return {"success": True, "source": "db", "data": db_data}
 
         # 2) Fallback to Binance (legacy behavior)
         data = binance_service.get_klines_data(
-            symbol=symbol.strip().upper(), interval=interval.strip(), limit=limit
+            symbol=symbol, interval=interval, limit=limit
         )
 
-        # ✅ Convert DataFrame to dict for fast JSON serialization
+        # Convert DataFrame to dict for fast JSON serialization
         if hasattr(data, "to_dict"):
             data = data.to_dict("records")
 
-        return {"success": True, "data": data}
+        return {"success": True, "source": "binance", "data": data}
     except BinanceAPIException as e:
         raise HTTPException(status_code=400, detail=f"Invalid request: {e.message}")
     except ConnectionError:
@@ -185,6 +190,10 @@ async def get_klines_query(
     ),
     limit: int = Query(100, description="Number of candles to return", ge=1, le=1000),
 ):
+    # ✅ 2 righe: normalizzazione input (evita trailing spaces / casing)
+    symbol = symbol.strip().upper()
+    timeframe = timeframe.strip().lower()
+
     return await _fetch_klines_data(symbol=symbol, interval=timeframe, limit=limit)
 
 
@@ -194,6 +203,8 @@ async def get_klines_path(
     interval: str = Path(..., description="Kline interval"),
     limit: int = Query(default=500, ge=1, le=1000),
 ):
+    symbol = symbol.strip().upper()
+    interval = interval.strip().lower()
     return await _fetch_klines_data(symbol=symbol, interval=interval, limit=limit)
 
 
@@ -215,13 +226,13 @@ async def get_klines_range(
         # Parse dates
         start_dt = pd.to_datetime(start).to_pydatetime()
         end_dt = pd.to_datetime(end).to_pydatetime()
-        
+
         # Ensure timezone-aware
         if start_dt.tzinfo is None:
             start_dt = start_dt.replace(tzinfo=timezone.utc)
         else:
             start_dt = start_dt.astimezone(timezone.utc)
-            
+
         if end_dt.tzinfo is None:
             end_dt = end_dt.replace(tzinfo=timezone.utc)
         else:
@@ -232,7 +243,7 @@ async def get_klines_range(
             symbol=symbol, interval=timeframe, start=start_dt, end=end_dt, limit=limit
         )
         if db_data:
-            return {"success": True, "data": db_data}
+            return {"success": True, "source": "db", "data": db_data}
 
         # 2) Fallback to Binance (best-effort, limited to 1000)
         fallback_limit = min(1000, limit)
@@ -246,7 +257,7 @@ async def get_klines_range(
         if hasattr(data, "to_dict"):
             data = data.to_dict("records")
 
-        return {"success": True, "data": data}
+        return {"success": True, "source": "binance", "data": data}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
     except BinanceAPIException as e:
@@ -255,6 +266,75 @@ async def get_klines_range(
         raise HTTPException(status_code=503, detail="Unable to connect to Binance API")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/coverage")
+async def get_coverage(
+    symbol: Optional[str] = Query(None, description="Filter by symbol (e.g., BTCUSDT)"),
+    timeframe: Optional[str] = Query(
+        None, description="Filter by timeframe (e.g., 1m, 5m)"
+    ),
+    interval: Optional[str] = Query(
+        None, description="Alias of timeframe (e.g., 1m, 5m)"
+    ),
+):
+    """
+    Candlestick coverage info from candlestick_metadata.
+    """
+    tf = timeframe or interval
+
+    sql = text(
+        """
+        SELECT
+          symbol,
+          interval,
+          earliest_timestamp,
+          latest_timestamp,
+          total_candles,
+          sync_status,
+          error_code,
+          error_message,
+          last_sync,
+          last_attempt_at,
+          last_success_at
+        FROM candlestick_metadata
+        WHERE (:symbol IS NULL OR symbol = :symbol)
+          AND (:interval IS NULL OR interval = :interval)
+        ORDER BY symbol ASC, interval ASC
+        """
+    )
+
+    params = {
+        "symbol": symbol.strip().upper() if symbol else None,
+        "interval": tf.strip().lower() if tf else None,
+    }
+
+    with get_db("market") as db:
+        rows = db.execute(sql, params).mappings().all()
+
+    def fmt_dt(dt):
+        if dt is None:
+            return None
+        return _to_utc_z(dt)
+
+    data = [
+        {
+            "symbol": r["symbol"],
+            "interval": r["interval"],
+            "earliest_timestamp": fmt_dt(r["earliest_timestamp"]),
+            "latest_timestamp": fmt_dt(r["latest_timestamp"]),
+            "total_candles": int(r["total_candles"] or 0),
+            "sync_status": r["sync_status"],
+            "error_code": r["error_code"],
+            "error_message": r["error_message"],
+            "last_sync": fmt_dt(r["last_sync"]),
+            "last_attempt_at": fmt_dt(r["last_attempt_at"]),
+            "last_success_at": fmt_dt(r["last_success_at"]),
+        }
+        for r in rows
+    ]
+
+    return {"success": True, "data": data}
 
 
 #
@@ -558,22 +638,24 @@ async def run_backtest(request: BacktestRequest):
         # Fetch historical data using DB-first approach
         if request.start_date and request.end_date:
             # Use range-based query
-            print(f"[BACKTEST] Using range query: {request.start_date} to {request.end_date}")
-            
+            print(
+                f"[BACKTEST] Using range query: {request.start_date} to {request.end_date}"
+            )
+
             start_dt = pd.to_datetime(request.start_date).to_pydatetime()
             end_dt = pd.to_datetime(request.end_date).to_pydatetime()
-            
+
             # Ensure timezone-aware
             if start_dt.tzinfo is None:
                 start_dt = start_dt.replace(tzinfo=timezone.utc)
             else:
                 start_dt = start_dt.astimezone(timezone.utc)
-                
+
             if end_dt.tzinfo is None:
                 end_dt = end_dt.replace(tzinfo=timezone.utc)
             else:
                 end_dt = end_dt.astimezone(timezone.utc)
-            
+
             klines_data = _fetch_klines_from_db_range(
                 symbol=request.symbol,
                 interval=request.timeframe,
@@ -581,7 +663,7 @@ async def run_backtest(request: BacktestRequest):
                 end=end_dt,
                 limit=50000,
             )
-            
+
             if not klines_data:
                 # Fallback to Binance (limited to 1000)
                 print(f"[BACKTEST] No DB data, falling back to Binance")
@@ -598,7 +680,7 @@ async def run_backtest(request: BacktestRequest):
             klines_data = _fetch_klines_from_db(
                 symbol=request.symbol, interval=request.timeframe, limit=1000
             )
-            
+
             if not klines_data:
                 # Fallback to Binance
                 print(f"[BACKTEST] No DB data, falling back to Binance")
@@ -629,7 +711,7 @@ async def run_backtest(request: BacktestRequest):
         elif "time" in klines.columns:
             klines["time"] = pd.to_datetime(klines["time"], utc=True)
             klines.set_index("time", inplace=True)
-        
+
         # Ensure index is UTC datetime
         if klines.index.tz is None:
             klines.index = klines.index.tz_localize(timezone.utc)
@@ -781,6 +863,4 @@ async def get_orderbook_recording_status():
         status = orderbook_recorder.get_status()
         return {"success": True, **status}
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get status: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")

@@ -271,3 +271,69 @@ Enhanced `backend/scripts/import_klines.py` with:
 - Run migration script on existing database
 - Test import scenarios (empty response, invalid symbol, rate limits)
 - Verify metadata accuracy in all error conditions
+
+### Entry — 2026-01-08 (Europe/Rome) — UI SymbolSearchModal (Binance live) + Quote toggle EUR/USDC + Data import/coverage in Analysis
+
+- **Obiettivo:**
+  - Rendere la selezione simboli in UI coerente con Binance (UE) e con l’operatività reale: coppie **EUR/USDC** (no USDT default).
+  - Introdurre una gestione “data-driven” dello storico: vedere copertura dati e lanciare import da UI.
+
+- **Stato attuale (prima delle modifiche):**
+  - La modal `frontend/components/modals/SymbolSearchModal.tsx` gestisce già:
+    - preset “Quick Access” (max 10),
+    - ⭐ preferiti (unlimited),
+    - ordinamenti (name/price/change/volume/favorites/presets),
+    - search.
+  - Però la lista simboli è **hardcoded** (`BINANCE_SYMBOLS`) e contiene anche coppie USDT, quindi non è una fonte affidabile rispetto a Binance reale.
+  - Lato UI Trading: simbolo default `BTCEUR` (ok UE), watchlist default EUR, ma manca un selettore esplicito **EUR/USDC**.
+  - Lato storico: esiste importer `backend/scripts/import_klines.py` + tabella `candlestick_metadata` con error tracking (error_code/error_message/last_attempt_at/last_success_at).
+
+- **Decisioni:**
+  1. **Modal principale = SymbolSearchModal** (quella attivata dal click sul simbolo in alto a sinistra). È la “fonte verità” per:
+     - selezione simbolo,
+     - preset (max 10),
+     - preferiti.
+  2. Aggiungere filtro **Quote** in modal: `ALL | EUR | USDC` (default: ALL o persistito).
+  3. Sostituire `BINANCE_SYMBOLS` hardcoded con dati reali da Binance (via client già presente in `frontend/lib/binance-api.ts`):
+     - caricare `exchangeInfo + ticker 24h`,
+     - filtrare a runtime su quoteAsset (EUR/USDC) e status TRADING.
+  4. In `/analysis`: aggiungere pannello “Market Data Coverage + Import”:
+     - scegliere simbolo (riuso SymbolSearchModal),
+     - scegliere timeframe (1m/5m/15m/30m/1h/4h),
+     - scegliere periodo (days oppure range),
+     - bottone **Import**,
+     - tabella “coverage” da `candlestick_metadata` (total/earliest/latest/sync_status/error_code).
+
+- **Backend richiesto (per abilitare Import da UI):**
+  - Aggiungere endpoint:
+    - `GET  /api/market/metadata` → legge `candlestick_metadata` (filtri symbol/interval opzionali).
+    - `POST /api/market/import` → trigger import klines (symbol, intervals, days) in background e ritorna subito “accepted”.
+  - Nota: l’import deve essere non-bloccante (background task) e aggiornare `candlestick_metadata` durante/alla fine.
+
+- **Note operative:**
+  - Durante import massivi, per evitare “rumore” in locale:
+    - ridurre/pausare refresh UI (watchlist polling + SWR refresh) oppure chiudere la tab Trading.
+  - Errori `EMPTY_RESPONSE` vicino al “now” sono normali: in DB restano come `sync_status=partial` se `total_candles>0`.
+
+- **File principali coinvolti:**
+  - Frontend:
+    - `frontend/components/modals/SymbolSearchModal.tsx`
+    - `frontend/lib/binance-api.ts`
+    - `frontend/app/analysis/page.tsx` (pannello coverage + import)
+  - Backend:
+    - `backend/api/market.py` (o router dedicato) per metadata/import endpoint
+    - `backend/scripts/import_klines.py` (riuso logica importer)
+
+- **Next:**
+  1. Implementare fetch Binance live in SymbolSearchModal + filtro Quote EUR/USDC.
+  2. Implementare endpoint metadata/import.
+  3. Implementare pannello Analysis: coverage + import + feedback stato.
+
+Data: 2026-01-09
+Attività svolte:
+
+Backend: endpoint GET /api/klines e GET /api/klines/range ora espongono source: "db" | "binance" per verificare in modo definitivo se i dati arrivano dal DB o da Binance.
+Importer: gestione EMPTY_RESPONSE resa non-fatal quando esistono già candele nel DB (stato “partial”, script esce success).
+Frontend: aggiunto selettore “periodo” sul dashboard e supporto al caricamento storico via /api/klines/range (range/preset). (Da rifinire: limitare periodo max a 1D se desiderato.)
+Debug: chiarito che il frontend usa /api/klines?symbol=...&timeframe=... e introdotta normalizzazione per evitare mismatch su timeframe/symbol.
+Risultato: DB-first verificato in modo oggettivo (BTCUSDT→db, BTCEUR→binance) e range endpoint pronto per storico.
