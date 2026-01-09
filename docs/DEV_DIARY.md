@@ -429,3 +429,25 @@ Risultato: DB-first verificato in modo oggettivo (BTCUSDT→db, BTCEUR→binance
   - `npm audit` segnala vulnerabilità high: da valutare in follow-up separato (evitare `npm audit fix --force` senza review).
 
 PR #84, bump Next 14.2.35, fix PatternSelector build (rimozione <style jsx>), test npm run build ok, note npm audit.
+
+### Entry — 2026-01-09 (Europe/Rome) — PR #84 (Next 14.2.35 security bump + build fix)
+
+- **PR:** #84 — https://github.com/1964adg/ai-trading-v2/pull/84
+- **Merge:** Squash & merge su `main`
+
+- **Obiettivo:**
+  - Security bump di Next.js e ripristino build green.
+
+- **Cosa è cambiato (squash):**
+  - Bump `next` a **14.2.35**.
+  - Fix build TypeScript in `frontend/components/trading/PatternSelector.tsx`:
+    - rimosso `<style jsx>` (prop `jsx` non tipizzato → errore in build)
+    - allineata classe/selector slider (`pattern-selector-slider`).
+
+- **Verifiche locali:**
+  - `cd frontend && npm install`
+  - `cd frontend && npm run lint` (può restare 1 warning non bloccante su `analysis/page.tsx` se non fixato)
+  - `cd frontend && npm run build` ✅
+
+- **Note:**
+  - `npm audit` segnala vulnerabilità high: follow-up separato (evitare `npm audit fix --force` senza review).
