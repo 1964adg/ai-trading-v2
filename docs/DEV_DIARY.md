@@ -328,7 +328,37 @@ Enhanced `backend/scripts/import_klines.py` with:
   1. Implementare fetch Binance live in SymbolSearchModal + filtro Quote EUR/USDC.
   2. Implementare endpoint metadata/import.
   3. Implementare pannello Analysis: coverage + import + feedback stato.
+## 2026-01-09 — Canonical Summary / TL;DR
 
+### Primary Achievement: Next.js 14.2.35 Security Bump + Build Stabilization
+**Main PR:** [#84 - chore(frontend): bump next to 14.2.35 + fix PatternSelector build](https://github.com/1964adg/ai-trading-v2/pull/84)  
+**Merge commit (squash):** [cb66261](https://github.com/1964adg/ai-trading-v2/commit/cb66261)  
+**Diary follow-up commit:** [9b49878](https://github.com/1964adg/ai-trading-v2/commit/9b49878)
+
+**Key changes merged to main:**
+- Upgraded Next.js to **14.2.35** (security patch)
+- Fixed TypeScript build error in `frontend/components/trading/PatternSelector.tsx`:
+  - Removed `<style jsx>` (unsupported `jsx` prop in TS)
+  - Aligned slider class/CSS selectors (`pattern-selector-slider`)
+- Fixed ESLint warning in `frontend/app/analysis/page.tsx` (exhaustive-deps)
+- Verified: `npm run build` ✅ green
+
+**Related work completed (same session):**
+- Klines DB-first implementation with `source` field ("db" | "binance") in API responses
+- Pattern marker visualization (BUY/SELL/W instead of pattern names)
+- ESLint workspace stabilization (pinned to 8.57.1 for monorepo compatibility)
+
+**Outstanding items:**
+- `npm audit` reports 3 high severity vulnerabilities (follow-up required, avoid force-fix without review)
+- Analysis page "/analysis" shows "No patterns detected yet" (pattern engine data flow TBD)
+
+---
+
+### Appendix: Session Notes (Duplicate Details)
+
+Below are the raw session notes from 2026-01-09. These contain overlapping information and are preserved here for historical completeness per the append-only rule.
+
+#### Session Note A: Brief klines DB-first entry
 Data: 2026-01-09
 Attività svolte:
 
@@ -338,6 +368,7 @@ Frontend: aggiunto selettore “periodo” sul dashboard e supporto al caricamen
 Debug: chiarito che il frontend usa /api/klines?symbol=...&timeframe=... e introdotta normalizzazione per evitare mismatch su timeframe/symbol.
 Risultato: DB-first verificato in modo oggettivo (BTCUSDT→db, BTCEUR→binance) e range endpoint pronto per storico.
 
+#### Session Note B: Klines DB-first + debug source + chart range + coverage
 ## 2026-01-09
 ### Klines DB-first + debug source + chart range + coverage
 - Backend: aggiunto campo `source: "db" | "binance"` nella response di:
@@ -347,6 +378,8 @@ Risultato: DB-first verificato in modo oggettivo (BTCUSDT→db, BTCEUR→binance
 - Importer: `EMPTY_RESPONSE` non è più fatal se nel DB esistono già candele (`partial` invece di `failed`).
 - Frontend: aggiunto dropdown periodo (preset) accanto al pattern threshold e supporto fetch via `/api/klines/range` (range/preset).
 - Note: verificato che `BTCUSDT` risponde con `source=db` e `BTCEUR` con `source=binance`.
+
+#### Session Note C: Pattern markers BUY/SELL/W + fix ESLint in monorepo workspaces
 
 ### Entry — 2026-01-09 (Europe/Rome) — Pattern markers BUY/SELL/W + fix ESLint in monorepo workspaces
 
@@ -380,6 +413,8 @@ Risultato: DB-first verificato in modo oggettivo (BTCUSDT→db, BTCEUR→binance
 - **Issue aperte / Next:**
   - La pagina `/analysis` mostra “No patterns detected yet” perché non riceve/calcora candles per il pattern engine: decidere architettura “pattern centralizzati” vs “ricalcolo per pagina”.
   - Proporre una “centrale” unica per patterns+alerts, con UI main page ricca ma configurazione avanzata solo in analysis.
+#### Session Note D: Next 14.2.35 bump + build fix PatternSelector + stato dashboard
+
 ## 2026-01-09 — Next 14.2.35 bump + build fix PatternSelector + stato dashboard
 
 ### Obiettivo
@@ -406,6 +441,9 @@ Risultato: DB-first verificato in modo oggettivo (BTCUSDT→db, BTCEUR→binance
 - “Dashboard non mostra nulla”: da investigare separatamente (probabile flusso dati/candles/store o fetch).
 - Prossimi step: verificare API backend, store `useMarketStore/usePatternStore`, e che il frontend stia ricevendo klines (network tab + log store).
 
+
+#### Session Note E: Next 14.2.35 bump + build fix PatternSelector + analysis deps
+
 ### Entry — 2026-01-09 (Europe/Rome) — Next 14.2.35 bump + build fix PatternSelector + analysis deps
 
 - **Obiettivo:**
@@ -428,7 +466,13 @@ Risultato: DB-first verificato in modo oggettivo (BTCUSDT→db, BTCEUR→binance
 - **Note:**
   - `npm audit` segnala vulnerabilità high: da valutare in follow-up separato (evitare `npm audit fix --force` senza review).
 
+
+#### Session Note F: Brief PR #84 reference
+
 PR #84, bump Next 14.2.35, fix PatternSelector build (rimozione <style jsx>), test npm run build ok, note npm audit.
+
+
+#### Session Note G: PR #84 (Next 14.2.35 security bump + build fix)
 
 ### Entry — 2026-01-09 (Europe/Rome) — PR #84 (Next 14.2.35 security bump + build fix)
 
