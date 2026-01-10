@@ -3,6 +3,33 @@
 Questo file è un **diario tecnico incrementale** per mantenere continuità anche se la chat si interrompe.
 Regola: aggiungere una nuova entry con data/ora e *non* riscrivere la storia (append-only).
 
+### Runbook — Avvio server (dev locale)
+
+- **Comando canonico (consigliato) — Frontend (workspace, da root repo)**
+  Da `C:\ai-trading-v2`:
+  ```bash
+  npm -w frontend run dev
+  ```
+  Motivazione: il repo usa **npm workspaces**; l’avvio da root assicura risoluzione dipendenze e script coerenti col workspace (evita mismatch rispetto a lanciare `npm run dev` dentro `frontend/`).
+
+- **Backend (da cartella backend)**
+  Da `C:\ai-trading-v2\backend`:
+  ```bash
+  python main.py
+  ```
+  Atteso: API su `http://localhost:8000`
+
+- **URL attesi**
+  - Frontend: `http://localhost:3000`
+  - Backend: `http://localhost:8000`
+
+- **Build check (opzionale)**
+  Da root:
+  ```bash
+  npm -w frontend run build
+  ```
+
+
 ## Indice rapido
 - Repo: `1964adg/ai-trading-v2`
 - Obiettivo: scalping 1m–30m + pattern scanner + overlay chart + logging (candles + book top20) + storico Binance per backtest/pattern.
