@@ -122,6 +122,16 @@ export default function Dashboard() {
   // ✅ Use centralized pattern store instead of local usePatternRecognition
   const { detectedPatterns, settings: patternSettings, setCandles } = usePatternStore();
 
+
+  useEffect(() => {
+    console.log('[page debug] store->', {
+      chartData: chartData.length,
+      storePatterns: detectedPatterns.length,
+      minConfidence: patternSettings.minConfidence,
+      scopeMode: patternSettings.scopeMode,
+    });
+  }, [chartData.length, detectedPatterns.length, patternSettings.minConfidence, patternSettings.scopeMode]);
+
   // Feed chart data into pattern store
   useEffect(() => {
     if (chartData.length > 0) {
@@ -130,8 +140,17 @@ export default function Dashboard() {
   }, [chartData, setCandles]);
 
   const recentPatterns = detectedPatterns
-    .filter((p) => p.confidence >= patternSettings.minConfidence)
-    .slice(0, 5);
+  .filter((p) => p.confidence >= patternSettings.minConfidence)
+  .slice(0, 5);
+
+  // 1) filtro una sola volta
+  const filteredPatterns = detectedPatterns.filter(
+    (p) => p.confidence >= patternSettings.minConfidence
+  );
+
+  // 2) applico il limite per il chart (0 = illimitati)
+  const max = patternSettings.maxChartMarkers ?? 80;
+  const chartPatterns = max > 0 ? filteredPatterns.slice(-max) : filteredPatterns;
 
   const emaStatus = [9, 21, 50, 200].map((period) => ({
     period,
@@ -500,7 +519,7 @@ export default function Dashboard() {
             data={chartData}
             emaPeriods={emaPeriods}
             emaEnabled={emaEnabled}
-            patterns={recentPatterns}
+            patterns={chartPatterns}
             patternConfidenceThreshold={patternSettings.minConfidence}
           />
 

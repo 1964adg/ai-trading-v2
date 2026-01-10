@@ -10,7 +10,7 @@ import { usePatternStore } from '@/stores/patternStore';
 
 export default function PatternAlertsPanel() {
   const router = useRouter();
-  
+
   const {
     settings,
     updateSettings,
@@ -19,14 +19,14 @@ export default function PatternAlertsPanel() {
     isDetecting,
     lastRunAt,
   } = usePatternStore();
-  
+
   // Get recent patterns (max 5)
   const recentPatterns = detectedPatterns.slice(-5).reverse();
-  
+
   const handlePatternClick = (patternId: string) => {
     router.push(`/analysis?patternId=${patternId}`);
   };
-  
+
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4">
       {/* Header */}
@@ -42,7 +42,7 @@ export default function PatternAlertsPanel() {
           </div>
         )}
       </div>
-      
+
       {/* Controls */}
       <div className="space-y-3">
         {/* Enabled Toggle */}
@@ -61,7 +61,7 @@ export default function PatternAlertsPanel() {
             />
           </button>
         </div>
-        
+
         {/* Min Confidence */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
@@ -79,7 +79,33 @@ export default function PatternAlertsPanel() {
             disabled={!settings.enabled}
           />
         </div>
-        
+
+        {/* Max Chart Markers */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <label className="text-sm text-gray-400">Max marker sul chart</label>
+            <span className="text-sm text-white font-medium">
+              {settings.maxChartMarkers === 0 ? '∞' : settings.maxChartMarkers}
+            </span>
+          </div>
+
+          <input
+            type="range"
+            min="0"
+            max="200"
+            step="10"
+            value={settings.maxChartMarkers}
+            onChange={(e) => updateSettings({ maxChartMarkers: Number(e.target.value) })}
+            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            disabled={!settings.enabled}
+          />
+
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>∞</span>
+            <span>200</span>
+          </div>
+        </div>
+
         {/* Scope Mode */}
         <div className="space-y-1">
           <label className="text-sm text-gray-400">Scope</label>
@@ -108,7 +134,7 @@ export default function PatternAlertsPanel() {
             </button>
           </div>
         </div>
-        
+
         {/* Lookback N (shown only when LAST_N is selected) */}
         {settings.scopeMode === 'LAST_N' && (
           <div className="space-y-1">
@@ -128,7 +154,7 @@ export default function PatternAlertsPanel() {
             />
           </div>
         )}
-        
+
         {/* Realtime Mode */}
         <div className="space-y-1">
           <label className="text-sm text-gray-400">Realtime Mode</label>
@@ -157,7 +183,7 @@ export default function PatternAlertsPanel() {
             </button>
           </div>
         </div>
-        
+
         {/* Debounce MS (shown only when DEBOUNCED is selected) */}
         {settings.realtimeMode === 'DEBOUNCED' && (
           <div className="space-y-1">
@@ -178,7 +204,7 @@ export default function PatternAlertsPanel() {
           </div>
         )}
       </div>
-      
+
       {/* Pattern Counters */}
       <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-800">
         <div className="bg-gray-800 rounded p-2 text-center">
@@ -194,7 +220,7 @@ export default function PatternAlertsPanel() {
           <div className="text-lg font-bold text-yellow-400">{patternCounts.W}</div>
         </div>
       </div>
-      
+
       {/* Recent Patterns List */}
       <div className="space-y-2 pt-2 border-t border-gray-800">
         <div className="flex items-center justify-between">
@@ -205,7 +231,7 @@ export default function PatternAlertsPanel() {
             </span>
           )}
         </div>
-        
+
         {recentPatterns.length === 0 ? (
           <div className="text-sm text-gray-500 text-center py-4">
             {settings.enabled ? 'No patterns detected yet' : 'Detection disabled'}
@@ -219,14 +245,14 @@ export default function PatternAlertsPanel() {
                   : pattern.signal === 'BEARISH'
                   ? 'text-red-400'
                   : 'text-yellow-400';
-              
+
               const signalIcon =
                 pattern.signal === 'BULLISH'
                   ? '▲'
                   : pattern.signal === 'BEARISH'
                   ? '▼'
                   : '●';
-              
+
               return (
                 <button
                   key={pattern.id}
@@ -255,7 +281,7 @@ export default function PatternAlertsPanel() {
           </div>
         )}
       </div>
-      
+
       {/* View All Button */}
       {recentPatterns.length > 0 && (
         <button

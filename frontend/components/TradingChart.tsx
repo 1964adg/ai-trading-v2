@@ -441,7 +441,40 @@ function TradingChartComponent({
 
       // Convert patterns to overlays, then to markers (text becomes BUY/SELL/W)
       const overlays = convertPatternsToOverlays(filteredPatterns);
-      const markers = createChartMarkers(overlays, { showMarkers: true, markerSize: 1 });
+
+      // (Optional) cap markers to avoid clutter (keep most recent)
+      const MAX_MARKERS = 80;
+      const limitedOverlays = overlays.slice(-MAX_MARKERS);
+      //const limitedOverlays = overlays;
+      // Dynamic marker size based on how many markers we are drawing
+      const count = limitedOverlays.length;
+      const markerSize =
+        count > 150 ? 0.5 :
+        count > 100 ? 0.75 :
+        count > 50  ? 1 :
+        1.5;
+
+      const markers = createChartMarkers(limitedOverlays, {
+        showMarkers: true,
+        markerSize,
+      });
+
+      // modifica temporanea
+
+      //const candleFirst = dataRef.current[0]?.time;
+      //const candleLast = dataRef.current[dataRef.current.length - 1]?.time;
+
+
+      //console.log('[markers debug]', {
+       // candlesCount: data.length,
+       // candlesFirst: data[0]?.time,
+       // candlesLast: data[data.length - 1]?.time,
+       // patternsCount: patterns?.length ?? 0,
+       // filteredPatternsCount: filteredPatterns.length,
+       // markersCount: markers.length,
+       // markersFirst: markers[0]?.time,
+       // markersLast: markers[markers.length - 1]?.time,
+      //});
 
       // Set pattern markers on the chart
       series.setMarkers(markers);

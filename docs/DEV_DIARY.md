@@ -331,8 +331,8 @@ Enhanced `backend/scripts/import_klines.py` with:
 ## 2026-01-09 — Canonical Summary / TL;DR
 
 ### Primary Achievement: Next.js 14.2.35 Security Bump + Build Stabilization
-**Main PR:** [#84 - chore(frontend): bump next to 14.2.35 + fix PatternSelector build](https://github.com/1964adg/ai-trading-v2/pull/84)  
-**Merge commit (squash):** [cb66261](https://github.com/1964adg/ai-trading-v2/commit/cb66261)  
+**Main PR:** [#84 - chore(frontend): bump next to 14.2.35 + fix PatternSelector build](https://github.com/1964adg/ai-trading-v2/pull/84)
+**Merge commit (squash):** [cb66261](https://github.com/1964adg/ai-trading-v2/commit/cb66261)
 **Diary follow-up commit:** [9b49878](https://github.com/1964adg/ai-trading-v2/commit/9b49878)
 
 **Key changes merged to main:**
@@ -495,3 +495,37 @@ PR #84, bump Next 14.2.35, fix PatternSelector build (rimozione <style jsx>), te
 
 - **Note:**
   - `npm audit` segnala vulnerabilità high: follow-up separato (evitare `npm audit fix --force` senza review).
+
+### Entry — 2026-01-10 (Europe/Rome) — Fix patterns markers on TradingChart + max markers configurable
+
+- **Obiettivo:**
+  - Risolvere il problema “sul chart vedo pochi/nessun pattern marker” nonostante lo store riporti molti patterns.
+  - Rendere configurabile la quantità di marker visualizzati sul grafico (evitare clutter).
+
+- **Diagnosi (root cause):**
+  - `usePatternStore` conteneva ~160 `detectedPatterns`, ma `TradingChart` riceveva solo 5 patterns.
+  - In `frontend/app/page.tsx` veniva passato al chart `recentPatterns`, calcolato con `.slice(0, 5)` dopo filtro per confidenza.
+  - Quindi il chart faceva correttamente `patternsCount=5` e disegnava solo 5 marker.
+
+- **Fix implementato:**
+  - Separati due insiemi:
+    - `recentPatterns`: usati per UI compatta (summary/list).
+    - `chartPatterns`: usati per marker sul grafico.
+  - `TradingChart` ora riceve `chartPatterns` (non più `recentPatterns`).
+
+- **Migliorie (UX): max markers configurabile**
+  - Aggiunto `maxChartMarkers` in `PatternDetectionSettings` (Zustand), default es. 80.
+  - In dashboard applicato `slice(-max)` su `chartPatterns` (0 = illimitato).
+  - Aggiunto slider in `PatternAlertsPanel` per regolare live quanti marker mostrare.
+
+- **Note operative / Debug:**
+  - Confermato che timestamps di candles/markers sono in Unix seconds e rientrano nel range delle candele: non era un problema ms vs sec.
+  - Importante evitare `git add .` per non includere artefatti (`frontend/.next`, cache, env locali).
+
+- **Intenzioni / Next (dashboard + run mode):**
+  1. Rifinire con precisione la dashboard:
+     - definire chiaramente cosa mostra “chart” vs “alerts panel” vs “summary” (recenti, top confidence, ecc.)
+     - migliorare leggibilità marker (cap + size dinamico o grouping se necessario).
+  2. Standardizzare le modalità di lancio dei server (backend+frontend):
+     - documentare comandi canonici, porte e prerequisiti (DB, env).
+     - eventualmente introdurre script unico (root) per avviare entrambi in dev.
