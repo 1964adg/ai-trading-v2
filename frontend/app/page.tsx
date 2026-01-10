@@ -129,9 +129,17 @@ export default function Dashboard() {
     }
   }, [chartData, setCandles]);
 
-  const recentPatterns = detectedPatterns
-    .filter((p) => p.confidence >= patternSettings.minConfidence)
-    .slice(0, 5);
+  // Filter patterns by confidence
+  const filteredPatterns = detectedPatterns
+    .filter((p) => p.confidence >= patternSettings.minConfidence);
+
+  // Apply max chart markers limit for chart display
+  const chartPatterns = patternSettings.maxChartMarkers > 0
+    ? filteredPatterns.slice(-patternSettings.maxChartMarkers)
+    : filteredPatterns;
+
+  // Recent patterns for UI (compact list - max 5)
+  const recentPatterns = filteredPatterns.slice(0, 5);
 
   const emaStatus = [9, 21, 50, 200].map((period) => ({
     period,
@@ -500,7 +508,7 @@ export default function Dashboard() {
             data={chartData}
             emaPeriods={emaPeriods}
             emaEnabled={emaEnabled}
-            patterns={recentPatterns}
+            patterns={chartPatterns}
             patternConfidenceThreshold={patternSettings.minConfidence}
           />
 

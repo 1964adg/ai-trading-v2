@@ -17,6 +17,7 @@ export interface PatternDetectionSettings {
   realtimeMode: 'EACH_CANDLE' | 'DEBOUNCED';
   debounceMs: number;
   enabledPatterns: PatternType[]; // For compatibility with PatternSelector
+  maxChartMarkers: number; // Max markers to show on chart (0 = unlimited)
 }
 
 // Pattern detection state
@@ -123,6 +124,7 @@ export const usePatternStore = create<PatternDetectionState>((set, get) => ({
       'BEARISH_PIN_BAR',
       'INSIDE_BAR',
     ] as PatternType[],
+    maxChartMarkers: 80, // Default: show last 80 markers on chart (0 = unlimited)
   },
   
   isDetecting: false,

@@ -495,3 +495,113 @@ PR #84, bump Next 14.2.35, fix PatternSelector build (rimozione <style jsx>), te
 
 - **Note:**
   - `npm audit` segnala vulnerabilità high: follow-up separato (evitare `npm audit fix --force` senza review).
+
+---
+
+## Entry — 2026-01-10 (Europe/Rome) — Pattern markers max chart limit + debug Windows .next timeout
+
+### Contesto / Obiettivo della sessione
+- Risolvere timeout/errori Windows su `.next` directory
+- Debug pattern markers: verificare allineamento timestamp e root cause "solo 5 markers sul chart"
+- Implementare controllo UI per limitare il numero di pattern markers visualizzati sul chart
+
+### Debug iniziale: Windows .next timeout
+- **Problema:** Errore `UNKNOWN: file open` su file in `.next` directory, build/dev timeout
+- **Root cause:** Lock files o processi Node.js residui su Windows che mantengono handle aperti
+- **Soluzione:** Cleanup manuale directory `.next` e riavvio dev server
+- **Nota operativa:** Su Windows, dopo errori build/dev è consigliato:
+  1. Fermare tutti i processi Node.js
+  2. Eliminare `.next` directory
+  3. Riavviare `npm run dev`
+
+### Debug pattern markers: timestamp alignment
+- **Verifica effettuata:** Controllo timestamp markers vs candlestick data
+- **Risultato:** Confermato che entrambi usano **Unix seconds** (non milliseconds)
+- **Status:** Allineamento corretto, nessun issue timestamp
+
+### Root cause "solo 5 markers sul chart"
+- **Problema iniziale:** Dashboard mostrava solo 5 pattern markers invece di tutti i pattern rilevati
+- **Root cause identificato:** In `frontend/app/page.tsx`:
+  - Il componente `TradingChart` riceveva `recentPatterns` (slice dei primi 5 pattern)
+  - `recentPatterns` era pensato solo per la UI compatta (lista recenti)
+  - Ma veniva erroneamente passato anche al chart, limitando i markers visibili
+- **Impatto:** Pattern detection funzionante ma visualizzazione limitata artificialmente
+
+### Fix implementato: filteredPatterns + chartPatterns
+**File modificati:**
+1. **`frontend/stores/patternStore.ts`:**
+   - Aggiunto `maxChartMarkers: number` all'interface `PatternDetectionSettings`
+   - Default: `80` (mostra ultimi 80 markers, 0 = illimitato)
+   
+2. **`frontend/app/page.tsx`:**
+   - Introdotta variabile `filteredPatterns`: tutti i pattern filtrati per confidence
+   - Introdotta variabile `chartPatterns`: slice di `filteredPatterns` secondo `maxChartMarkers`
+     - Se `maxChartMarkers > 0`: `filteredPatterns.slice(-maxChartMarkers)` (ultimi N)
+     - Se `maxChartMarkers === 0`: tutti i pattern (illimitato)
+   - `recentPatterns` rimane separato per UI compatta (primi 5)
+   - `TradingChart` ora riceve `chartPatterns` invece di `recentPatterns`
+
+3. **`frontend/components/trading/PatternAlertsPanel.tsx`:**
+   - Aggiunto slider "Max Chart Markers" (range 0-200, step 10)
+   - Label: "Unlimited" quando valore = 0
+   - Posizionato dopo controllo Debounce (ms)
+
+### Logica max markers sul chart
+```typescript
+// Filtro per confidence
+const filteredPatterns = detectedPatterns
+  .filter((p) => p.confidence >= patternSettings.minConfidence);
+
+// Apply max limit per chart
+const chartPatterns = patternSettings.maxChartMarkers > 0
+  ? filteredPatterns.slice(-patternSettings.maxChartMarkers)
+  : filteredPatterns;
+
+// UI compatta (max 5 recenti)
+const recentPatterns = filteredPatterns.slice(0, 5);
+```
+
+### Motivazione scelta implementativa
+- **Separazione concerns:** Chart e UI lista hanno requisiti diversi
+- **Performance:** Limitare markers su chart con molti pattern (es. 1000+) evita sovraccarico rendering
+- **Flessibilità:** Slider permette all'utente di regolare in base a preferenze/performance
+- **Default 80:** Bilanciamento tra visibilità storica e performance
+
+### Nota importante: git workflow
+- **Best practice confermata:** Evitare `git add .` in questo progetto
+- **Rischio:** Potrebbe includere file generati (`.next`, `node_modules`, `.env`, artifacts)
+- **Approccio corretto:** Staging selettivo di file specifici o uso di `.gitignore` robusto
+- **Status `.gitignore`:** Già configurato correttamente per `.next`, `.env`, `node_modules`
+
+### Verifiche effettuate
+- ✅ TypeScript compile: `npm run build` (frontend) - success
+- ✅ Build output: Nessun errore, bundle size normale
+- ✅ Nuovi controlli UI: slider max markers renderizzato correttamente
+- ✅ Logica chartPatterns: implementata con default 80, illimitato se 0
+
+### File modificati (per commit)
+1. `frontend/stores/patternStore.ts` - Aggiunto `maxChartMarkers` setting
+2. `frontend/components/trading/PatternAlertsPanel.tsx` - Aggiunto slider UI
+3. `frontend/app/page.tsx` - Logica `filteredPatterns` + `chartPatterns`
+4. `docs/DEV_DIARY.md` - Questa entry
+
+### Comandi build utilizzati
+```bash
+cd /home/runner/work/ai-trading-v2/ai-trading-v2/frontend
+npm install
+npm run build
+```
+
+### Risultati build
+- ✓ Compiled successfully
+- ✓ Linting and checking validity of types
+- ✓ Collecting page data
+- ✓ Generating static pages (11/11)
+- No TypeScript errors
+- No ESLint errors
+
+### Next steps
+- Monitorare performance rendering chart con molti markers
+- Valutare se serve ulteriore ottimizzazione (virtualizzazione markers, clustering)
+- Considerare persistenza setting `maxChartMarkers` in localStorage
+- Testing user experience con dataset pattern reali (100+ patterns)
