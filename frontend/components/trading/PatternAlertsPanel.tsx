@@ -106,6 +106,32 @@ export default function PatternAlertsPanel() {
           </div>
         </div>
 
+        {/* Marker Density (Bucket) */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <label className="text-sm text-gray-400">Densità marker (bucket)</label>
+            <span className="text-sm text-white font-medium">
+              {settings.markerBucketSeconds === 0 ? 'OFF' : `${settings.markerBucketSeconds}s`}
+            </span>
+          </div>
+
+          <input
+            type="range"
+            min="0"
+            max="600"
+            step="15"
+            value={settings.markerBucketSeconds}
+            onChange={(e) => updateSettings({ markerBucketSeconds: Number(e.target.value) })}
+            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            disabled={!settings.enabled}
+          />
+
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>OFF</span>
+            <span>600s</span>
+          </div>
+        </div>
+
         {/* Scope Mode */}
         <div className="space-y-1">
           <label className="text-sm text-gray-400">Scope</label>

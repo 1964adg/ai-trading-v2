@@ -303,6 +303,9 @@ function TradingChartComponent({
 
     window.addEventListener('resize', handleResize);
 
+     // ✅ snapshot per cleanup (evita warning: ref potrebbe cambiare)
+    const emaSeriesMapSnapshot = emaSeriesMapRef.current;
+
     return () => {
       // ✅ importantissimo: segnala subito che il chart è stato smontato
       isDisposedRef.current = true;
@@ -316,7 +319,7 @@ function TradingChartComponent({
       }
 
       // ✅ pulizia refs (evita chiamate su oggetti già rimossi)
-      emaSeriesMapRef.current.clear();
+      emaSeriesMapSnapshot.clear();
 
       // ✅ rimuovi chart in sicurezza
       try {
@@ -450,52 +453,75 @@ function TradingChartComponent({
       // helper: ms -> s
       const toSec = (ts: number) => (ts > 2_000_000_000_000 ? Math.floor(ts / 1000) : ts);
 
-      // IMPORTANT: normalizza patterns in secondi (coerenti con le candele)
-      const normalizedPatterns = patterns.map((p: any) => {
+      type NormalizedPattern = Omit<DetectedPattern, 'time'> & {
+        time?: number; // unix seconds durante normalizzazione
+      };
+
+      const normalizedPatterns: NormalizedPattern[] = patterns.map((p) => {
         const tsSec = typeof p.timestamp === 'number' ? toSec(p.timestamp) : p.timestamp;
+
         const timeSec =
           typeof p.time === 'number'
             ? toSec(p.time)
-            : (typeof tsSec === 'number' ? tsSec : null);
+            : (typeof tsSec === 'number' ? tsSec : undefined);
 
         return {
           ...p,
           timestamp: tsSec,
-          time: timeSec, // <- number in seconds oppure null
+          time: timeSec,
         };
       });
 
-      // Filter patterns by confidence threshold
-      const filteredPatterns = normalizedPatterns.filter(
-        (p: any) => p.confidence >= patternConfidenceThreshold
+      // Filter patterns by confidence threshold (resta NormalizedPattern[])
+      const filteredPatterns: NormalizedPattern[] = normalizedPatterns.filter(
+        (p) => p.confidence >= patternConfidenceThreshold
       );
 
+      // ✅ converti a DetectedPattern[] (time: Time) prima di passare a convertPatternsToOverlays
+      const patternsForOverlay: DetectedPattern[] = filteredPatterns
+        .filter((p): p is NormalizedPattern & { time: number } => typeof p.time === 'number')
+        .map((p) => ({
+          ...p,
+          time: p.time as unknown as import('lightweight-charts').Time,
+        }));
+
       // Convert patterns to overlays
-      const overlaysRaw = convertPatternsToOverlays(filteredPatterns);
+      const overlaysRaw = convertPatternsToOverlays(patternsForOverlay);
 
       // ✅ Dedup overlays per time (meglio qui: abbiamo confidence/strength)
-      const overlayByTime = new Map<number, (typeof overlaysRaw)[number]>();
-      for (const o of overlaysRaw as any[]) {
+      type Overlay = (typeof overlaysRaw)[number];
+
+      const overlayByTime = new Map<number, Overlay>();
+
+      for (const o of overlaysRaw) {
         const t = Number(o?.coordinates?.time);
         if (!Number.isFinite(t)) continue;
 
-        const existing = overlayByTime.get(t) as any | undefined;
+        const existing = overlayByTime.get(t);
         if (!existing) {
           overlayByTime.set(t, o);
           continue;
         }
 
         // scegli overlay migliore: strength/confidence più alta
-        const s1 = typeof o.strength === 'number' ? o.strength : (typeof o.confidence === 'number' ? o.confidence : 0);
-        const s2 = typeof existing.strength === 'number' ? existing.strength : (typeof existing.confidence === 'number' ? existing.confidence : 0);
+        const s1 =
+          typeof (o as Overlay & { strength?: number; confidence?: number }).strength === 'number'
+            ? (o as Overlay & { strength?: number }).strength!
+            : (o as Overlay & { confidence?: number }).confidence ?? 0;
+
+        const s2 =
+          typeof (existing as Overlay & { strength?: number; confidence?: number }).strength === 'number'
+            ? (existing as Overlay & { strength?: number }).strength!
+            : (existing as Overlay & { confidence?: number }).confidence ?? 0;
 
         if (s1 > s2) {
           overlayByTime.set(t, o);
         }
       }
 
-      const overlays = Array.from(overlayByTime.values())
-        .sort((a: any, b: any) => Number(a.coordinates.time) - Number(b.coordinates.time)); // ASC
+      const overlays: Overlay[] = Array.from(overlayByTime.values()).sort(
+        (a, b) => Number(a.coordinates.time) - Number(b.coordinates.time) // ASC
+      );
 
       // Marker size dinamica
       const count = overlays.length;
@@ -513,8 +539,7 @@ function TradingChartComponent({
       // IMPORTANT: lightweight-charts richiede markers ordinati per time ASC
       const sortedMarkers = markers
         .slice()
-        .sort((a: any, b: any) => Number(a.time) - Number(b.time));
-
+        .sort((a, b) => Number(a.time) - Number(b.time));
       series.setMarkers(sortedMarkers);
     } catch (error) {
       console.error('[TradingChart] Error setting pattern markers:', error);

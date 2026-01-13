@@ -39,6 +39,7 @@ import { syncManager, SyncEvent } from '@/lib/syncManager';
 import { EnhancedOrder } from '@/types/enhanced-orders';
 import { getFeatureFlag } from '@/lib/featureFlags';
 import { usePatternStore } from '@/stores/patternStore';
+import type { DetectedPattern } from '@/types/patterns';
 
 const DEFAULT_SYMBOL = 'BTCEUR';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
@@ -143,14 +144,101 @@ export default function Dashboard() {
   .filter((p) => p.confidence >= patternSettings.minConfidence)
   .slice(0, 5);
 
-  // 1) filtro una sola volta
+    // 1) filtro una sola volta (minConfidence)
   const filteredPatterns = detectedPatterns.filter(
     (p) => p.confidence >= patternSettings.minConfidence
   );
 
-  // 2) applico il limite per il chart (0 = illimitati)
-  const max = patternSettings.maxChartMarkers ?? 80;
-  const chartPatterns = max > 0 ? filteredPatterns.slice(-max) : filteredPatterns;
+  // helper: ms -> s
+  const toSec = (ts: number) => (ts > 2_000_000_000_000 ? Math.floor(ts / 1000) : ts);
+
+// tipo locale: stesso pattern, ma time può mancare durante la normalizzazione
+type NormalizedPattern = Omit<DetectedPattern, 'time'> & {
+  time?: number; // unix seconds
+};
+
+// NORMALIZZO PRIMA: pattern.timestamp e pattern.time in SECONDI (coerenti con chartData.time)
+const normalizedPatterns: NormalizedPattern[] = filteredPatterns.map((p) => {
+  const tsSec = typeof p.timestamp === 'number' ? toSec(p.timestamp) : p.timestamp;
+
+  const timeSec =
+    typeof p.time === 'number'
+      ? toSec(p.time)
+      : (typeof tsSec === 'number' ? tsSec : undefined);
+
+  return {
+    ...p,
+    timestamp: tsSec,
+    time: timeSec,
+  };
+});
+
+  // Range dataset (chartData.time è in secondi)
+  const datasetFrom = typeof chartData[0]?.time === 'number' ? (chartData[0].time as number) : undefined;
+  const datasetTo =
+    typeof chartData[chartData.length - 1]?.time === 'number'
+      ? (chartData[chartData.length - 1].time as number)
+      : undefined;
+  // 2) range filter (dataset) usando p.time NORMALIZZATO
+  const inDatasetRange: NormalizedPattern[] =
+    datasetFrom !== undefined && datasetTo !== undefined
+      ? normalizedPatterns.filter((p) => {
+          if (typeof p.time !== 'number') return true;
+          return p.time >= datasetFrom && p.time <= datasetTo;
+        })
+      : normalizedPatterns;
+
+  // 3) bucket dedup (0 = OFF)
+  const bucketSeconds = patternSettings.markerBucketSeconds ?? 0;
+
+  const bucketedPatterns: NormalizedPattern[] =
+    bucketSeconds > 0
+    ? (() => {
+        const map = new Map<number, NormalizedPattern>();
+
+        for (const p of inDatasetRange) {
+          const t = typeof p.time === 'number' ? p.time : null;
+          if (t === null) continue;
+
+          const bucketId = Math.floor(t / bucketSeconds);
+          const existing = map.get(bucketId);
+
+          if (!existing) {
+            map.set(bucketId, p);
+            continue;
+          }
+
+          const et = typeof existing.time === 'number' ? existing.time : null;
+
+          // scegli: più recente, poi confidence
+          if (et === null || t > et || (t === et && p.confidence > existing.confidence)) {
+            map.set(bucketId, p);
+          }
+        }
+
+        return Array.from(map.values());
+      })()
+    : inDatasetRange;
+
+  // 4) ordina + cap (range -> recency -> confidence)
+const max = patternSettings.maxChartMarkers ?? 80;
+
+const sorted: NormalizedPattern[] = bucketedPatterns
+  .slice()
+  .sort((a, b) => {
+    const at = typeof a.time === 'number' ? a.time : 0;
+    const bt = typeof b.time === 'number' ? b.time : 0;
+    if (bt !== at) return bt - at;
+    return b.confidence - a.confidence;
+  });
+
+// ✅ chartPatterns deve essere DetectedPattern[] (time: Time)
+  const chartPatterns: DetectedPattern[] = (max > 0 ? sorted.slice(0, max) : sorted)
+    .filter((p): p is NormalizedPattern & { time: number } => typeof p.time === 'number')
+    .map((p) => ({
+      ...p,
+      time: p.time as unknown as import('lightweight-charts').Time,
+  }));
 
   const emaStatus = [9, 21, 50, 200].map((period) => ({
     period,
@@ -299,7 +387,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (debouncedSymbol && debouncedTimeframe) {
-      // For any selection change, force refresh + reset (avoid mixing datasets)
+      // For  selection change, force refresh + reset (avoid mixing datasets)
       setChartData([]);
       viewportRangeRef.current = null;
       mutate();

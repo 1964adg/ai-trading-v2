@@ -18,6 +18,8 @@ export interface PatternDetectionSettings {
   debounceMs: number;
   enabledPatterns: PatternType[]; // For compatibility with PatternSelector
   maxChartMarkers: number; // 0 = unlimited
+  // NEW: chart marker bucketing (0 = OFF)
+  markerBucketSeconds: number;
 }
 
 // Pattern detection state
@@ -115,6 +117,8 @@ export const usePatternStore = create<PatternDetectionState>((set, get) => ({
     realtimeMode: 'DEBOUNCED',
     debounceMs: 500,
     maxChartMarkers: 80,
+    // NEW default: 60s buckets (user can set 0=OFF)
+    markerBucketSeconds: 60,
     enabledPatterns: [
       'DOJI',
       'HAMMER',
