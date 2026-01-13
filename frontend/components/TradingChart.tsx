@@ -196,7 +196,7 @@ function TradingChartComponent({
         const emaSeries = chart.addLineSeries({
           color: EMA_COLORS[index],
           lineWidth: 2,
-          title: `EMA ${period}`,
+          title: '',
           priceLineVisible: false,
           lastValueVisible: true,
         });

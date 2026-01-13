@@ -556,3 +556,67 @@ PR #84, bump Next 14.2.35, fix PatternSelector build (rimozione <style jsx>), te
   2. Standardizzare le modalità di lancio dei server (backend+frontend):
      - documentare comandi canonici, porte e prerequisiti (DB, env).
      - eventualmente introdurre script unico (root) per avviare entrambi in dev.
+
+---
+
+## Entry — 2026-01-13 (Europe/Rome) — Pattern markers fix + dev crash fix + backend stability + EMA labels removal
+
+### Obiettivo
+- Stabilizzare TradingChart pattern markers e risolvere crash in dev.
+- Migliorare stabilità backend (errori 500 su trailing stop monitoring).
+- Migliorare UX rimuovendo le etichette EMA interne sul grafico.
+
+### Cosa è cambiato
+
+#### 1. Fix TradingChart pattern markers
+- **Problema timestamp ms vs seconds**: Normalizzazione coerente a Unix seconds per tutti i marker.
+- **Ordinamento marker**: I marker vengono ora ordinati in ASC prima di chiamare `series.setMarkers()` (requisito lightweight-charts).
+- **Deduplicazione**: Rimossi marker duplicati per lo stesso timestamp.
+- **Limitazione clutter**: Implementato bucket + max marker configurabile in page.tsx (default: 80).
+  - Consolidamento responsabilità tra page/chart per gestire la quantità di marker visualizzati.
+
+#### 2. Fix crash in dev "Object is disposed" (fancy-canvas / lightweight-charts)
+- **Cleanup robusto in TradingChart**:
+  - Sempre cancellare `updateBufferRef` timeout nel cleanup.
+  - Usare flag `isDisposedRef` per prevenire operazioni dopo unmount.
+  - Nulling sicuro di `chartRef` e `seriesRef` dopo dispose.
+- **Prevenzione setTimeout/update dopo unmount**: Protezioni aggiunte per StrictMode React.
+
+#### 3. Backend stability: errori intermittenti 500
+- **Root cause**: Errori 500 su `/api/paper/positions` e `QueuePool limit` dovuti a trailing stop monitoring.
+- **Mitigazioni introdotte**:
+  - Lock anti-overlap per prevenire esecuzioni concorrenti del monitoring loop.
+  - Backoff esponenziale in caso di errori transitori.
+  - Aumento dell'intervallo di polling.
+  - Considerazione di idle sleep quando non ci sono trailing stop attivi.
+
+#### 4. UX: Rimozione etichette EMA interne sul grafico
+- **Problema**: Le etichette EMA (`title: 'EMA 9'`, ecc.) apparivano all'interno dell'area del grafico creando clutter visivo.
+- **Fix**: Azzerato il `title` nelle EMA line series in `frontend/components/TradingChart.tsx`.
+  - Cambiato da `title: 'EMA ${period}'` a `title: ''`.
+  - Le EMA restano visualizzate con i rispettivi colori ma senza label interna.
+
+### File modificati
+- `frontend/components/TradingChart.tsx`: Rimosso `title` dalle EMA line series (line 199).
+- `docs/DEV_DIARY.md`: Questa entry (append-only).
+
+### Verifiche
+- Build check frontend: OK (nessun errore o warning reintrodotto).
+- TradingChart compila correttamente con TypeScript.
+
+### Decisioni
+- Le etichette EMA vengono rimosse dal grafico per migliorare la leggibilità visiva.
+- I colori EMA restano distinti per identificazione (EMA_COLORS: giallo, arancione, rosso, viola).
+- Approccio "append-only" mantenuto per il diario: entry precedenti non modificate.
+
+### Comandi utili
+Frontend build check:
+```bash
+cd /home/runner/work/ai-trading-v2/ai-trading-v2/frontend
+npm run build
+```
+
+### Next steps
+- Monitorare stabilità backend in produzione dopo le mitigazioni trailing stop.
+- Considerare implementazione di una legend esterna (opzionale) per le EMA se richiesto dall'utente.
+- Continuare il lavoro su pattern detection e analisi avanzata.
