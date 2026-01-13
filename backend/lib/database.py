@@ -43,8 +43,9 @@ def _create_engine(database_url: str, database_name: str):
             # Postgres (local) sane pooling defaults
             engine_params.update(
                 {
-                    "pool_size": 5,
-                    "max_overflow": 10,
+                    "pool_size": 10,
+                    "max_overflow": 20,
+                    "pool_timeout": 60,  # ✅ evita timeout a 30s quando c'è carico
                     "pool_recycle": 1800,
                 }
             )
