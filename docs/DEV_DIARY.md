@@ -556,3 +556,39 @@ PR #84, bump Next 14.2.35, fix PatternSelector build (rimozione <style jsx>), te
   2. Standardizzare le modalità di lancio dei server (backend+frontend):
      - documentare comandi canonici, porte e prerequisiti (DB, env).
      - eventualmente introdurre script unico (root) per avviare entrambi in dev.
+
+## Entry — 2026-01-13 (Europe/Rome) — TradingChart stability + pattern markers + UX EMA labels
+
+- **Obiettivo:**
+  - Ripristinare marker pattern sul chart (coerenti con timeframe/range).
+  - Stabilizzare TradingChart in dev (Next/React) eliminando crash `Object is disposed`.
+  - Ridurre clutter e rendere la UI del chart più pulita (rimuovere label EMA dentro l’area grafico).
+  - Mitigare errori backend intermittenti su `/api/paper/positions` dovuti a saturazione pool DB.
+
+- **Cosa è cambiato (Frontend / TradingChart):**
+  1. **Pattern markers**
+     - Normalizzazione timestamp pattern (ms → seconds) per allineamento con `chartData.time`.
+     - Ordinamento marker **ASC per time** prima di `series.setMarkers()` (requisito lightweight-charts).
+     - Dedup marker con stesso timestamp per evitare duplicati e disordine.
+     - Limitazione marker/clutter gestita tramite max/bucket (se configurato lato dashboard/settings).
+
+  2. **Fix crash `Object is disposed`**
+     - Cleanup robusto del chart: cancellazione corretta dei timeout pendenti (via ref), flag di disposed, e reset dei ref (`chartRef/seriesRef`) su unmount.
+     - Riduzione race-condition in dev (StrictMode mount/unmount) che causava repaint su canvas già disposed.
+
+  3. **UX: rimozione label EMA dentro il grafico**
+     - Rimosso/azzerato `title` sulle serie EMA per evitare la legenda interna (“EMA 9/21/50/200”) che copriva la zona destra del grafico.
+
+- **Cosa è cambiato (Backend):**
+  - Mitigati 500 intermittenti su `/api/paper/positions` legati a `QueuePool limit ...` durante trailing stop monitoring:
+    - ridotto carico/overlap nel monitor loop (lock/backoff/interval più alto).
+    - (Opzionale) idle sleep quando non esistono trailing stop attivi.
+
+- **Verifiche:**
+  - `npm -w frontend run dev` avvio OK; chart stabile in refresh/cambio contesto senza crash `Object is disposed`.
+  - Marker pattern visibili e coerenti con timeframe.
+  - Backend: `/api/paper/positions` stabile (no 500) in test prolungato.
+
+- **Next:**
+  - Rifinire default di `maxChartMarkers` / `markerBucketSeconds` per pulizia out-of-the-box.
+  - Se necessario: rendere “idle sleep” trailing-stop parametrico via env/config.

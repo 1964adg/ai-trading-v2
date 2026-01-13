@@ -105,6 +105,8 @@ function TradingChartComponent({
   const dataRef = useRef<ChartDataPoint[]>([]);
   const updateBufferRef = useRef<NodeJS.Timeout | null>(null);
 
+  const isDisposedRef = useRef(false);
+
   // Use refs for props to prevent infinite loops
   const emaPeriodsRef = useRef(emaPeriods);
   const emaEnabledRef = useRef(emaEnabled);
@@ -196,10 +198,16 @@ function TradingChartComponent({
         const emaSeries = chart.addLineSeries({
           color: EMA_COLORS[index],
           lineWidth: 2,
-          title: `EMA ${period}`,
+
+          // ✅ non mostrare etichetta a destra (titolo/valore)
+          lastValueVisible: false,
+          // ✅ non mostrare price line a destra
           priceLineVisible: false,
-          lastValueVisible: true,
+
+          // (opzionale) tieni comunque il nome internamente, ma non verrà mostrato a destra
+          //title: `EMA ${period}`,
         });
+
         emaSeriesMapRef.current.set(period, emaSeries);
       }
     });
@@ -208,7 +216,7 @@ function TradingChartComponent({
   // Initialize chart
   useEffect(() => {
     if (!chartContainerRef.current) return;
-
+    isDisposedRef.current = false;
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: 600,
@@ -295,25 +303,31 @@ function TradingChartComponent({
 
     window.addEventListener('resize', handleResize);
 
-    // Store ref values for cleanup
-    const emaSeriesMap = emaSeriesMapRef.current;
-    const updateBuffer = updateBufferRef.current;
-
     return () => {
-      window.removeEventListener('resize', handleResize);
-      if (updateBuffer) {
-        clearTimeout(updateBuffer);
-      }
-      emaSeriesMap.clear();
-      chart.remove();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Chart initialization should only run once on mount, dependencies intentionally omitted
+      // ✅ importantissimo: segnala subito che il chart è stato smontato
+      isDisposedRef.current = true;
 
-  useEffect(() => {
-    // Update refs
-    emaPeriodsRef.current = emaPeriods;
-    emaEnabledRef.current = emaEnabled;
+      window.removeEventListener('resize', handleResize);
+
+      // ✅ cancella SEMPRE l'ultimo timeout pendente (quello vero sta nel ref, non nella copia locale)
+      if (updateBufferRef.current) {
+        clearTimeout(updateBufferRef.current);
+        updateBufferRef.current = null;
+      }
+
+      // ✅ pulizia refs (evita chiamate su oggetti già rimossi)
+      emaSeriesMapRef.current.clear();
+
+      // ✅ rimuovi chart in sicurezza
+      try {
+        chart.remove();
+      } catch {
+        // ignore
+      }
+
+      chartRef.current = null;
+      seriesRef.current = null;
+    };
 
     // Recreate series
     if (chartRef.current) {
@@ -418,13 +432,12 @@ function TradingChartComponent({
     }, UPDATE_BUFFER_MS);
   }, [data, preserveViewport, restoreViewport, updateEmaData]);
 
-  // ✅ UPDATED: Handle pattern markers update using PatternOverlay helper
+    // ✅ UPDATED: Handle pattern markers update using PatternOverlay helper
   useEffect(() => {
     const series = seriesRef.current;
     if (!series) return;
 
     if (!patterns || patterns.length === 0) {
-      // Clear markers if no patterns
       try {
         series.setMarkers([]);
       } catch (error) {
@@ -434,50 +447,75 @@ function TradingChartComponent({
     }
 
     try {
+      // helper: ms -> s
+      const toSec = (ts: number) => (ts > 2_000_000_000_000 ? Math.floor(ts / 1000) : ts);
+
+      // IMPORTANT: normalizza patterns in secondi (coerenti con le candele)
+      const normalizedPatterns = patterns.map((p: any) => {
+        const tsSec = typeof p.timestamp === 'number' ? toSec(p.timestamp) : p.timestamp;
+        const timeSec =
+          typeof p.time === 'number'
+            ? toSec(p.time)
+            : (typeof tsSec === 'number' ? tsSec : null);
+
+        return {
+          ...p,
+          timestamp: tsSec,
+          time: timeSec, // <- number in seconds oppure null
+        };
+      });
+
       // Filter patterns by confidence threshold
-      const filteredPatterns = patterns.filter(
-        (p) => p.confidence >= patternConfidenceThreshold
+      const filteredPatterns = normalizedPatterns.filter(
+        (p: any) => p.confidence >= patternConfidenceThreshold
       );
 
-      // Convert patterns to overlays, then to markers (text becomes BUY/SELL/W)
-      const overlays = convertPatternsToOverlays(filteredPatterns);
+      // Convert patterns to overlays
+      const overlaysRaw = convertPatternsToOverlays(filteredPatterns);
 
-      // (Optional) cap markers to avoid clutter (keep most recent)
-      const MAX_MARKERS = 80;
-      const limitedOverlays = overlays.slice(-MAX_MARKERS);
-      //const limitedOverlays = overlays;
-      // Dynamic marker size based on how many markers we are drawing
-      const count = limitedOverlays.length;
+      // ✅ Dedup overlays per time (meglio qui: abbiamo confidence/strength)
+      const overlayByTime = new Map<number, (typeof overlaysRaw)[number]>();
+      for (const o of overlaysRaw as any[]) {
+        const t = Number(o?.coordinates?.time);
+        if (!Number.isFinite(t)) continue;
+
+        const existing = overlayByTime.get(t) as any | undefined;
+        if (!existing) {
+          overlayByTime.set(t, o);
+          continue;
+        }
+
+        // scegli overlay migliore: strength/confidence più alta
+        const s1 = typeof o.strength === 'number' ? o.strength : (typeof o.confidence === 'number' ? o.confidence : 0);
+        const s2 = typeof existing.strength === 'number' ? existing.strength : (typeof existing.confidence === 'number' ? existing.confidence : 0);
+
+        if (s1 > s2) {
+          overlayByTime.set(t, o);
+        }
+      }
+
+      const overlays = Array.from(overlayByTime.values())
+        .sort((a: any, b: any) => Number(a.coordinates.time) - Number(b.coordinates.time)); // ASC
+
+      // Marker size dinamica
+      const count = overlays.length;
       const markerSize =
         count > 150 ? 0.5 :
         count > 100 ? 0.75 :
         count > 50  ? 1 :
         1.5;
 
-      const markers = createChartMarkers(limitedOverlays, {
+      const markers = createChartMarkers(overlays, {
         showMarkers: true,
         markerSize,
       });
 
-      // modifica temporanea
+      // IMPORTANT: lightweight-charts richiede markers ordinati per time ASC
+      const sortedMarkers = markers
+        .slice()
+        .sort((a: any, b: any) => Number(a.time) - Number(b.time));
 
-      //const candleFirst = dataRef.current[0]?.time;
-      //const candleLast = dataRef.current[dataRef.current.length - 1]?.time;
-
-
-      //console.log('[markers debug]', {
-       // candlesCount: data.length,
-       // candlesFirst: data[0]?.time,
-       // candlesLast: data[data.length - 1]?.time,
-       // patternsCount: patterns?.length ?? 0,
-       // filteredPatternsCount: filteredPatterns.length,
-       // markersCount: markers.length,
-       // markersFirst: markers[0]?.time,
-       // markersLast: markers[markers.length - 1]?.time,
-      //});
-
-      // Set pattern markers on the chart
-      series.setMarkers(markers);
+      series.setMarkers(sortedMarkers);
     } catch (error) {
       console.error('[TradingChart] Error setting pattern markers:', error);
     }
