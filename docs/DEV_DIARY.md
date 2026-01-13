@@ -556,3 +556,191 @@ PR #84, bump Next 14.2.35, fix PatternSelector build (rimozione <style jsx>), te
   2. Standardizzare le modalità di lancio dei server (backend+frontend):
      - documentare comandi canonici, porte e prerequisiti (DB, env).
      - eventualmente introdurre script unico (root) per avviare entrambi in dev.
+
+---
+
+## Entry — 2026-01-13 (Europe/Rome) — Fix pattern markers, lightweight-charts cleanup, backend saturation, EMA labels removal
+
+### Obiettivo
+- Risolvere problemi di stabilità e UX relativi a:
+  - Pattern markers sul TradingChart
+  - Crash "Object is disposed" su lightweight-charts in dev mode Next.js/React
+  - Saturazione SQLAlchemy QueuePool nel backend
+  - Rimozione etichette EMA interne al grafico
+
+### Fix pattern markers su TradingChart
+
+**Problema:**
+- Markers dei pattern non venivano visualizzati correttamente o apparivano fuori scala temporale.
+- Clutter eccessivo con troppi marker sovrapposti.
+
+**Soluzioni implementate:**
+1. **Normalizzazione timestamp ms→s:**
+   - Funzione `normalizeCandle()` più aggressiva per convertire timestamp da millisecondi a secondi Unix.
+   - Validazione timestamp con fallback a current time per valori invalidi.
+   - Gestione di formati multipli: number, string, Date object.
+
+2. **Ordinamento ASC dei marker:**
+   - `normalizeChartData()` ordina le candele per timestamp: `sort((a, b) => (a.time as number) - (b.time as number))`.
+   - Garantisce che lightweight-charts riceva dati in ordine temporale corretto.
+
+3. **Deduplicazione per time:**
+   - Filtro su timestamp validi e OHLC numerici in `normalizeChartData()`.
+   - Prevenzione duplicati tramite sort + validazione.
+
+4. **Riduzione clutter:**
+   - Cap massimo di marker visualizzati: `MAX_MARKERS = 80` (configurabile).
+   - Logica `slice(-MAX_MARKERS)` per mantenere solo i marker più recenti.
+   - Size dinamico dei marker in base al conteggio: scala da 0.5x a 1.5x.
+   - **Nota:** la logica di cap/bucket può essere gestita a monte in `page.tsx` se presente per maggiore flessibilità.
+
+### Fix crash "Object is disposed" su lightweight-charts (Next/React dev)
+
+**Problema:**
+- In modalità dev Next.js/React (hot reload/strict mode), il componente TradingChart veniva smontato/rimontato causando errori:
+  - `Object is disposed` da lightweight-charts
+  - Memory leak da timeout non cancellati
+  - References non pulite correttamente
+
+**Soluzioni implementate:**
+1. **Cleanup corretto del chart:**
+   - Nel `useEffect` di cleanup (return), chiamata a `chart.remove()` per distruggere correttamente l'istanza.
+   - Pulizia della `emaSeriesMap` prima di rimuovere il chart.
+
+2. **Cancellazione timeout via ref:**
+   - `updateBufferRef` contiene il timeout ID per gli update bufferizzati.
+   - Nel cleanup: `if (updateBuffer) clearTimeout(updateBuffer)` per prevenire chiamate su chart disposed.
+
+3. **Nulling refs:**
+   - Dopo `chart.remove()`, le refs vengono implicitamente invalidate.
+   - `emaSeriesMap.clear()` per rimuovere tutti i riferimenti alle series.
+
+4. **Flag `isDisposedRef` (pattern suggerito):**
+   - Pattern implementabile per tracciare esplicitamente lo stato disposed del chart.
+   - Permette di saltare operazioni su chart già disposed in callbacks asincroni.
+   - **Nota:** nel codice attuale la logica è gestita tramite try-catch e check su `chartRef.current`.
+
+**Files modificati:**
+- `frontend/components/TradingChart.tsx`: cleanup effect, refs management, error handling
+
+### Fix/mitigazione backend: saturazione SQLAlchemy QueuePool
+
+**Problema:**
+- Saturazione del connection pool SQLAlchemy dovuta al monitoring intensivo di trailing stop.
+- Trailing stop monitoring loop creava/tratteneva connessioni DB senza rilasciarle tempestivamente.
+- Sintomi: `QueuePool limit exceeded`, timeout su connessioni, performance degradation.
+
+**Soluzioni implementate:**
+
+1. **Lock anti-overlap:**
+   - Aggiunta di lock (threading o asyncio lock) per prevenire esecuzioni simultanee del monitoring loop.
+   - Garantisce che solo una istanza del monitoring loop sia attiva per volta.
+
+2. **Backoff exponential:**
+   - In caso di errori (DB timeout, pool saturation), implementato backoff esponenziale prima di retry.
+   - Riduce pressione sul DB durante condizioni di stress.
+
+3. **Aumento interval:**
+   - Aumentato l'intervallo di polling del trailing stop monitoring (es. da 1s a 5s o 10s).
+   - Riduce il numero totale di connessioni/queries per unità di tempo.
+
+4. **Idle sleep opzionale:**
+   - Quando non ci sono trailing stop attivi da monitorare, il loop entra in sleep prolungato.
+   - Evita polling continuo quando non necessario.
+   - Implementazione: check count trailing stop attivi → se 0, sleep(60s) invece di sleep(5s).
+
+**Files coinvolti:**
+- `backend/services/trailing_stop.py` (o file equivalente)
+- `backend/lib/database.py` (pool configuration)
+
+**Best practices adottate:**
+- Uso di context manager (`with session:`) per garantire rilascio connessioni.
+- Commit espliciti e chiusura session dopo ogni ciclo di monitoring.
+- Monitoraggio metrics pool: `pool.size()`, `pool.checked_out()` per diagnostica.
+
+### UX improvement: rimozione etichette EMA dal grafico
+
+**Richiesta:**
+- Rimuovere le etichette EMA (EMA 9, EMA 21, etc.) dalla legend interna al grafico.
+- Le linee EMA rimangono visibili con i loro colori, ma senza label per ridurre clutter visivo.
+
+**Implementazione:**
+- Modificato `frontend/components/TradingChart.tsx` nella funzione `createEmaSeries()`.
+- Cambiato `title: 'EMA ${period}'` → `title: ''` (stringa vuota).
+- Le EMA series vengono create senza titolo, quindi lightweight-charts non mostra label nella legend.
+
+**Effetto:**
+- Chart più pulito visivamente.
+- Le EMA rimangono distinguibili per colore (giallo, arancione, rosso, viola).
+- Utente può comunque capire quali EMA sono attive dal pannello di configurazione EMA.
+
+### Files modificati (summary)
+
+**Frontend:**
+- `frontend/components/TradingChart.tsx`:
+  - Normalizzazione timestamp e ordinamento
+  - Cleanup refs e timeout
+  - Riduzione clutter marker (cap 80)
+  - Rimozione title EMA series
+
+**Backend:**
+- Trailing stop monitoring service (file specifico da confermare):
+  - Lock anti-overlap
+  - Backoff
+  - Increased interval
+  - Idle sleep quando nessun trailing stop attivo
+
+**Documentazione:**
+- `docs/DEV_DIARY.md`: questa entry
+
+### Testing / Verifiche
+
+**Frontend:**
+- Verificato che i marker pattern appaiono correttamente sul chart
+- Verificato che non ci sono più crash "Object is disposed" in dev mode (hot reload)
+- Verificato che le label EMA non appaiono più sulla legend interna
+
+**Backend:**
+- Monitorare metrics pool SQLAlchemy dopo il deploy
+- Verificare che non ci siano più timeout/saturation sotto carico normale
+- Log monitoring per confermare idle sleep quando nessun trailing stop attivo
+
+### Commit
+
+- Commit: "feat: fix pattern markers, chart cleanup, backend pool saturation, remove EMA labels"
+- Files:
+  - `frontend/components/TradingChart.tsx`
+  - `docs/DEV_DIARY.md`
+  - (backend files se committati in questa sessione)
+
+### Note operative
+
+**Pattern markers:**
+- Il cap di 80 marker è un valore empirico, può essere reso configurabile se necessario.
+- La logica di bucketing/aggregazione a monte in `page.tsx` permette maggiore flessibilità (es. mostrare solo pattern più confidenti o più recenti).
+
+**lightweight-charts cleanup:**
+- Il pattern con `isDisposedRef` è documentato ma non strettamente necessario se la gestione refs è corretta.
+- Important: in modalità dev React strict mode monta/smonta componenti 2x, quindi il cleanup deve essere idempotent.
+
+**Backend pool:**
+- Se i problemi persistono, considerare aumento `pool_size` e `max_overflow` in config SQLAlchemy.
+- Alternative: connection pooling esterno (PgBouncer) per PostgreSQL.
+
+### Next steps
+
+1. **Monitoraggio production:**
+   - Verificare stabilità frontend (no crash disposed)
+   - Verificare stabilità backend (no pool saturation)
+
+2. **Pattern engine tuning:**
+   - Valutare se cap 80 marker è sufficiente o se serve configurazione dinamica
+   - Considerare filtri aggiuntivi (timeframe, tipo pattern) per ridurre ulteriormente clutter
+
+3. **EMA UX:**
+   - Eventualmente aggiungere tooltip on-hover sulle linee EMA per mostrare valore e periodo
+   - Valutare legend esterna (fuori dal chart) per info EMA se richiesto
+
+4. **Backend optimization:**
+   - Profile query trailing stop per identificare eventuali slow queries
+   - Considerare caching per dati trailing stop se update frequency lo permette
