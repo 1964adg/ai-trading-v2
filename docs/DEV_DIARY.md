@@ -592,3 +592,47 @@ PR #84, bump Next 14.2.35, fix PatternSelector build (rimozione <style jsx>), te
 - **Next:**
   - Rifinire default di `maxChartMarkers` / `markerBucketSeconds` per pulizia out-of-the-box.
   - Se necessario: rendere “idle sleep” trailing-stop parametrico via env/config.
+
+## 2026-01-15 — Desktop UI compaction + R1/R2/R8 refactor + IndicatorPanel compact/expand
+
+### Obiettivi
+- Compattare layout desktop (ridurre padding/gap) per dare più spazio al chart.
+- Eliminare riquadro R3 (Watchlist) ritenuto ridondante: la selezione crypto avviene via click sul simbolo (R2) e preset/favorites.
+- Spostare i controlli TF/EMA/Config da R2 alla barra sotto-chart R8.
+- Rendere R6 (Technical Indicators) più compatto, con dettagli espandibili al click.
+
+### Modifiche UI / Frontend
+- **Header globale (R1)**:
+  - Aggiunta pill separata per modalità (PAPER/REAL) vicino a Connection Status.
+  - Aggiunto bottone PANIC sempre visibile con conferma (placeholder operativo).
+  - Compattati padding/height per ridurre l’altezza complessiva.
+- **Balance/Equity in header**:
+  - Equity calcolata come `availableBalance + totalUnrealizedPnL`.
+  - Percentuale calcolata vs equity di inizio giornata (snapshot in localStorage, reset a cambio giorno).
+- **R2 UnifiedPriceHeader**:
+  - Semplificato: simbolo + prezzo + % + favorites.
+  - Prezzo formattato con separatore migliaia via `formatCurrency()` (locale it-IT).
+  - Rimossi TF/EMA/Config (spostati in R8).
+- **R8 ChartBottomBar**:
+  - Aggiunti bottoni TF: 1m 5m 15m 30m 1h 4h 1d.
+  - Aggiunti toggle EMA (9/21/50/200) con indicatori trend (↑/↓/—).
+  - Bottone Config per aprire la configurazione EMA.
+- **Layout Desktop**:
+  - Grid modificata a **2-8-2** (sinistra-centro-destra) per massimizzare area chart.
+  - Compattazione spazi: `p-2`, `gap-2`, `space-y-2`.
+  - Rimosso componente WatchListPanel dalla colonna sinistra.
+- **IndicatorPanel (R6)**:
+  - Aggiunta modalità `compact` e comportamento “click-to-expand” per RSI/MACD/Bollinger.
+  - Fix type error: `rsi.signal.condition` non esiste → usare `rsi.signal.description`.
+
+### Fix / Note tecniche
+- TypeScript/Next build error risolto:
+  - `Property 'condition' does not exist on type { signal, description, color }`
+  - patch: usare `description` per mostrare testo dettagli RSI.
+
+### Verifiche eseguite / da eseguire
+- Frontend:
+  - `npm -w frontend run build`
+  - `npm -w frontend run lint` (opzionale)
+  - Verifica manuale: click espansione indicatori; TF/EMA in R8; PANIC confirm.
+- Backend: nessuna modifica funzionale lato API in questa sessione.

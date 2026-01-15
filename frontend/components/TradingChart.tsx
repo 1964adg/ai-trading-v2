@@ -104,7 +104,8 @@ function TradingChartComponent({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const dataRef = useRef<ChartDataPoint[]>([]);
   const updateBufferRef = useRef<NodeJS.Timeout | null>(null);
-
+// Remember last visible bars count (robusto anche se viewportRange è null)
+  const lastVisibleBarsRef = useRef<number>(120); // default: 120 barre visibili
   const isDisposedRef = useRef(false);
 
   // Use refs for props to prevent infinite loops
@@ -213,6 +214,17 @@ function TradingChartComponent({
     });
   }, []); // Empty dependencies since we use refs
 
+  // Recreate EMA series when settings change (✅ sicuro, non tocca il chart intero)
+  useEffect(() => {
+    if (isDisposedRef.current) return;
+    if (!chartRef.current) return;
+
+    createEmaSeries();
+
+    if (dataRef.current.length > 0) {
+      updateEmaData(dataRef.current);
+    }
+  }, [emaEnabled, emaPeriods, createEmaSeries, updateEmaData]);
   // Initialize chart
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -259,6 +271,26 @@ function TradingChartComponent({
     });
 
     chartRef.current = chart;
+
+    // Track visible bars whenever user zooms/scrolls
+    const timeScale = chart.timeScale();
+
+    const handleVisibleRangeChange = () => {
+      try {
+        const r = timeScale.getVisibleLogicalRange();
+        if (!r) return;
+        const bars = Math.max(10, Math.round(r.to - r.from));
+        // clamp per evitare valori assurdi
+        lastVisibleBarsRef.current = Math.min(500, bars);
+      } catch {
+        // ignore
+      }
+    };
+
+    timeScale.subscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
+    // init snapshot
+    handleVisibleRangeChange();
+
     seriesRef.current = candlestickSeries;
 
     // Create initial EMA series once during chart initialization
@@ -318,6 +350,12 @@ function TradingChartComponent({
         updateBufferRef.current = null;
       }
 
+      try {
+        chart.timeScale().unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
+      } catch {
+        // ignore
+      }
+
       // ✅ pulizia refs (evita chiamate su oggetti già rimossi)
       emaSeriesMapSnapshot.clear();
 
@@ -333,107 +371,94 @@ function TradingChartComponent({
     };
 
     // Recreate series
-    if (chartRef.current) {
-      createEmaSeries();
+    //if (chartRef.current) {
+      //createEmaSeries();
 
       // Re-apply data if available
-      if (dataRef.current.length > 0) {
-        updateEmaData(dataRef.current);
-      }
-    }
-  }, [emaPeriods, emaEnabled, createEmaSeries, updateEmaData]);
+      //if (dataRef.current.length > 0) {
+        //updateEmaData(dataRef.current);
+      //}
+    //}
+  }, []) // [emaPeriods, emaEnabled, createEmaSeries, updateEmaData]);
 
   // Handle data updates with viewport preservation and buffering
   // FIXED: More robust error handling and validation
-  useEffect(() => {
-    if (!seriesRef.current || data.length === 0) {
+useEffect(() => {
+  if (!seriesRef.current || data.length === 0) {
+    return;
+  }
+
+  // Clear any pending buffer update
+  if (updateBufferRef.current) {
+    clearTimeout(updateBufferRef.current);
+  }
+
+  // Buffer the update to prevent rapid re-renders
+  updateBufferRef.current = setTimeout(() => {
+    const series = seriesRef.current;
+    if (!series) return;
+
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    // Normalize all data to ensure timestamps are valid Unix seconds
+    const normalizedData = normalizeChartData(data);
+    if (normalizedData.length === 0) {
+      console.warn('[TradingChart] No valid data after normalization');
       return;
     }
 
-    // Clear any pending buffer update
-    if (updateBufferRef.current) {
-      clearTimeout(updateBufferRef.current);
-    }
+    // Preserve current viewport BEFORE updating data
+    const viewportRange = preserveViewport();
 
-    // Buffer the update to prevent rapid re-renders
-    updateBufferRef.current = setTimeout(() => {
-      const series = seriesRef.current;
-      if (!series) {
-        return;
-      }
+    // Old dataset length (prima di setData)
+    const oldDataLength = dataRef.current?.length || normalizedData.length;
 
-      // Normalize all data to ensure timestamps are valid Unix seconds
-      const normalizedData = normalizeChartData(data);
-      if (normalizedData.length === 0) {
-        console.warn('[TradingChart] No valid data after normalization');
-        return;
-      }
+    // Determine if user was near the end
+    const wasNearEnd = viewportRange ? viewportRange.to >= oldDataLength - 5 : true;
 
-      // Preserve current viewport BEFORE updating data
-      const viewportRange = preserveViewport();
+    // ✅ Always keep the last "visible bars count" (robusto)
+    // - if viewportRange exists use it
+    // - else fallback to lastVisibleBarsRef
+    const visibleBarsFromViewport = viewportRange
+      ? Math.max(10, Math.round(viewportRange.to - viewportRange.from))
+      : null;
 
-      // Calculate if user zoomed in (viewing less than 80% of data)
-      const oldDataLength = dataRef.current?.length || normalizedData.length;
-      const visibleRange = viewportRange ? (viewportRange.to - viewportRange.from) : oldDataLength;
-      const wasUserZoomed = viewportRange && visibleRange < oldDataLength * 0.8;
+    const visibleBars = Math.min(
+      500,
+      visibleBarsFromViewport ?? lastVisibleBarsRef.current ?? 120
+    );
 
-      try {
-        // Store OLD viewport range before setData
-        const savedViewport = viewportRange;
+    try {
+      series.setData(normalizedData);
+      dataRef.current = normalizedData;
+      updateEmaData(normalizedData);
 
-        series.setData(normalizedData);
-        dataRef.current = normalizedData;
-        updateEmaData(normalizedData);
+      // ✅ A) Anchor to realtime keeping same number of candles visible
+      const newLen = normalizedData.length;
+      const to = newLen - 1;
+      const from = Math.max(0, to - visibleBars);
 
-        // Restore viewport after update
-        if (wasUserZoomed && savedViewport) {
-          // User had zoomed in → preserve zoom level proportionally
-          // Calculate zoom percentage from OLD data
-          const zoomPercentage = visibleRange / oldDataLength;
-
-          // Apply same zoom percentage to NEW data
-          const newVisibleRange = Math.max(10, Math.round(normalizedData.length * zoomPercentage));
-
-          // Keep focused on most recent data
-          const newTo = normalizedData.length - 1;
-          const newFrom = Math.max(0, newTo - newVisibleRange);
-
-          setTimeout(() => {
-            if (chartRef.current) {
-              try {
-                chartRef.current.timeScale().setVisibleLogicalRange({
-                  from: newFrom,
-                  to: newTo,
-                });
-              } catch (e) {
-                console.error('[TradingChart] Failed to restore zoom:', e);
-              }
-            }
-          }, 100);
-
-        } else if (savedViewport) {
-          // User was viewing older data → try to restore position
-          const isNearEnd = savedViewport.to >= oldDataLength - 5;
-
-          if (isNearEnd) {
-            setTimeout(() => {
-              chartRef.current?.timeScale().scrollToRealTime();
-            }, 50);
-          } else {
-            setTimeout(() => restoreViewport(savedViewport), 50);
+      // Se l’utente era in realtime (o se viewportRange è null), forza la vista realtime
+      if (wasNearEnd || !viewportRange) {
+        setTimeout(() => {
+          const c = chartRef.current;
+          if (!c) return;
+          try {
+            c.timeScale().setVisibleLogicalRange({ from, to });
+          } catch (e) {
+            console.error('[TradingChart] Failed to restore bar-count zoom:', e);
           }
-        } else {
-          // First load → fit all content
-          setTimeout(() => {
-            chartRef.current?.timeScale().fitContent();
-          }, 100);
-        }
-
-      } catch (error) {
-        console.error('[TradingChart] Chart setData error:', error);
+        }, 50);
+      } else {
+        // se era indietro, mantieni comportamento “storico” (non richiesto da A, ma utile)
+        setTimeout(() => restoreViewport(viewportRange), 50);
       }
-    }, UPDATE_BUFFER_MS);
-  }, [data, preserveViewport, restoreViewport, updateEmaData]);
+    } catch (error) {
+      console.error('[TradingChart] Chart setData error:', error);
+    }
+  }, UPDATE_BUFFER_MS);
+}, [data, preserveViewport, restoreViewport, updateEmaData]);
 
     // ✅ UPDATED: Handle pattern markers update using PatternOverlay helper
   useEffect(() => {

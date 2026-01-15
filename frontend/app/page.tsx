@@ -8,7 +8,7 @@ import ExecuteOrderConfirmation from '@/components/modals/ExecuteOrderConfirmati
 import IndicatorSummary from '@/components/trading/IndicatorSummary';
 import QuickInfoPanel from '@/components/trading/QuickInfoPanel';
 import PresetOrdersPanel from '@/components/trading/PresetOrdersPanel';
-import WatchListPanel from '@/components/trading/WatchListPanel';
+//import WatchListPanel from '@/components/trading/WatchListPanel';
 import MultiTimeframePanel from '@/components/trading/MultiTimeframePanel';
 import IndicatorPanel from '@/components/trading/IndicatorPanel';
 import AdvancedRiskCalculator from '@/components/trading/AdvancedRiskCalculator';
@@ -40,6 +40,7 @@ import { EnhancedOrder } from '@/types/enhanced-orders';
 import { getFeatureFlag } from '@/lib/featureFlags';
 import { usePatternStore } from '@/stores/patternStore';
 import type { DetectedPattern } from '@/types/patterns';
+import ChartBottomBar from '@/components/trading/ChartBottomBar';
 
 const DEFAULT_SYMBOL = 'BTCEUR';
 const DEFAULT_TIMEFRAME: Timeframe = '1m';
@@ -102,6 +103,20 @@ export default function Dashboard() {
   const [selectedOrder, setSelectedOrder] = useState<EnhancedOrder | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showSystemInfo, setShowSystemInfo] = useState(false);
+
+  type LayoutMode = 'SINGLE' | 'DUAL';
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('SINGLE');
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem('trading.layoutMode') as LayoutMode | null;
+    if (saved === 'SINGLE' || saved === 'DUAL') setLayoutMode(saved);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('trading.layoutMode', layoutMode);
+    if (layoutMode === 'DUAL') setDetailsOpen(false);
+  }, [layoutMode]);
 
   const debouncedSymbol = useDebouncedValue(symbol, 300);
   const debouncedTimeframe = useDebouncedValue(timeframe, 300);
@@ -532,24 +547,38 @@ const sorted: NormalizedPattern[] = bucketedPatterns
   }
 
   return (
-    <div className="min-h-screen bg-black p-4">
+    <div className="min-h-screen bg-black p-2">
       <div className="max-w-[1920px] mx-auto mb-4">
         <div className="flex items-center justify-between mb-2">
           <UnifiedPriceHeader
             symbol={symbol}
             price={currentPrice}
             priceChangePercent={priceChangePercent24h}
-            timeframe={timeframe}
-            onTimeframeChange={handleTimeframeChange}
             onSymbolClick={() => setShowSymbolSelector(true)}
             onSymbolSelect={handleSymbolChange}
-            emaPeriods={emaPeriods}
-            emaEnabled={emaEnabled}
-            onEmaToggle={toggleEma}
-            onEmaConfig={() => setShowEmaConfig(true)}
           />
-
           <div className="flex items-center gap-2">
+
+            <div className="flex items-center bg-gray-900 border border-gray-700 rounded overflow-hidden">
+              <button
+                onClick={() => setLayoutMode('SINGLE')}
+                className={`px-3 py-2 text-xs ${
+                  layoutMode === 'SINGLE' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-300 hover:bg-gray-800'
+                }`}
+                title="Layout 1 monitor (compatto + dettagli in accordion)"
+              >
+                1 Monitor
+              </button>
+              <button
+                onClick={() => setLayoutMode('DUAL')}
+                className={`px-3 py-2 text-xs ${
+                  layoutMode === 'DUAL' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-300 hover:bg-gray-800'
+                }`}
+                title="Layout 2 monitor (execution-first)"
+              >
+                2 Monitor
+              </button>
+            </div>
             {/* ✅ NEW: Period dropdown */}
             <div>
               <select
@@ -577,13 +606,8 @@ const sorted: NormalizedPattern[] = bucketedPatterns
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-4 max-w-[1920px] mx-auto">
-        <div className="col-span-12 lg:col-span-3 space-y-4">
-          <WatchListPanel
-            currentSymbol={symbol}
-            onSymbolSelect={handleSymbolChange}
-            onAddSymbol={() => setShowSymbolSelector(true)}
-          />
+      <div className="grid grid-cols-12 gap-2 max-w-[1920px] mx-auto">
+        <div className="col-span-12 lg:col-span-2 space-y-2">
 
           {getFeatureFlag('ENABLE_MULTI_TIMEFRAME') && (
             <MultiTimeframePanel
@@ -595,6 +619,7 @@ const sorted: NormalizedPattern[] = bucketedPatterns
           <IndicatorPanel
             symbol={symbol}
             interval={timeframe}
+            compact
           />
           <AdvancedRiskCalculator
             currentPrice={currentPrice}
@@ -602,7 +627,7 @@ const sorted: NormalizedPattern[] = bucketedPatterns
           />
         </div>
 
-        <div className="col-span-12 lg:col-span-6 space-y-4">
+        <div className="col-span-12 lg:col-span-8 space-y-2">
           <TradingChart
             data={chartData}
             emaPeriods={emaPeriods}
@@ -611,16 +636,42 @@ const sorted: NormalizedPattern[] = bucketedPatterns
             patternConfidenceThreshold={patternSettings.minConfidence}
           />
 
-          <PatternAlertsPanel />
-
-          <IndicatorSummary
-            recentPatterns={recentPatterns}
+          <ChartBottomBar
+            timeframe={timeframe}
+            onTimeframeChange={handleTimeframeChange}
             emaStatus={emaStatus}
-            onViewAnalysis={() => router.push('/analysis')}
+            emaEnabled={emaEnabled}
+            onToggleEma={toggleEma}
+            onOpenEmaConfig={() => setShowEmaConfig(true)}
+            recentPatterns={recentPatterns}
+            detailsOpen={detailsOpen}
+            onToggleDetails={() => setDetailsOpen((v) => !v)}
           />
+
+          {layoutMode === 'SINGLE' && detailsOpen && (
+            <div className="space-y-3">
+              <PatternAlertsPanel />
+              <IndicatorSummary
+                recentPatterns={recentPatterns}
+                emaStatus={emaStatus}
+                onViewAnalysis={() => router.push('/analysis')}
+              />
+            </div>
+          )}
+
+          {layoutMode === 'DUAL' && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => router.push('/analysis')}
+                className="text-xs px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded text-white border border-gray-700"
+              >
+                Apri dettagli in Analysis →
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="col-span-12 lg:col-span-3 space-y-4">
+        <div className="col-span-12 lg:col-span-2 space-y-2">
           <PositionRiskGauge accountBalance={10000} maxRiskPercent={50} />
 
           <QuickTradePanel
