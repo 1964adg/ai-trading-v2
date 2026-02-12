@@ -5,17 +5,17 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
+import CandleTableSection from '../../components/CandleTableSection';
 import BacktestDashboard from '@/components/backtesting/BacktestDashboard';
 import EquityCurveChart from '@/components/backtesting/EquityCurveChart';
 import OptimizationPanel from '@/components/backtesting/OptimizationPanel';
 import { useBacktest } from '@/hooks/useBacktest';
 import { useBacktestStore } from '@/stores/backtestStore';
-import { OptimizationConfig, BacktestConfig } from '@/types/backtesting';
+import { OptimizationConfig, BacktestConfig, MonteCarloConfig } from '@/types/backtesting';
 import { OptimizationEngine } from '@/lib/backtesting/optimization-engine';
 import { dataManager } from '@/lib/backtesting/data-manager';
 import { MonteCarloEngine } from '@/lib/backtesting/monte-carlo-engine';
-import { MonteCarloConfig } from '@/types/backtesting';
 
 export default function BacktestPage() {
   const { currentBacktest } = useBacktest();
@@ -35,10 +35,10 @@ export default function BacktestPage() {
 
   const [activeTab, setActiveTab] = useState<'backtest' | 'optimize' | 'montecarlo'>('backtest');
 
+  // Ottimizzazione (optimize tab)
   const handleRunOptimization = useCallback(async (config: OptimizationConfig) => {
     startOptimizationStore(config);
 
-    // Get base backtest config
     const baseConfig: BacktestConfig = {
       strategy: config.parameters.length > 0 ? {
         name: 'Optimized Strategy',
@@ -74,7 +74,6 @@ export default function BacktestPage() {
     };
 
     try {
-      // Fetch data
       const data = await dataManager.fetchHistoricalData(
         baseConfig.symbol,
         baseConfig.timeframes[0],
@@ -83,7 +82,6 @@ export default function BacktestPage() {
         1000
       );
 
-      // Run optimization
       const engine = new OptimizationEngine();
       const result = await engine.optimize(
         data,
@@ -104,6 +102,7 @@ export default function BacktestPage() {
     cancelOptimization,
   ]);
 
+  // Monte Carlo (montecarlo tab)
   const handleRunMonteCarlo = useCallback(async () => {
     if (!currentBacktest) {
       alert('Please run a backtest first');
@@ -178,7 +177,13 @@ export default function BacktestPage() {
         <div className="space-y-6">
           {activeTab === 'backtest' && (
             <>
+              {/* Candlestick table section */}
+              <CandleTableSection />
+
+              {/* Backtest Dashboard */}
               <BacktestDashboard />
+
+              {/* Show chart if data exists */}
               {currentBacktest && (
                 <EquityCurveChart
                   equity={currentBacktest.equity}
@@ -197,7 +202,7 @@ export default function BacktestPage() {
                 progress={optimizationProgress}
               />
               {currentOptimization && (
-                <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
+                <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 mt-6">
                   <h2 className="text-2xl font-bold text-white mb-4">
                     Optimization Results
                   </h2>

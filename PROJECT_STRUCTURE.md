@@ -1,4 +1,4 @@
-# Struttura del progetto (aggiornata al 2026-02-12)
+# Struttura del progetto (aggiornata al 2026-02-13)
 
 ## ROOT
 - .editorconfig
@@ -66,7 +66,12 @@
 
 - app/
     - favicon.ico / globals.css / layout.tsx / page.tsx
+    - analysis/
+        - page.tsx    # senza sezione candele/importazione (rimossa)
+    - backtest/
+        - page.tsx    # con nuova sezione candele/import (aggiunta)
 - components/
+    - CandleTableSection.tsx    # nuovo componente modulare tabulato candele
     - LiveIndicator.tsx / Navigation.tsx / PatternDashboard.tsx / ... / TradingChartBackup.tsx
 - hooks/
     - useBacktest.ts / useChartManager.ts / ... / useWebSocket.ts
@@ -100,3 +105,10 @@
 
 ## scripts/
 - dev-setup.sh / prod-deploy.sh / test_ml_api.sh / validate-docker.sh / validate_ml_infrastructure.py
+
+---
+
+### **Note recenti**
+- [2026-02-13]: Modularizzata tabella candele (`CandleTableSection.tsx`) e integrata in `/backtest`.
+- [2026-02-13]: Rimossa sezione candele/importazione da `/analysis`.
+- [2026-02-13]: Aggiornata la navigazione e routing secondo nuova struttura.
