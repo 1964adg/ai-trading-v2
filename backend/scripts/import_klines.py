@@ -283,56 +283,64 @@ def _set_metadata_status(
     """Best-effort metadata status update."""
     now = _utc_now()
 
-    with get_db("market") as db:
-        if error_code:
-            db.execute(
-                text(
-                    """
-                    INSERT INTO candlestick_metadata (
-                        symbol, interval, sync_status, last_sync,
-                        error_code, error_message, last_attempt_at
-                    )
-                    VALUES (
-                        :symbol, :interval, :status, :now,
-                        :error_code, :error_message, :now
-                    )
-                    ON CONFLICT (symbol, interval)
-                    DO UPDATE SET
-                        sync_status = :status,
-                        last_sync = :now,
-                        error_code = :error_code,
-                        error_message = :error_message,
-                        last_attempt_at = :now,
-                        updated_at = :now
+
+db_gen = get_db("market")
+db = next(db_gen)
+try:
+    if error_code:
+        db.execute(
+            text(
                 """
-                ),
-                {
-                    "symbol": symbol,
-                    "interval": interval,
-                    "status": status,
-                    "error_code": error_code,
-                    "error_message": error_message,
-                    "now": now,
-                },
-            )
-        else:
-            db.execute(
-                text(
-                    """
-                    INSERT INTO candlestick_metadata (
-                        symbol, interval, sync_status, last_sync, last_attempt_at
-                    )
-                    VALUES (:symbol, :interval, :status, :now, :now)
-                    ON CONFLICT (symbol, interval)
-                    DO UPDATE SET
-                        sync_status = :status,
-                        last_sync = :now,
-                        last_attempt_at = :now,
-                        updated_at = :now
+                INSERT INTO candlestick_metadata (
+                    symbol, interval, sync_status, last_sync,
+                    error_code, error_message, last_attempt_at
+                )
+                VALUES (
+                    :symbol, :interval, :status, :now,
+                    :error_code, :error_message, :now
+                )
+                ON CONFLICT (symbol, interval)
+                DO UPDATE SET
+                    sync_status = :status,
+                    last_sync = :now,
+                    error_code = :error_code,
+                    error_message = :error_message,
+                    last_attempt_at = :now,
+                    updated_at = :now
                 """
-                ),
-                {"symbol": symbol, "interval": interval, "status": status, "now": now},
-            )
+            ),
+            {
+                "symbol": symbol,
+                "interval": interval,
+                "status": status,
+                "error_code": error_code,
+                "error_message": error_message,
+                "now": now,
+            },
+        )
+    else:
+        db.execute(
+            text(
+                """
+                INSERT INTO candlestick_metadata (
+                    symbol, interval, sync_status, last_sync, last_attempt_at
+                )
+                VALUES (:symbol, :interval, :status, :now, :now)
+                ON CONFLICT (symbol, interval)
+                DO UPDATE SET
+                    sync_status = :status,
+                    last_sync = :now,
+                    last_attempt_at = :now,
+                    updated_at = :now
+                """
+            ),
+            {"symbol": symbol, "interval": interval, "status": status, "now": now},
+        )
+finally:
+    try:
+        next(db_gen)
+    except StopIteration:
+        pass
 
 
 def import_symbol_interval(
@@ -478,11 +486,17 @@ def import_symbol_interval(
                 )
                 last_open_ms = open_time_ms
 
-            # Insert into database
             try:
-                with get_db("market") as db:
+                db_gen = get_db("market")
+                db = next(db_gen)
+                try:
                     inserted = _insert_candles_bulk(db, rows)
                     total_inserted += inserted
+                finally:
+                    try:
+                        next(db_gen)
+                    except StopIteration:
+                        pass
             except Exception as e:
                 error_code = ERROR_CODES["DB_ERROR"]
                 error_message = f"Database error: {str(e)[:200]}"
@@ -503,12 +517,20 @@ def import_symbol_interval(
 
         # Finalize metadata based on what happened
         # Finalize metadata based on what happened
-        with get_db("market") as db:
+        db_gen = get_db("market")
+        db = next(db_gen)
+        try:
             _upsert_metadata(db, symbol, interval, error_code, error_message)
+        finally:
+            try:
+                next(db_gen)
+            except StopIteration:
+                pass
 
-        # EMPTY_RESPONSE is non-fatal if DB already has data
         if error_code == ERROR_CODES["EMPTY_RESPONSE"]:
-            with get_db("market") as db:
+            db_gen = get_db("market")
+            db = next(db_gen)
+            try:
                 total = int(
                     db.execute(
                         text(
@@ -522,7 +544,11 @@ def import_symbol_interval(
                     ).scalar()
                     or 0
                 )
-
+            finally:
+                try:
+                    next(db_gen)
+                except StopIteration:
+                    pass
             if total > 0:
                 print(
                     f"[DONE/PARTIAL] {symbol} {interval} - {error_code}: {error_message}"
@@ -570,8 +596,15 @@ def import_symbol_interval(
             error_message = f"Unhandled exception: {str(e)[:200]}"
 
         try:
-            with get_db("market") as db:
+            db_gen = get_db("market")
+            db = next(db_gen)
+            try:
                 _upsert_metadata(db, symbol, interval, error_code, error_message)
+            finally:
+                try:
+                    next(db_gen)
+                except StopIteration:
+                    pass
         except Exception as meta_error:
             print(f"  [ERROR] Failed to update metadata: {meta_error}")
 

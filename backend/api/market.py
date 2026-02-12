@@ -79,7 +79,9 @@ def _fetch_klines_from_db(symbol: str, interval: str, limit: int):
         LIMIT :limit
     """
     )
-    with get_db("market") as db:
+    db_gen = get_db("market")
+    db = next(db_gen)
+    try:
         rows = (
             db.execute(
                 sql,
@@ -92,6 +94,11 @@ def _fetch_klines_from_db(symbol: str, interval: str, limit: int):
             .mappings()
             .all()
         )
+    finally:
+        try:
+            next(db_gen)
+        except StopIteration:
+            pass
 
     if not rows:
         return []
@@ -126,7 +133,10 @@ def _fetch_klines_from_db_range(
         LIMIT :limit
     """
     )
-    with get_db("market") as db:
+    db_gen = get_db("market")
+    db = next(db_gen)
+    try:
+
         rows = (
             db.execute(
                 sql,
@@ -141,6 +151,11 @@ def _fetch_klines_from_db_range(
             .mappings()
             .all()
         )
+    finally:
+        try:
+            next(db_gen)
+        except StopIteration:
+            pass
 
     if not rows:
         return []
@@ -309,8 +324,15 @@ async def get_coverage(
         "interval": tf.strip().lower() if tf else None,
     }
 
-    with get_db("market") as db:
+    db_gen = get_db("market")
+    db = next(db_gen)
+    try:
         rows = db.execute(sql, params).mappings().all()
+    finally:
+        try:
+            next(db_gen)
+        except StopIteration:
+            pass
 
     def fmt_dt(dt):
         if dt is None:

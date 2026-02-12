@@ -43,7 +43,9 @@ class OrderbookRecorderService:
     def _should_record(self) -> bool:
         """Check if recording should be active based on open positions."""
         try:
-            with get_db("trading") as db:
+            db_gen = get_db("trading")
+            db = next(db_gen)
+            try:
                 # Check if there are any open positions
                 open_count = (
                     db.query(Position)
@@ -51,6 +53,11 @@ class OrderbookRecorderService:
                     .count()
                 )
                 return open_count > 0
+            finally:
+                try:
+                    next(db_gen)
+                except StopIteration:
+                    pass
         except Exception as e:
             logger.error(f"Error checking positions: {e}")
             return False
@@ -59,14 +66,14 @@ class OrderbookRecorderService:
         """Capture order book snapshot from Binance."""
         try:
             client = self._init_client()
-            
+
             # Get order book depth (limit=20 for top 20 levels)
             depth = client.get_order_book(symbol=self.symbol, limit=20)
-            
+
             # Format bids and asks
             bids = [{"price": bid[0], "qty": bid[1]} for bid in depth.get("bids", [])]
             asks = [{"price": ask[0], "qty": ask[1]} for ask in depth.get("asks", [])]
-            
+
             return {
                 "symbol": self.symbol,
                 "timestamp": datetime.now(timezone.utc),
@@ -86,11 +93,18 @@ class OrderbookRecorderService:
     def _save_snapshot(self, snapshot_data: Dict[str, Any]):
         """Save snapshot to database."""
         try:
-            with get_db("market") as db:
+            db_gen = get_db("market")
+            db = next(db_gen)
+            try:
                 snapshot = OrderbookSnapshot(**snapshot_data)
                 db.add(snapshot)
                 db.commit()
                 logger.debug(f"Saved orderbook snapshot for {snapshot_data['symbol']}")
+            finally:
+                try:
+                    next(db_gen)
+                except StopIteration:
+                    pass
         except Exception as e:
             logger.error(f"Error saving snapshot: {e}")
 
@@ -105,20 +119,22 @@ class OrderbookRecorderService:
                 # Check if we should still be recording based on positions (only if not manually enabled)
                 # Manual recording (via is_recording flag) takes precedence
                 has_open_positions = self._should_record()
-                
+
                 if not has_open_positions:
                     logger.debug("No open positions detected (auto-recording check)")
 
                 # Capture snapshot
                 snapshot = await self._capture_orderbook()
-                
+
                 if snapshot:
                     self._save_snapshot(snapshot)
                     self.error_count = 0  # Reset on success
-                
+
                 # Check error threshold
                 if self.error_count >= self.max_errors:
-                    logger.error(f"Max errors reached ({self.max_errors}), stopping recorder")
+                    logger.error(
+                        f"Max errors reached ({self.max_errors}), stopping recorder"
+                    )
                     self.status = "error"
                     self.is_recording = False
                     break

@@ -1,0 +1,394 @@
+/
+  .editorconfig
+  .env
+  .env.example
+  .gitattributes
+  .gitignore
+  docker-compose.override.yml.example
+  docker-compose.prod.yml
+  docker-compose.yml
+  generate_structure.py
+  IMPLEMENTATION_COMPLETE.md
+  MIGRATION_SUMMARY.md
+  package-lock.json
+  package.json
+  PATTERN_STORE_ARCHITECTURE.md
+  PATTERN_STORE_IMPLEMENTATION.md
+  project_structure.txt
+  README.md
+  test_backend.ps1
+  validate.ps1
+  validate_ml.sh
+.github/
+.github\workflows/
+  ci.yml
+backend/
+  .coverage
+  .dockerignore
+  .env
+  .env.example
+  .gitignore
+  check_db.py
+  config.py
+  DATABASE.md
+  Dockerfile
+  Dockerfile.prod
+  main.py
+  pippo.py
+  pytest.ini
+  README.md
+  requirements-dev.txt
+  requirements.txt
+  test_pytorch_optional.py
+  __init__.py
+backend\.pytest_cache/
+  .gitignore
+  CACHEDIR.TAG
+  README.md
+backend\api/
+  advanced_orders.py
+  market.py
+  ml.py
+  paper_trading.py
+  system.py
+  __init__.py
+backend\app/
+  __init__.py
+backend\data/
+  analytics.db
+  market_data.db
+  trading.db
+backend\htmlcov/
+  .gitignore
+  class_index.html
+  config_py.html
+  coverage_html_cb_513c77fd.js
+  favicon_32_cb_58284776.png
+  function_index.html
+  index.html
+  keybd_closed_cb_ce680311.png
+  main_py.html
+  pippo_py.html
+  status.json
+  style_cb_ed8d5379.css
+  test_pytorch_optional_py.html
+  z_10fae538ba4e8521_advanced_orders_py.html
+  z_10fae538ba4e8521_market_py.html
+  z_10fae538ba4e8521_ml_py.html
+  z_10fae538ba4e8521_paper_trading_py.html
+  z_10fae538ba4e8521_system_py.html
+  z_10fae538ba4e8521___init___py.html
+  z_1dcedc4750ac9ed1_binance_client_py.html
+  z_1dcedc4750ac9ed1___init___py.html
+  z_306ed2d68c6501e8_backtester_py.html
+  z_306ed2d68c6501e8_database_py.html
+  z_306ed2d68c6501e8_indicators_py.html
+  z_306ed2d68c6501e8_risk_calculator_py.html
+  z_358a195c22837379_pipeline_py.html
+  z_358a195c22837379_train_cli_py.html
+  z_358a195c22837379___init___py.html
+  z_5f5a17c013354698___init___py.html
+  z_67ab6c11b8024bbd_collector_py.html
+  z_67ab6c11b8024bbd___init___py.html
+  z_7122bf2821c1281b_alert_manager_py.html
+  z_7122bf2821c1281b_ml_predictor_py.html
+  z_7122bf2821c1281b_models_py.html
+  z_7122bf2821c1281b_scout_service_py.html
+  z_84e85958b078cc7a_ml_training_py.html
+  z_84e85958b078cc7a_scout_py.html
+  z_84e85958b078cc7a_websocket_py.html
+  z_a1a52ee540add5eb_preprocessing_py.html
+  z_a1a52ee540add5eb___init___py.html
+  z_a44f0ac069e85531_conftest_py.html
+  z_a44f0ac069e85531_test_advanced_orders_py.html
+  z_a44f0ac069e85531_test_api_backtest_py.html
+  z_a44f0ac069e85531_test_api_health_py.html
+  z_a44f0ac069e85531_test_api_system_py.html
+  z_a44f0ac069e85531_test_backtest_py.html
+  z_a44f0ac069e85531_test_klines_endpoints_py.html
+  z_a44f0ac069e85531_test_ml_infrastructure_py.html
+  z_a44f0ac069e85531_test_multi_database_py.html
+  z_a44f0ac069e85531_test_order_monitoring_py.html
+  z_a44f0ac069e85531_test_paper_trading_db_py.html
+  z_a44f0ac069e85531_test_performance_metrics_py.html
+  z_a44f0ac069e85531_test_pipeline_fixes_py.html
+  z_a44f0ac069e85531_test_system_api_py.html
+  z_a44f0ac069e85531___init___py.html
+  z_b960d9f79e1b4e82_predictor_py.html
+  z_b960d9f79e1b4e82___init___py.html
+  z_be5a902f2d592444_base_model_py.html
+  z_be5a902f2d592444_pattern_cnn_py.html
+  z_be5a902f2d592444_price_predictor_py.html
+  z_be5a902f2d592444___init___py.html
+  z_c32815d5eb9e8ad6_config_py.html
+  z_c32815d5eb9e8ad6___init___py.html
+  z_de3833460954761d_advanced_orders_service_py.html
+  z_de3833460954761d_binance_service_py.html
+  z_de3833460954761d_ml_service_py.html
+  z_de3833460954761d_order_monitoring_service_py.html
+  z_de3833460954761d_paper_trading_service_py.html
+  z_de3833460954761d_realtime_service_py.html
+  z_de3833460954761d_trailing_stop_service_py.html
+  z_de3833460954761d_websocket_manager_py.html
+  z_de3833460954761d___init___py.html
+  z_de9674a0aa24d4dc_market_features_py.html
+  z_de9674a0aa24d4dc_pattern_features_py.html
+  z_de9674a0aa24d4dc_technical_features_py.html
+  z_de9674a0aa24d4dc___init___py.html
+  z_e634d7a1dd90e049_base_py.html
+  z_e634d7a1dd90e049_candlestick_py.html
+  z_e634d7a1dd90e049_order_py.html
+  z_e634d7a1dd90e049_pattern_py.html
+  z_e634d7a1dd90e049_portfolio_snapshot_py.html
+  z_e634d7a1dd90e049_position_py.html
+  z_e634d7a1dd90e049___init___py.html
+  __init___py.html
+backend\infrastructure/
+backend\lib/
+  alert_engine.py
+  backtester.py
+  database.py
+  db_utils.py
+  indicators.py
+  risk_calculator.py
+backend\models/
+  base.py
+  candlestick.py
+  order.py
+  orderbook.py
+  pattern.py
+  portfolio_snapshot.py
+  position.py
+  __init__.py
+backend\scripts/
+  import_klines.py
+  migrate_add_metadata_errors.py
+  validate_metadata_errors.py
+backend\services/
+  advanced_orders_service.py
+  binance_service.py
+  candlestick_service.py
+  ml_service.py
+  orderbook_recorder.py
+  order_monitoring_service.py
+  paper_trading_service.py
+  realtime_service.py
+  trailing_stop_service.py
+  websocket_manager.py
+  __init__.py
+backend\tests/
+  conftest.py
+  test_advanced_orders.py
+  test_api_backtest.py
+  test_api_health.py
+  test_api_market. py
+  test_api_system.py
+  test_backtest.py
+  test_candlestick_metadata_errors.py
+  test_klines_endpoints.py
+  test_klines_range.py
+  test_ml_infrastructure.py
+  test_multi_database.py
+  test_orderbook_recording.py
+  test_order_monitoring.py
+  test_paper_trading_db.py
+  test_pipeline_fixes.py
+  test_system_api.py
+  __init__.py
+data/
+  README.md
+docs/
+  DEV_DIARY.md
+  README.md
+docs\api/
+  advanced-orders.md
+  paper-trading-backend.md
+docs\architecture/
+  implementation-summary.md
+  ml-infrastructure.md
+docs\archive/
+  ADVANCED_ORDERS_FORMS_GUIDE.md
+  ADVANCED_ORDERS_IMPLEMENTATION_SUMMARY.md
+  ADVANCED_ORDERS_QUICK_REFERENCE.md
+  DOCKER_TESTING.md
+  ENHANCED_ORDERS_IMPLEMENTATION.md
+  F1_F2_FIX_IMPLEMENTATION_SUMMARY.md
+  F1_F2_SHORTCUT_FIX_SUMMARY.md
+  F1_F2_USER_GUIDE.md
+  FEATURE_FLAGS_IMPLEMENTATION_COMPLETE.md
+  FINAL_SUMMARY.md
+  FRONTEND_STABILITY_FIX_SUMMARY.md
+  IMPLEMENTATION_COMPLETE.md
+  IMPLEMENTATION_COMPLETE_INDICATORS_RISK_BACKTEST.md
+  IMPLEMENTATION_COMPLETE_PERFORMANCE.md
+  IMPLEMENTATION_COMPLETE_PYTORCH_OPTIONAL.md
+  IMPLEMENTATION_SUMMARY.md
+  IMPLEMENTATION_SUMMARY_BACKTESTING.md
+  IMPLEMENTATION_SUMMARY_DOCKER.md
+  IMPLEMENTATION_SUMMARY_VWAP_VP.md
+  INFINITE_LOOP_FIX_SUMMARY.md
+  MIGRATION_GUIDE.md
+  MODAL_FIX_COMPLETE_SUMMARY.md
+  MODAL_FIX_IMPLEMENTATION.md
+  MODAL_SYSTEM_USER_GUIDE.md
+  PERFORMANCE_COMPARISON.md
+  PERFORMANCE_OPTIMIZATION_SUMMARY.md
+  PYTORCH_OPTIONAL.md
+  QUICK_REFERENCE_PERFORMANCE.md
+  TRADING_PAGE_PHASE1_SUMMARY.md
+  TRADING_PAGE_VISUAL_REFERENCE.md
+  WEBSOCKET_FINAL_SUMMARY.md
+  WEBSOCKET_IMPLEMENTATION.md
+  WEBSOCKET_IMPLEMENTATION_SUMMARY.md
+docs\guides/
+  backtesting.md
+  docker-quick-ref.md
+  docker.md
+  indicators.md
+  shortcuts.md
+  testing.md
+frontend/
+  .dockerignore
+  .eslintrc.json
+  .gitignore
+  ARCHITECTURE_QUICK_REFERENCE.md
+  Dockerfile
+  Dockerfile.prod
+  ENHANCED_ORDERS_GUIDE.md
+  IMPLEMENTATION_SUMMARY.md
+  INTEGRATION_TESTING.md
+  jest.config.js
+  jest.setup.js
+  MULTI_PAGE_ARCHITECTURE.md
+  next-env.d.ts
+  next.config.mjs
+  ORDER_FLOW_GUIDE.md
+  package.json
+  PATTERN_RECOGNITION.md
+  postcss.config.mjs
+  README.md
+  REAL_TRADING_DOCS.md
+  SECURITY_GUIDE.md
+  tailwind.config.ts
+  tsconfig.json
+  USAGE_EXAMPLE.tsx
+frontend\.next/
+  app-build-manifest.json
+  build-manifest.json
+  package.json
+  react-loadable-manifest.json
+  trace
+frontend\app/
+  favicon.ico
+  globals.css
+  layout.tsx
+  page.tsx
+frontend\components/
+  LiveIndicator.tsx
+  Navigation.tsx
+  PatternDashboard.tsx
+  PatternDetector.tsx
+  PatternRecognitionExample.tsx
+  PriceHeader.tsx
+  RealtimeStatus.tsx
+  TimeframeSelector.tsx
+  TradingChart.tsx
+  TradingChartBackup.tsx
+frontend\hooks/
+  useBacktest.ts
+  useChartManager.ts
+  useDebouncedValue.ts
+  useDeltaVolume.ts
+  useEnhancedOrders.ts
+  useIndicators.ts
+  useKeyboardShortcuts.tsx
+  useLocalStorage.ts
+  useMultiTimeframe.ts
+  useOrderbook.tsx
+  useOrderFlow.ts
+  usePatternRecognition.ts
+  usePositionSizing.tsx
+  useRealtimePositions.ts
+  useRealtimeWebSocket.ts
+  useRealTrading.tsx
+  useRiskCalculator.ts
+  useRiskExposure.ts
+  useRiskManager.tsx
+  useRiskReward.tsx
+  useSecureStorage.ts
+  useSymbolData.ts
+  useTrailingStop.tsx
+  useVolumeProfile.ts
+  useVWAP.ts
+  useWebSocket.ts
+frontend\lib/
+  advanced-orders-api.ts
+  api.ts
+  binance-api.ts
+  featureFlags.ts
+  formatters.ts
+  indicators.ts
+  real-trading-api.ts
+  risk-management.ts
+  risk-manager.ts
+  shortcut-execution.ts
+  syncManager.ts
+  trading-calculations.ts
+  types
+  types.ts
+  websocket-client.ts
+frontend\src/
+  setupTests.ts
+frontend\stores/
+  backtestStore.ts
+  marketStore.ts
+  orderbookStore.ts
+  patternStore.ts
+  positionStore.ts
+  realBalanceStore.ts
+  realPositionsStore.ts
+  scoutStore.ts
+  shortcutStore.ts
+  tradingConfigStore.ts
+  tradingModeStore.ts
+  tradingStore.ts
+  watchListStore.ts
+frontend\tests/
+  analysis-fallback.test.ts
+  binance-api.test.ts
+  keyboard-shortcuts-integration.test.ts
+  pattern-store.test.ts
+  risk-exposure.test.ts
+  scout-store.test.ts
+  shortcuts.test.ts
+  useDebouncedValue.test.ts
+frontend\types/
+  backtesting.ts
+  binance.ts
+  enhanced-orders.ts
+  indicators.ts
+  order-flow.ts
+  patterns.ts
+  shortcuts.ts
+  trading.ts
+frontend\__tests__/
+infrastructure/
+infrastructure\database/
+  init.sql
+infrastructure\kubernetes/
+  backend-deployment.yml
+  frontend-deployment.yml
+  ingress.yml
+  namespace.yml
+  README.md
+infrastructure\ml/
+infrastructure\monitoring/
+  prometheus.yml
+infrastructure\nginx/
+  nginx.conf
+scripts/
+  dev-setup.sh
+  prod-deploy.sh
+  test_ml_api.sh
+  validate-docker.sh
+  validate_ml_infrastructure.py

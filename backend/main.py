@@ -18,6 +18,7 @@ import uvicorn
 from datetime import datetime
 import sys
 import os
+from api.routes import candles
 
 
 @asynccontextmanager
@@ -178,6 +179,7 @@ app.include_router(websocket_router, prefix="/api", tags=["websocket"])
 app.include_router(ml_router, prefix="/api", tags=["ml"])
 app.include_router(ml_training_router)
 app.include_router(scout_router)
+app.include_router(candles.router)
 
 
 @app.get("/")

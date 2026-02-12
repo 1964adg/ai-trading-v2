@@ -49,9 +49,15 @@ class TrailingStopService:
                 async with self._loop_lock:
                     from lib.database import get_db
 
-                    with get_db() as db:
-                        # ritorna quanti trailing stop ha processato
+                    db_gen = get_db()
+                    db = next(db_gen)
+                    try:
                         processed = await self._check_trailing_stops(db)
+                    finally:
+                        try:
+                            next(db_gen)
+                        except StopIteration:
+                            pass
 
                 # reset backoff dopo giro ok
                 self._error_sleep = 1

@@ -139,11 +139,7 @@ def create_tables():
         logger.info("Analytics database tables created")
 
 
-@contextmanager
-def get_db(database: str = "trading") -> Session:
-    if database not in SessionLocals:
-        raise RuntimeError(f"Database '{database}' not initialized")
-
+def get_db(database: str = "trading"):
     db = SessionLocals[database]()
     try:
         yield db
