@@ -1,125 +1,122 @@
-# AI Trading V2
-"AI Trading Dashboard - Paper Trading Crypto (MVP Reboot)"
+# ai-trading-v2
 
-## 🚀 Quick Start with Docker
-
-The fastest way to get started is using Docker:
-
-```bash
-./scripts/dev-setup.sh
-```
-
-Then access:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-
-For detailed Docker setup and deployment instructions, see [DOCKER_README.md](./DOCKER_README.md).
-
-## 📋 Features
-
-- **Real-time Trading**: Paper trading with real market data from Binance
-- **Keyboard Shortcuts**: F1/F2 for quick trading actions
-- **Pattern Recognition**: Advanced chart pattern detection
-- **Real-time Data**: Live candlestick data and market analysis
-- **Containerized**: Full Docker support for easy deployment
-
-## 🏗️ Architecture
-
-- **Frontend**: Next.js 14 + TypeScript + Tailwind CSS
-- **Backend**: FastAPI + Python 3.11
-- **Database**: PostgreSQL with TimescaleDB (for time-series data)
-- **Cache**: Redis
-- **Container Orchestration**: Docker Compose
-
-## 📖 Documentation
-
-For complete documentation, see [📚 Documentation Hub](./docs/README.md)
-
-**Quick Links:**
-- [Docker Setup Guide](./docs/guides/docker.md) - Containerization and deployment
-- [Keyboard Shortcuts](./docs/guides/shortcuts.md) - F1/F2 shortcuts guide
-- [Backtesting Guide](./docs/guides/backtesting.md) - Trading strategy backtesting
-- [Indicators Guide](./docs/guides/indicators.md) - Technical indicators
-- [Testing Guide](./docs/guides/testing.md) - Test procedures
-- [API Documentation](./docs/api/) - API references
-- [Architecture](./docs/architecture/) - System architecture
-
-## 🛠️ Development
-
-### With Docker (Recommended)
-```bash
-# Start development environment
-./scripts/dev-setup.sh
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-```
-
-For detailed instructions, see [Docker Guide](./docs/guides/docker.md).
-
-### Without Docker (Traditional)
-
-**Backend:**
-```bash
-cd backend
-pip install -r requirements.txt
-python main.py
-```
-
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## 📊 Database Schema
-
-The system includes a comprehensive database schema optimized for trading data:
-- Market data with OHLCV and indicators (time-series optimized)
-- Pattern detection results
-- AI predictions tracking
-- Trading audit logs
-
-See [infrastructure/database/init.sql](./infrastructure/database/init.sql) for details.
-
-## 🔒 Security
-
-- Paper trading mode enabled by default
-- Environment-based configuration
-- CORS protection
-- SQL injection prevention
-- Secure credential management
-
-## 🚀 Production Deployment
-
-For production deployment with SSL and monitoring:
-
-```bash
-./scripts/prod-deploy.sh
-```
-
-See [Docker Guide](./docs/guides/docker.md) for complete production setup instructions.
-
-## 🔄 Roadmap
-
-- [x] Docker containerization
-- [x] Database schema for microservices
-- [x] Development and production configurations
-- [ ] Kubernetes deployment
-- [ ] Microservices migration (Phase 2-5)
-- [ ] Cripto-Scout AI integration
-- [ ] Advanced monitoring and alerting
-
-## 📝 License
-
-Private repository - All rights reserved.
+ai-trading-v2 è una piattaforma avanzata per trading algoritmico, pattern recognition, analytics e machine learning su mercati crypto e finanziari.
 
 ---
 
-**Status**: Production Ready ✅  
-**Version**: 1.0.0  
-**Last Updated**: 2025-12-07
+## **Features principali**
+
+- **Trading automatico** (live e paper trading)
+- **Pattern recognition** con caching, metriche e score
+- **Machine Learning** (backtest, predizioni, metriche model)
+- **Dashboard analytics**: metriche aggregate e visualizzazioni
+- **Gestione multi-strategy** e multi timeframe
+- **Schema database unificato** per scalabilità e facilità di sviluppo
+
+---
+
+## **Struttura Progetto**
+
+```plaintext
+backend/
+    models/                # Tutti i modelli ORM SQLAlchemy
+        base.py           # Unico Base ORM (centralizzato)
+        position.py       # Trading Position
+        order.py          # Trading Order
+        portfolio_snapshot.py
+        orderbook.py
+        custom_symbols.py
+        candlestick.py
+        pattern.py        # PatternCache, TradeExecutionLog, MLModelResult, AnalyticsMetrics
+        __init__.py       # Import/export modelli principali
+    api/                   # Endpoint e router REST
+    lib/                   # Utility, DB engine, gestione sessioni
+    services/              # Business - trading, scouting, paper
+    app/                   # ML training, routers, websocket, scout
+    migrations/            # Script SQL/DB evolutivi
+    utils/                 # Utility Binance, helper vari
+    main.py                # Entry point backend
+frontend/                  # Dashboard, gestione backtesting e view metriche
+docs/                      # Documentazione estesa
+data/, scripts/, infrastructure/  # Storage, automate, container ecc.
+```
+
+---
+
+## **Modelli chiave Database**
+
+| Modello             | Descrizione                                           |
+|---------------------|-------------------------------------------------------|
+| Position            | Posizioni trading (aperta, chiusa)                    |
+| Order               | Ordini piazzati/associati a position                  |
+| PortfolioSnapshot   | Stato aggregato portafoglio                           |
+| OrderbookSnapshot   | Snapshot orderbook deep levels                        |
+| CustomSymbol        | Alias custom utente                                   |
+| Candlestick         | Dati OHLCV                                             |
+| CandlestickMetadata | Disponibilità/sync candlestick                        |
+| PatternCache        | Riconoscimento pattern, metriche e caching            |
+| TradeExecutionLog   | Log trade eseguiti (latency, slippage, status)        |
+| MLModelResult       | Predizioni e metriche ML                              |
+| AnalyticsMetrics    | Metriche aggregate dashboard                          |
+
+Tutte le classi ereditano da un **unico Base SQLAlchemy** (`backend/models/base.py`)
+→ massima compatibilità e facilità di estensione/migrazione.
+
+---
+
+## **Potenzialità e stato attuale**
+
+- **Refactor completato:** ora il backend è 100% single-Base ORM
+- Schema DB stabile e scalabile (no problemi di metadata multiple, tabelle mancanti)
+- Funzioni di health check, creazione tabelle interattiva, logging avanzato
+- Pronto per deployment, test trading, evoluzione ML
+- Frontend React/TypeScript in sviluppo per dashboard live e strumenti analitici
+
+---
+
+## **Criticità risolte**
+
+- Eliminato multiple SQLAlchemy Base → refactor totale pattern/candlestick/orderbook
+- Migliorata creazione tabelle, uniformato schema, import massivo in `__init__.py`
+- Consolidamento modelli e gestione tabelle ORM
+
+---
+
+## **Prossime evoluzioni**
+
+- Alembic o tool di migrazione schema DB per evoluzioni future
+- Aumento performance su tabelle grandi (candlestick, orderbook)
+- Aggiunta validazione input/output e preprocessing ML
+- Estensione strategia trading, pattern custom e operatività live
+
+---
+
+## **Documentazione di approfondimento**
+
+- [DATABASE.md](backend/DATABASE.md): schema logico completo
+- [PATTERN_STORE_ARCHITECTURE.md](PATTERN_STORE_ARCHITECTURE.md): architettura pattern
+- [PATTERN_STORE_IMPLEMENTATION.md](PATTERN_STORE_IMPLEMENTATION.md): implementazione effettiva
+- [README.md](README.md): questa overview
+
+---
+
+## **Installazione**
+
+- Configura `.env` in base ai parametri Postgres e API
+- Installazione Python:
+    ```bash
+    pip install -r backend/requirements.txt
+    ```
+- Avvia backend:
+    ```bash
+    python backend/main.py
+    ```
+
+---
+
+## **Contribuisci**
+
+Pull request e issue benvenute!
+Contatta il maintainer principale o apri una issue su GitHub.
+
+---

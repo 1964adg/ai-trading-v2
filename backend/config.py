@@ -2,7 +2,6 @@
 
 import os
 from typing import Optional, Union
-
 from pydantic import ConfigDict, field_validator
 from pydantic_settings import BaseSettings
 
@@ -25,26 +24,17 @@ class Settings(BaseSettings):
     # Trading Configuration
     PAPER_TRADING: bool = True
 
-    # Database Configuration - Multi-Database SQLite Setup
-    # Trading database - Active trades, positions, orders
-    TRADING_DATABASE_URL: str = "sqlite:///./data/trading.db"
-    # Market data database - Historical candlestick data
-    MARKET_DATABASE_URL: str = "sqlite:///./data/market_data.db"
-    # Analytics database - Pattern detection, ML results
-    ANALYTICS_DATABASE_URL: str = "sqlite:///./data/analytics.db"
+    # Database Configuration - PostgreSQL ONLY
+    DATABASE_URL: str = (
+        "postgresql+psycopg2://trader:Adgpassword64!@localhost:5433/ai_trading"
+    )
 
-    # Legacy PostgreSQL support (optional, for migration)
-    POSTGRES_DB: Optional[str] = None
-    POSTGRES_USER: Optional[str] = None
-    POSTGRES_PASSWORD: Optional[str] = None
-    DATABASE_URL: Optional[str] = None
-
-    # Redis Configuration
+    # Redis Configuration (optional)
     REDIS_HOST: Optional[str] = None
     REDIS_PORT: Optional[int] = None
     REDIS_URL: Optional[str] = None
 
-    # Binance Configuration
+    # Binance Configuration (optional)
     BINANCE_BASE_URL: str = "https://api.binance.com"
     BINANCE_API_KEY: Optional[str] = None
     BINANCE_API_SECRET: Optional[str] = None
@@ -79,8 +69,8 @@ class Settings(BaseSettings):
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="ignore",  # ✅ Ignora variabili extra in .env
-        protected_namespaces=(),  # ✅ Risolve warning "model_"
+        extra="ignore",
+        protected_namespaces=(),
     )
 
 
@@ -88,12 +78,5 @@ def _truthy(v: str | None) -> bool:
     return (v or "").strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
-# ✅ Instantiate Settings ONCE
+# ✅ Istanzia Settings UNA SOLA VOLTA
 settings = Settings()
-
-# ✅ Force SQLite in TESTING/CI to avoid accidental Postgres usage in tests/scripts
-# This ensures tests use SQLite even if .env configures Postgres.
-if _truthy(os.getenv("TESTING")) or _truthy(os.getenv("CI")):
-    settings.TRADING_DATABASE_URL = "sqlite:///./data/trading.db"
-    settings.MARKET_DATABASE_URL = "sqlite:///./data/market_data.db"
-    settings.ANALYTICS_DATABASE_URL = "sqlite:///./data/analytics.db"
