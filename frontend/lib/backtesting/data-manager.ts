@@ -29,7 +29,7 @@ export class DataManager {
     }
 
     try {
-      // Fetch data from API using range endpoint
+      // Fetch data from backend.api.using range endpoint
       const response = await fetchKlinesRange(symbol, timeframe, startDate, endDate, limit);
 
       if (!response.success || !response.data) {

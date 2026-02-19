@@ -14,16 +14,20 @@ from fastapi import (
 from pydantic import BaseModel
 from typing import List, Optional
 
-from services.binance_service import binance_service
-from lib.indicators import calculate_rsi, calculate_macd, calculate_bollinger_bands
-from lib.risk_calculator import (
+from backend.services.binance_service import binance_service
+from backend.lib.indicators import (
+    calculate_rsi,
+    calculate_macd,
+    calculate_bollinger_bands,
+)
+from backend.lib.risk_calculator import (
     calculate_position_size as calc_position_size,
     calculate_risk_reward as calc_risk_reward,
     calculate_portfolio_risk as calc_portfolio_risk,
 )
 
 # ✅ DB access (market DB)
-from lib.database import get_db
+from backend.lib.database import get_db
 from sqlalchemy import text
 from datetime import timezone, datetime
 
@@ -79,7 +83,7 @@ def _fetch_klines_from_db(symbol: str, interval: str, limit: int):
         LIMIT :limit
     """
     )
-    db_gen = get_db("market")
+    db_gen = get_db()
     db = next(db_gen)
     try:
         rows = (
@@ -133,7 +137,7 @@ def _fetch_klines_from_db_range(
         LIMIT :limit
     """
     )
-    db_gen = get_db("market")
+    db_gen = get_db()
     db = next(db_gen)
     try:
 
@@ -324,7 +328,7 @@ async def get_coverage(
         "interval": tf.strip().lower() if tf else None,
     }
 
-    db_gen = get_db("market")
+    db_gen = get_db()
     db = next(db_gen)
     try:
         rows = db.execute(sql, params).mappings().all()
@@ -653,7 +657,7 @@ async def run_backtest(request: BacktestRequest):
         Comprehensive backtest results with trades, metrics, and equity curve
     """
     try:
-        from lib.backtester import Backtester, SimpleMAStrategy, RSIStrategy
+        from backend.lib.backtester import Backtester, SimpleMAStrategy, RSIStrategy
 
         print(f"[BACKTEST] Starting backtest for {request.symbol} {request.timeframe}")
 
@@ -842,7 +846,7 @@ async def run_backtest(request: BacktestRequest):
 # PHASE D: ORDER BOOK RECORDING ENDPOINTS
 # ============================================================================
 
-from services.orderbook_recorder import orderbook_recorder
+from backend.services.orderbook_recorder import orderbook_recorder
 
 
 @router.post("/rec/start")

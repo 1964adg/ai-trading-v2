@@ -11,7 +11,7 @@ POST http://localhost:8000/api/paper/order 404 (Not Found)
 
 ### Backend Status (Before)
 - ✅ Health endpoint: `GET /`
-- ✅ Market data: `GET /api/klines/{symbol}/{interval}` 
+- ✅ Market data: `GET /api/klines/{symbol}/{interval}`
 - ✅ WebSocket: `WS /api/ws/klines/{symbol}/{interval}`
 - ❌ Paper trading endpoints: **MISSING**
 
@@ -315,7 +315,7 @@ curl http://localhost:8000/api/paper/portfolio
 
 ✅ **3 review comments addressed:**
 1. Replaced `print()` with `logging` module ✅
-2. Removed duplicate P&L calculation from API layer ✅
+2. Removed duplicate P&L calculation from backend.api.layer ✅
 3. Added DELETE endpoint to documentation ✅
 
 ### Security Scan Results

@@ -10,6 +10,7 @@ import { useBacktest } from '@/hooks/useBacktest';
 import { STRATEGY_TEMPLATES } from '@/lib/backtesting/strategy-templates';
 import { BacktestConfig, StrategyTemplate } from '@/types/backtesting';
 import { Timeframe } from '@/lib/types';
+import SymbolManager from "./SymbolManager";
 
 export default function BacktestDashboard() {
   const {
@@ -22,6 +23,8 @@ export default function BacktestDashboard() {
     exportResults,
   } = useBacktest();
 
+  const [symbols, setSymbols] = useState<string[]>([]);
+  const [selectedSymbol, setSelectedSymbol] = useState<string>("");
   const [selectedTemplate, setSelectedTemplate] = useState<StrategyTemplate | null>(null);
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [timeframe, setTimeframe] = useState<Timeframe>('1h');
@@ -62,7 +65,7 @@ export default function BacktestDashboard() {
 
   const handleExport = useCallback(() => {
     if (!currentBacktest) return;
-    
+
     const csv = exportResults(currentBacktest);
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -74,6 +77,21 @@ export default function BacktestDashboard() {
   }, [currentBacktest, exportResults]);
 
   return (
+    <div>
+      <SymbolManager onChange={setSymbols} />
+      <div className="mb-4">
+        <label>Scegli la crypto pair:</label>
+        <select
+          value={selectedSymbol}
+          onChange={e => setSelectedSymbol(e.target.value)}
+        >
+          <option value="">Seleziona...</option>
+          {symbols.map(sym =>
+            <option key={sym} value={sym}>{sym}</option>
+          )}
+        </select>
+      </div>
+
     <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-white flex items-center gap-3">
@@ -340,6 +358,7 @@ export default function BacktestDashboard() {
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }

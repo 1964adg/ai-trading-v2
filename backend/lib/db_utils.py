@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from sqlalchemy import text
-from lib.database import engines, SessionLocals, get_db
+from backend.lib.database import SessionLocals, get_db
 
 logger = logging.getLogger(__name__)
 
@@ -15,21 +15,21 @@ def initialize_databases():
     """Initialize all databases with tables and indexes."""
     try:
         # Create trading database tables
-        from models.base import Base
+        from backend.models.base import Base
 
         if "trading" in engines:
             Base.metadata.create_all(bind=engines["trading"])
             logger.info("✓ Trading database tables created")
 
         # Create market database tables
-        from models.candlestick import CandlestickBase
+        from backend.models.candlestick import CandlestickBase
 
         if "market" in engines:
             CandlestickBase.metadata.create_all(bind=engines["market"])
             logger.info("✓ Market database tables created")
 
         # Create analytics database tables
-        from models.pattern import PatternBase
+        from backend.models.pattern import PatternBase
 
         if "analytics" in engines:
             PatternBase.metadata.create_all(bind=engines["analytics"])
@@ -48,7 +48,7 @@ def verify_database_integrity():
     # Check trading database
     if "trading" in engines:
         try:
-            db_gen = get_db("trading")
+            db_gen = get_db()
             db = next(db_gen)
             try:
                 # Check positions table
@@ -70,7 +70,7 @@ def verify_database_integrity():
     # Check market database
     if "market" in engines:
         try:
-            db_gen = get_db("market")
+            db_gen = get_db()
             db = next(db_gen)
             try:
                 # Check candlesticks table
@@ -96,7 +96,7 @@ def verify_database_integrity():
     # Check analytics database
     if "analytics" in engines:
         try:
-            db_gen = get_db("analytics")
+            db_gen = get_db()
             db = next(db_gen)
             try:
                 # Check pattern cache table
@@ -266,7 +266,7 @@ def get_database_stats():
 if __name__ == "__main__":
     # Run as standalone script for database management
     import sys
-    from lib.database import init_database
+    from backend.lib.database import init_database
 
     logging.basicConfig(level=logging.INFO)
 

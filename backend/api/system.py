@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 from datetime import datetime
-from config import settings
-from lib.database import engines, check_database_health
-from app.scout.ml_predictor import TORCH_AVAILABLE
+from backend.config import settings
+from backend.lib.database import check_database_health
+from backend.app.scout.ml_predictor import TORCH_AVAILABLE
 
 router = APIRouter()
 

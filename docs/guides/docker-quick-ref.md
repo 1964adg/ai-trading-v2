@@ -76,7 +76,7 @@ docker compose ps | grep "healthy"
 
 # Inspect service
 docker compose exec backend env  # View environment variables
-docker compose exec backend python -c "from config import settings; print(settings)"
+docker compose exec backend python -c "from backend.config import settings; print(settings)"
 ```
 
 ## 🧹 Cleanup
@@ -275,5 +275,5 @@ alias trading-db='docker compose exec postgres psql -U trader -d trading_ai'
 
 ---
 
-**Quick Help**: `./scripts/validate-docker.sh` to verify setup  
+**Quick Help**: `./scripts/validate-docker.sh` to verify setup
 **Emergency**: `docker compose down && ./scripts/dev-setup.sh`

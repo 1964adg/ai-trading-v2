@@ -47,7 +47,7 @@ class TrailingStopService:
 
             try:
                 async with self._loop_lock:
-                    from lib.database import get_db
+                    from backend.lib.database import get_db
 
                     db_gen = get_db()
                     db = next(db_gen)
@@ -76,9 +76,9 @@ class TrailingStopService:
 
     async def _check_trailing_stops(self, db: Session) -> int:
         """Check all positions with trailing stops. Returns processed count."""
-        from models.position import Position, PositionStatus, PositionSide
-        from services.binance_service import binance_service
-        from services.paper_trading_service import paper_trading_service
+        from backend.models.position import Position, PositionStatus, PositionSide
+        from backend.services.binance_service import binance_service
+        from backend.services.paper_trading_service import paper_trading_service
 
         positions = (
             db.query(Position)

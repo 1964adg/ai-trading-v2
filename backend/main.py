@@ -2,23 +2,27 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from api.market import router as market_router
-from api.paper_trading import router as paper_trading_router
-from api.advanced_orders import router as advanced_orders_router
-from api.system import router as system_router
-from api.ml import router as ml_router
-from app.routers.ml_training import router as ml_training_router
-from app.routers.scout import router as scout_router
-from app.routers.websocket import router as websocket_router
-from config import settings
-from services.realtime_service import realtime_service
-from services.websocket_manager import websocket_manager
-from app.scout.ml_predictor import TORCH_AVAILABLE
+
+from backend.api.market import router as market_router
+from backend.api.paper_trading import router as paper_trading_router
+from backend.api.advanced_orders import router as advanced_orders_router
+from backend.api.system import router as system_router
+from backend.api.ml import router as ml_router
+from backend.api.routes import candles
+
+from backend.app.routers.ml_training import router as ml_training_router
+from backend.app.routers.scout import router as scout_router
+from backend.app.routers.websocket import router as websocket_router
+
+from backend.config import settings
+from backend.services.realtime_service import realtime_service
+from backend.services.websocket_manager import websocket_manager
+from backend.app.scout.ml_predictor import TORCH_AVAILABLE
+
 import uvicorn
 from datetime import datetime
 import sys
 import os
-from api.routes import candles
 
 
 @asynccontextmanager
@@ -30,8 +34,13 @@ async def lifespan(app: FastAPI):
     )
 
     # Initialize database
-    from lib.database import init_database, create_tables, check_database_health
-    from services.paper_trading_service import paper_trading_service
+    from backend.lib.database import (
+        init_database,
+        create_tables,
+        check_database_health,
+        check_and_create_tables,
+    )
+    from backend.services.paper_trading_service import paper_trading_service
 
     db_initialized = init_database()
     if db_initialized:
@@ -121,8 +130,8 @@ EXAMPLES:
     )
 
     # Initialize cross-service connections
-    from services.order_monitoring_service import order_monitoring_service
-    from services.trailing_stop_service import trailing_stop_service
+    from backend.services.order_monitoring_service import order_monitoring_service
+    from backend.services.trailing_stop_service import trailing_stop_service
 
     order_monitoring_service.set_websocket_manager(websocket_manager)
     realtime_service.set_order_monitoring_service(order_monitoring_service)
@@ -147,7 +156,7 @@ EXAMPLES:
     print("[Shutdown] Real-time service stopped")
 
     # Stop trailing stop service
-    from services.trailing_stop_service import trailing_stop_service
+    from backend.services.trailing_stop_service import trailing_stop_service
 
     await trailing_stop_service.stop()
     print("[Shutdown] Trailing stop service stopped")
@@ -180,6 +189,10 @@ app.include_router(ml_router, prefix="/api", tags=["ml"])
 app.include_router(ml_training_router)
 app.include_router(scout_router)
 app.include_router(candles.router)
+
+from backend.api import custom_symbols
+
+app.include_router(custom_symbols.router)
 
 
 @app.get("/")

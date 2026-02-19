@@ -9,7 +9,7 @@ from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 from collections import deque
 
-from app.scout.models import (
+from backend.app.scout.models import (
     Alert,
     AlertType,
     AlertConfig,

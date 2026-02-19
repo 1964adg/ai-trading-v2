@@ -2,9 +2,10 @@ from .base import Base
 from .position import Position
 from .order import Order
 from .portfolio_snapshot import PortfolioSnapshot
-
-# ✅ Market DB models: needed so create_tables() registers their tables in metadata
-from .orderbook import OrderbookSnapshot  # noqa: F401
+from .orderbook import OrderbookSnapshot
+from .custom_symbols import CustomSymbol
+from .candlestick import Candlestick, CandlestickMetadata
+from .pattern import PatternCache, TradeExecutionLog, MLModelResult, AnalyticsMetrics
 
 __all__ = [
     "Base",
@@ -12,4 +13,11 @@ __all__ = [
     "Order",
     "PortfolioSnapshot",
     "OrderbookSnapshot",
+    "CustomSymbol",
+    "Candlestick",
+    "CandlestickMetadata",
+    "PatternCache",
+    "TradeExecutionLog",
+    "MLModelResult",
+    "AnalyticsMetrics",
 ]

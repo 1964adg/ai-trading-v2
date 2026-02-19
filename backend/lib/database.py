@@ -1,146 +1,60 @@
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
-from config import settings
-from contextlib import contextmanager
-import logging
 import os
+import logging
+from sqlalchemy import create_engine, text, inspect
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.declarative import declarative_base
+from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Multi-database engines and sessions
-engines = {}
-SessionLocals = {}
-
-# Legacy single database support (primary uses trading database)
-engine = None
-SessionLocal = None
+Base = declarative_base()
 
 
-def _is_sqlite(database_url: str) -> bool:
-    return database_url.startswith("sqlite:///")
+def get_database_url():
+    return os.environ.get("DATABASE_URL") or settings.DATABASE_URL
 
 
-def _create_engine(database_url: str, database_name: str):
-    """Create an engine.Applies SQLite-only pragmas when needed."""
-    try:
-        # Ensure data directory exists (SQLite)
-        if _is_sqlite(database_url):
-            db_path = database_url.replace("sqlite:///", "")
-            if not db_path.startswith(":memory:"):
-                os.makedirs(os.path.dirname(db_path), exist_ok=True)
+DATABASE_URL = get_database_url()
+print(f"USO DATABASE_URL: {DATABASE_URL}")
+if not DATABASE_URL or not DATABASE_URL.startswith("postgresql"):
+    raise RuntimeError(
+        f"Devi settare una variabile PostgreSQL DATABASE_URL valida! (ora: {DATABASE_URL})"
+    )
 
-        engine_params = {
-            "pool_pre_ping": True,
-            "echo": False,
-        }
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    echo=False,
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=60,
+    pool_recycle=1800,
+)
 
-        if _is_sqlite(database_url):
-            engine_params["connect_args"] = {
-                "check_same_thread": False,
-                "timeout": 30,
-            }
-        else:
-            # Postgres (local) sane pooling defaults
-            engine_params.update(
-                {
-                    "pool_size": 10,
-                    "max_overflow": 20,
-                    "pool_timeout": 60,  # ✅ evita timeout a 30s quando c'è carico
-                    "pool_recycle": 1800,
-                }
-            )
-
-        eng = create_engine(database_url, **engine_params)
-
-        # SQLite optimizations only
-        if _is_sqlite(database_url):
-            with eng.connect() as conn:
-                conn.execute(text("PRAGMA journal_mode=WAL"))
-                conn.execute(text("PRAGMA synchronous=NORMAL"))
-                conn.execute(text("PRAGMA cache_size=-2000"))
-                conn.execute(text("PRAGMA foreign_keys=ON"))
-                conn.commit()
-
-        # Test connection
-        with eng.connect() as conn:
-            conn.execute(text("SELECT 1"))
-
-        logger.info(f"Database '{database_name}' initialized: {database_url}")
-        return eng
-
-    except Exception as e:
-        logger.error(f"Failed to initialize database '{database_name}': {e}")
-        return None
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_database():
-    """Initialize all database connections."""
-    global engines, SessionLocals, engine, SessionLocal
-
-    success = True
-
-    trading_engine = _create_engine(settings.TRADING_DATABASE_URL, "trading")
-    if trading_engine:
-        engines["trading"] = trading_engine
-        SessionLocals["trading"] = sessionmaker(
-            bind=trading_engine, autocommit=False, autoflush=False
-        )
-        engine = trading_engine
-        SessionLocal = SessionLocals["trading"]
-    else:
-        success = False
-
-    market_engine = _create_engine(settings.MARKET_DATABASE_URL, "market")
-    if market_engine:
-        engines["market"] = market_engine
-        SessionLocals["market"] = sessionmaker(
-            bind=market_engine, autocommit=False, autoflush=False
-        )
-    else:
-        success = False
-
-    analytics_engine = _create_engine(settings.ANALYTICS_DATABASE_URL, "analytics")
-    if analytics_engine:
-        engines["analytics"] = analytics_engine
-        SessionLocals["analytics"] = sessionmaker(
-            bind=analytics_engine, autocommit=False, autoflush=False
-        )
-    else:
-        success = False
-
-    if success:
-        logger.info("All databases initialized successfully")
-    else:
-        logger.warning("Some databases failed to initialize")
-
-    return success
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        logger.info(f"Database initialized: {DATABASE_URL}")
+        return True
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
+        return False
 
 
 def create_tables():
-    """Create all tables in their respective databases."""
-    from models.base import Base
-    import models  # Import all models
+    # Assicura che TUTTI i modelli siano importati
+    import backend.models
 
-    if "trading" in engines:
-        Base.metadata.create_all(bind=engines["trading"])
-        logger.info("Trading database tables created")
-
-    if "market" in engines:
-        from models.candlestick import CandlestickBase
-        import models.orderbook  # ✅ registers OrderbookSnapshot into CandlestickBase.metadata
-
-        CandlestickBase.metadata.create_all(bind=engines["market"])
-        logger.info("Market database tables created")
-
-    if "analytics" in engines:
-        from models.pattern import PatternBase
-
-        PatternBase.metadata.create_all(bind=engines["analytics"])
-        logger.info("Analytics database tables created")
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created")
 
 
-def get_db(database: str = "trading"):
-    db = SessionLocals[database]()
+def get_db():
+    db = SessionLocal()
     try:
         yield db
         db.commit()
@@ -151,27 +65,54 @@ def get_db(database: str = "trading"):
         db.close()
 
 
-def get_db_session(database: str = "trading") -> Session:
-    if database not in SessionLocals:
-        raise RuntimeError(f"Database '{database}' not initialized")
-    return SessionLocals[database]()
-
-
-def get_engine(database: str = "trading"):
-    return engines.get(database)
+def get_db_session() -> Session:
+    return SessionLocal()
 
 
 def check_database_health() -> dict:
-    """Check health of all databases."""
-    health = {}
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "connected"}
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        return {"status": "error", "details": str(e)}
 
-    for db_name, db_engine in engines.items():
+
+# --- ⚡ FUNZIONE AGGIUNTA: crea solo le tabelle mancanti e chiede conferma ---
+def check_and_create_tables(interactive=True):
+    """
+    Controlla se ci sono tabelle SQLAlchemy mancanti e le crea se vuoi.
+    Se 'interactive' è True, chiede conferma con (s/n).
+    """
+    import backend.models  # Assicurati che importa TUTTI i modelli!
+
+    inspector = inspect(engine)
+    existing_tables = inspector.get_table_names()
+    defined_tables = Base.metadata.tables.keys()
+
+    missing_tables = [t for t in defined_tables if t not in existing_tables]
+
+    if not missing_tables:
+        print("✅ Tutte le tabelle sono già presenti nel database.")
+        return
+
+    print("⚠️ Tabelle mancanti nel database:")
+    for t in missing_tables:
+        print(f" - {t}")
+
+    if interactive:
         try:
-            with db_engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            health[db_name] = "connected"
-        except Exception as e:
-            health[db_name] = f"error: {str(e)}"
-            logger.error(f"Database '{db_name}' health check failed: {e}")
+            resp = input("Vuoi crearle adesso? (s/n): ").strip().lower()
+        except EOFError:
+            print("Input interattivo non disponibile (avvio silente o test)")
+            resp = "n"
+        if resp != "s":
+            print("Nessuna tabella creata. Avvio normale.")
+            return
 
-    return health
+    print("🔨 Creo le tabelle mancanti...")
+    Base.metadata.create_all(
+        bind=engine, tables=[Base.metadata.tables[t] for t in missing_tables]
+    )
+    print("✅ Tabelle mancanti create con successo!")

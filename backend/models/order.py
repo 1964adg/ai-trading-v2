@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Float, DateTime, Enum as SQLEnum, ForeignKey
 from sqlalchemy.sql import func
-from .base import Base
+from backend.lib.database import Base
 import enum
 
 

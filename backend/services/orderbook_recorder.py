@@ -7,10 +7,10 @@ from typing import Optional, Dict, Any
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
 
-from config import settings
-from lib.database import get_db
-from models.orderbook import OrderbookSnapshot
-from models.position import Position, PositionStatus
+from backend.config import settings
+from backend.lib.database import get_db
+from backend.models.orderbook import OrderbookSnapshot
+from backend.models.position import Position, PositionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class OrderbookRecorderService:
     def _should_record(self) -> bool:
         """Check if recording should be active based on open positions."""
         try:
-            db_gen = get_db("trading")
+            db_gen = get_db()
             db = next(db_gen)
             try:
                 # Check if there are any open positions
@@ -93,7 +93,7 @@ class OrderbookRecorderService:
     def _save_snapshot(self, snapshot_data: Dict[str, Any]):
         """Save snapshot to database."""
         try:
-            db_gen = get_db("market")
+            db_gen = get_db()
             db = next(db_gen)
             try:
                 snapshot = OrderbookSnapshot(**snapshot_data)

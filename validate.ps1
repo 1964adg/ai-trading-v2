@@ -47,7 +47,7 @@ $spaceIssues = 0
 
 foreach ($f in $pythonFiles) {
     $content = Get-Content $f.FullName -Raw
-    
+
     # Cerca pattern: "word.   word" o "word  ." (doppio spazio attorno al punto)
     if ($content -match '\w\.   +\w|  +\. ') {
         Write-Host "   ❌ SPAZI DOPPI: $($f.FullName. Replace((Get-Location).Path + '\', ''))" -ForegroundColor Red
@@ -67,7 +67,7 @@ Write-Host "
 3. Test import backend Python..." -ForegroundColor Yellow
 
 Push-Location backend
-$importTest = python -c "from api.market import router; from services.binance_service import binance_service; print('OK')" 2>&1
+$importTest = python -c "from backend.api.market import router; from backend.services.binance_service import binance_service; print('OK')" 2>&1
 Pop-Location
 
 if ($LASTEXITCODE -eq 0) {

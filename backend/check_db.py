@@ -11,8 +11,8 @@ Usage (PowerShell):
 
 from sqlalchemy import inspect
 
-from config import settings
-from lib.database import init_database, engines
+from backend.config import settings
+from backend.lib.database import init_database, engines
 
 
 def main() -> None:

@@ -259,7 +259,7 @@ export default function SymbolSearchModal({
           <div className="p-4 border-b border-gray-800">
             <div className="flex items-center justify-between mb-4">
               <Dialog.Title className="text-2xl font-bold text-white flex items-center gap-2">
-                🔍 Select Trading Symbol
+                🔍 Ricerca e selezione crypto
               </Dialog.Title>
 
               <button
@@ -277,7 +277,7 @@ export default function SymbolSearchModal({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="🔎 Search symbols...(e.g. BTC, ETH, SOL)"
+              placeholder="🔎 Inserisci un simbolo ...(es BTC, ETH, SOL)"
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 text-lg"
               autoFocus
             />
@@ -287,7 +287,7 @@ export default function SymbolSearchModal({
           <div className="p-4 border-b border-gray-800 bg-gray-800/50">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm text-gray-300 font-semibold">
-                Quick Access Presets ({presets.length}/{MAX_PRESETS})
+                Configurazione Preset ({presets.length}/{MAX_PRESETS})
               </h3>
               <button
                 onClick={handleResetPresets}
@@ -347,28 +347,28 @@ export default function SymbolSearchModal({
               <span className="text-sm text-gray-400 font-semibold">Sort by:</span>
 
               <SortButton
-                label="⭐ Favorites"
+                label="⭐ Preferiti"
                 active={sortBy === 'favorites'}
                 order={sortBy === 'favorites' ? sortOrder : null}
                 onClick={() => handleSort('favorites')}
               />
 
               <SortButton
-                label="🔘 Presets"
+                label="🔘 Preset"
                 active={sortBy === 'presets'}
                 order={sortBy === 'presets' ? sortOrder : null}
                 onClick={() => handleSort('presets')}
               />
 
               <SortButton
-                label="Name"
+                label="Nome"
                 active={sortBy === 'name'}
                 order={sortBy === 'name' ?  sortOrder : null}
                 onClick={() => handleSort('name')}
               />
 
               <SortButton
-                label="Price"
+                label="Prezzo"
                 active={sortBy === 'price'}
                 order={sortBy === 'price' ? sortOrder : null}
                 onClick={() => handleSort('price')}
@@ -382,7 +382,7 @@ export default function SymbolSearchModal({
               />
 
               <SortButton
-                label="Change %"
+                label="Variazione %"
                 active={sortBy === 'change'}
                 order={sortBy === 'change' ?  sortOrder : null}
                 onClick={() => handleSort('change')}

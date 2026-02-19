@@ -10,8 +10,8 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 import logging
 
-from app.data.binance_client import BinanceDataCollector
-from app.scout.models import (
+from backend.app.data.binance_client import BinanceDataCollector
+from backend.app.scout.models import (
     Opportunity,
     OpportunityScore,
     TechnicalIndicators,
@@ -20,7 +20,7 @@ from app.scout.models import (
     MarketOverview,
     ScoutStatus,
 )
-from app.scout.ml_predictor import ml_predictor
+from backend.app.scout.ml_predictor import ml_predictor
 
 logger = logging.getLogger(__name__)
 

@@ -96,7 +96,7 @@ Aggiunto script importer (in lavorazione nella sessione):
   - aggiorna `candlestick_metadata`
 
 Nota importante:
-- Per eseguire come script, serve bootstrap `sys.path` per risolvere `from lib.database ...`
+- Per eseguire come script, serve bootstrap `sys.path` per risolvere `from backend.lib.database ...`
   - (in alternativa: usare `PYTHONPATH=.`)
 
 #### Test eseguito

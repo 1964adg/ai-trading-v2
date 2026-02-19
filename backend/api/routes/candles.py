@@ -1,14 +1,14 @@
 import sys
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from models.candlestick import Candlestick
-from lib.database import get_db
+from backend.models.candlestick import Candlestick
+from backend.lib.database import get_db
 import datetime
 from binance.client import Client
 
 
 def get_market_db():
-    db_gen = get_db("market")
+    db_gen = get_db()
     db = next(db_gen)
     try:
         yield db
@@ -19,7 +19,7 @@ def get_market_db():
             pass
 
 
-from services.candlestick_service import save_candlestick
+from backend.services.candlestick_service import save_candlestick
 from datetime import datetime
 
 router = APIRouter()

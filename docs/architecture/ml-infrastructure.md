@@ -147,7 +147,7 @@ pandas>=2.0.0
 ### Backend
 
 ```python
-from services.ml_service import ml_service
+from backend.services.ml_service import ml_service
 
 # Get ML insights
 insights = ml_service.get_ml_insights("BTCUSDT", timeframe="1m")

@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sqlalchemy import text
-from lib.database import init_database, get_db
+from backend.lib.database import init_database, get_db
 
 
 def migrate():
@@ -21,7 +21,7 @@ def migrate():
 
     init_database()
 
-    db_gen = get_db("market")
+    db_gen = get_db()
     db = next(db_gen)
     try:
         # Check if columns already exist

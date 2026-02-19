@@ -114,7 +114,7 @@ test -f "backend/app/ml/inference/__init__.py" && test_result 0 "__init__.py in 
 test -f "backend/app/ml/utils/__init__.py" && test_result 0 "__init__.py in utils/" || test_result 1 "__init__.py in utils/"
 
 # Check main.py has ML router import
-if grep -q "from api.ml import router as ml_router" backend/main.py; then
+if grep -q "from backend.api.ml import router as ml_router" backend/main.py; then
     test_result 0 "ML router imported in main.py"
 else
     test_result 1 "ML router imported in main.py"

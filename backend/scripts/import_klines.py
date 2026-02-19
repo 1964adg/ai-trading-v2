@@ -24,7 +24,7 @@ import requests
 from requests.exceptions import HTTPError
 from sqlalchemy import text
 
-from lib.database import init_database, create_tables, get_db
+from backend.lib.database import init_database, create_tables, get_db
 
 
 BINANCE_BASE_URL = "https://api.binance.com"
@@ -284,7 +284,7 @@ def _set_metadata_status(
     now = _utc_now()
 
 
-db_gen = get_db("market")
+db_gen = get_db()
 db = next(db_gen)
 try:
     if error_code:
@@ -487,7 +487,7 @@ def import_symbol_interval(
                 last_open_ms = open_time_ms
 
             try:
-                db_gen = get_db("market")
+                db_gen = get_db()
                 db = next(db_gen)
                 try:
                     inserted = _insert_candles_bulk(db, rows)
@@ -517,7 +517,7 @@ def import_symbol_interval(
 
         # Finalize metadata based on what happened
         # Finalize metadata based on what happened
-        db_gen = get_db("market")
+        db_gen = get_db()
         db = next(db_gen)
         try:
             _upsert_metadata(db, symbol, interval, error_code, error_message)
@@ -528,7 +528,7 @@ def import_symbol_interval(
                 pass
 
         if error_code == ERROR_CODES["EMPTY_RESPONSE"]:
-            db_gen = get_db("market")
+            db_gen = get_db()
             db = next(db_gen)
             try:
                 total = int(
@@ -596,7 +596,7 @@ def import_symbol_interval(
             error_message = f"Unhandled exception: {str(e)[:200]}"
 
         try:
-            db_gen = get_db("market")
+            db_gen = get_db()
             db = next(db_gen)
             try:
                 _upsert_metadata(db, symbol, interval, error_code, error_message)

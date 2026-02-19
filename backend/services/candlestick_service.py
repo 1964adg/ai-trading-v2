@@ -1,6 +1,7 @@
-from models.candlestick import Candlestick
+from backend.models.candlestick import Candlestick
 from sqlalchemy.orm import Session
 from datetime import datetime
+
 
 def save_candlestick(
     db: Session,

@@ -1,4 +1,5 @@
 """Pytest configuration and fixtures"""
+
 import pytest
 import os
 from fastapi.testclient import TestClient
@@ -8,23 +9,23 @@ from main import app
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_environment():
     """Initialize test environment before any tests run.
-    
+
     This fixture:
     - Sets TESTING environment variable
     - Initializes database engines and creates tables
     - Runs once per test session before any tests
     """
     # Set testing mode
-    os.environ['TESTING'] = 'true'
-    
+    os.environ["TESTING"] = "true"
+
     # Initialize database and create tables
-    from lib.database import init_database, create_tables
-    
+    from backend.lib.database import init_database, create_tables
+
     init_database()
     create_tables()
-    
+
     yield
-    
+
     # Cleanup happens here if needed
 
 
@@ -46,7 +47,7 @@ def sample_backtest_config():
         "initial_capital": 10000,
         "position_size_pct": 2.0,
         "fast_period": 9,
-        "slow_period":  21,
+        "slow_period": 21,
         "stop_loss_pct": 2.0,
-        "take_profit_pct": 4.0
+        "take_profit_pct": 4.0,
     }

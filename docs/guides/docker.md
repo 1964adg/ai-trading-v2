@@ -289,7 +289,7 @@ docker-compose up --build -d frontend
 docker-compose logs backend
 
 # Verify database connection
-docker-compose exec backend python -c "from config import settings; print(settings)"
+docker-compose exec backend python -c "from backend.config import settings; print(settings)"
 
 # Restart backend
 docker-compose restart backend
@@ -407,6 +407,6 @@ For issues or questions:
 
 ---
 
-**Version**: 1.0.0  
-**Last Updated**: 2025-12-07  
+**Version**: 1.0.0
+**Last Updated**: 2025-12-07
 **Status**: Production Ready ✅

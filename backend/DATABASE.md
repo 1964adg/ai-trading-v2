@@ -64,7 +64,7 @@ All databases are configured with:
 Databases are automatically initialized on backend startup:
 
 ```python
-from lib.database import init_database, create_tables
+from backend.lib.database import init_database, create_tables
 
 # Initialize all three databases
 if init_database():
@@ -75,7 +75,7 @@ if init_database():
 ### Accessing Databases
 
 ```python
-from lib.database import get_db
+from backend.lib.database import get_db
 
 # Trading database (default)
 with get_db('trading') as db:
@@ -98,7 +98,7 @@ with get_db('analytics') as db:
 ### Database Health Check
 
 ```python
-from lib.database import check_database_health
+from backend.lib.database import check_database_health
 
 health = check_database_health()
 # Returns: {'trading': 'connected', 'market': 'connected', 'analytics': 'connected'}
@@ -125,7 +125,7 @@ PYTHONPATH=. python lib/db_utils.py
 ### Available Functions
 
 ```python
-from lib.db_utils import (
+from backend.lib.db_utils import (
     initialize_databases,      # Create all tables
     verify_database_integrity, # Check table counts
     export_database,          # Export to SQL dump
@@ -173,7 +173,7 @@ cp data/analytics.db data/backup/analytics_$(date +%Y%m%d).db
 ### Export to SQL
 
 ```python
-from lib.db_utils import export_database
+from backend.lib.db_utils import export_database
 
 # Export to SQL dump
 export_database('trading', './backups/trading_export.sql')
@@ -182,7 +182,7 @@ export_database('trading', './backups/trading_export.sql')
 ### Recovery
 
 ```python
-from lib.db_utils import import_database
+from backend.lib.db_utils import import_database
 
 # Import from SQL dump
 import_database('trading', './backups/trading_export.sql')
